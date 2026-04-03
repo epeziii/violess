@@ -1,0 +1,283 @@
+import { useState } from "react";
+import { AuthProvider, useAuth, PERMISSIONS } from "./AuthContext";
+import { ProtectedRoute } from "./ProtectedRoute";
+import LoginPage from "./pages/auth/LoginPage";
+import {
+  DashboardPage,
+  CasesPage,
+  ReferralPage,
+  CommunicationsPage,
+  AnalyticsPage,
+  EvidencePage,
+} from "./pages";
+import AccountManagementPage from "./pages/AccountManagementPage";
+import "./styles/global.css";
+
+const NAV = [
+  { id: "dashboard",  icon: "⊞",  label: "Dashboard",       permission: "dashboard" },
+  { id: "cases",      icon: "📁", label: "Case Management", permission: "cases" },
+  { id: "referrals",  icon: "↗",  label: "Referrals",       permission: "referrals" },
+  { id: "comms",      icon: "💬", label: "Communications",  permission: "communications" },
+  { id: "analytics",  icon: "📊", label: "Analytics",       permission: "analytics" },
+  { id: "evidence",   icon: "🗂", label: "Evidence",        permission: "evidence" },
+  { id: "accounts",   icon: "👥", label: "Accounts",        permission: "accountManagement", adminOnly: true },
+  { id: "settings",   icon: "⚙️", label: "Settings",        permission: "systemSettings",   adminOnly: true },
+];
+
+function SettingsPlaceholder() {
+  return (
+    <div style={{ padding: 32 }}>
+      <h1 style={{ fontSize: 22, fontWeight: 800, color: "var(--text)", marginBottom: 8 }}>System Settings</h1>
+      <p style={{ color: "var(--text-muted)", fontSize: 13 }}>
+        Admin-only — Configure barangay details and preferences. Coming next!
+      </p>
+    </div>
+  );
+}
+
+function Shell() {
+  const { user, logout, can, loading } = useAuth(); // ✅ include loading
+  const [page, setPage] = useState("dashboard");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
+
+  // ⚡ Wait for Firebase auth to finish initializing
+  if (loading) return (
+    <div className="auth-loading">
+      <div className="auth-spinner" />
+      Loading...
+    </div>
+  );
+
+  // ⚡ Render login page only if user is not authenticated
+  if (!user) return <LoginPage />;
+
+  const visibleNav = NAV.filter(n => can(n.permission));
+  const pages = {
+    dashboard: <DashboardPage onNavigate={setPage} />,
+    cases:     <CasesPage />,
+    referrals: <ReferralPage />,
+    comms:     <CommunicationsPage />,
+    analytics: <AnalyticsPage />,
+    evidence:  <EvidencePage />,
+    accounts:  <ProtectedRoute permission="accountManagement"><AccountManagementPage /></ProtectedRoute>,
+    settings:  <ProtectedRoute permission="systemSettings"><SettingsPlaceholder /></ProtectedRoute>,
+  };
+
+  return (
+    <div className="app-shell">
+      <aside className={`sidebar ${sidebarOpen ? "open" : "collapsed"}`}>
+        <div className="sidebar-brand">
+          <div className="brand-icon">🕊</div>
+          {sidebarOpen && (
+            <div className="brand-text">
+              <span className="brand-name">Vio-less</span>
+              <span className="brand-sub">Barangay System</span>
+            </div>
+          )}
+        </div>
+        <nav className="sidebar-nav">
+          {sidebarOpen && (
+            <div style={{ padding: "4px 6px 10px" }}>
+              <span
+                style={{
+                  display:"inline-block",
+                  padding:"3px 10px",
+                  borderRadius:20,
+                  fontSize:10,
+                  fontWeight:700,
+                  background: user.role==="admin"?"rgba(106,27,154,0.25)":"rgba(21,101,192,0.25)",
+                  color: user.role==="admin"?"#CE93D8":"#90CAF9",
+                  letterSpacing:0.4,
+                  textTransform:"uppercase"
+                }}
+              >
+                {user.role === "admin" ? "🛡️ Admin" : "👮 Officer"}
+              </span>
+            </div>
+          )}
+          {visibleNav.map(n => (
+            <button
+              key={n.id}
+              className={`nav-item ${page===n.id?"active":""}`}
+              onClick={() => setPage(n.id)}
+              title={!sidebarOpen ? n.label : undefined}
+            >
+              <span className="nav-icon">{n.icon}</span>
+              {sidebarOpen && <span className="nav-label">{n.label}</span>}
+              {sidebarOpen && n.adminOnly && (
+                <span
+                  style={{
+                    marginLeft:"auto",
+                    fontSize:9,
+                    background:"rgba(106,27,154,0.3)",
+                    color:"#CE93D8",
+                    padding:"1px 5px",
+                    borderRadius:10,
+                    fontWeight:700
+                  }}
+                >
+                  Admin
+                </span>
+              )}
+            </button>
+          ))}
+        </nav>
+        <div className="sidebar-footer">
+        <div className="officer-card" style={{ flexDirection: "column", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {/* Avatar circle */}
+            <div className={`officer-avatar ${user.role === "admin" ? "av-blue" : "av-pink"}`}>
+              {user.firstName && user.lastName
+                ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
+                : "?"}
+            </div>
+
+            {/* Name & Role */}
+            {sidebarOpen && (
+              <div className="officer-info">
+                <span className="officer-name">{user.firstName} {user.lastName}</span>
+                <span className="officer-role">
+                  {user.role === "admin" ? "🛡️ Admin" : "👮 Officer"}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Sign Out button */}
+          {sidebarOpen && (
+            <button
+              onClick={() => setShowSignOutConfirm(true)}
+              style={{
+                width: "100%",
+                background: "rgba(194,24,91,0.12)",
+                border: "0.5px solid rgba(194,24,91,0.2)",
+                borderRadius: 8,
+                color: "#F48FB1",
+                fontSize: 11,
+                fontWeight: 700,
+                padding: "7px 0",
+                cursor: "pointer",
+                fontFamily: "inherit",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6
+              }}
+            >
+              🚪 Sign Out
+            </button>
+          )}
+        </div>
+</div>
+      </aside>
+
+      <div className="main-area">
+        <header className="topbar">
+          <div className="topbar-left">
+            <button className="toggle-btn" onClick={() => setSidebarOpen(o => !o)}>☰</button>
+            <div className="topbar-breadcrumb">
+              <span className="breadcrumb-parent">Vio-less</span>
+              <span className="breadcrumb-sep">/</span>
+              <span className="breadcrumb-current">{NAV.find(n => n.id === page)?.label}</span>
+            </div>
+          </div>
+          <div className="topbar-right">
+            <div className="alert-indicator">
+              <span className="alert-bell">🔔</span>
+              <span className="alert-count">3</span>
+            </div>
+            <div className="topbar-search">
+              <span className="search-icon">🔍</span>
+              <input placeholder="Search cases..." className="search-input" />
+            </div>
+          </div>
+        </header>
+
+        <div className="alert-banner">
+          <span className="alert-dot" />
+          <span className="alert-text">Case #002 — Domestic Abuse requires immediate attention</span>
+          <span className="alert-count-pill">3 alerts</span>
+        </div>
+
+        <main className="page-content">
+          {pages[page] || <DashboardPage onNavigate={setPage} />}
+        </main>
+      </div>
+
+      {/* Sign Out Confirmation Dialog */}
+      {showSignOutConfirm && (
+        <div style={{
+          position: "fixed",
+          inset: 0,
+          backgroundColor: "rgba(20, 5, 12, 0.45)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: "#FFFFFF",
+            borderRadius: 14,
+            boxShadow: "0 16px 48px rgba(136, 14, 79, 0.18)",
+            padding: 32,
+            maxWidth: 400,
+            color: "#1A0A12"
+          }}>
+            <h2 style={{ marginTop: 0, marginBottom: 16, fontSize: 18, fontWeight: 700 }}>
+              ⚠️ Sign Out?
+            </h2>
+            <p style={{ marginBottom: 24, color: "#A08898", fontSize: 14, lineHeight: 1.5 }}>
+              Are you sure you want to sign out? You'll need to log in again to access the system.
+            </p>
+            <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setShowSignOutConfirm(false)}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: 6,
+                  border: "0.5px solid rgba(194,24,91,0.10)",
+                  background: "#FAF5F8",
+                  color: "#1A0A12",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  fontFamily: "inherit"
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setShowSignOutConfirm(false);
+                  logout();
+                }}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: 6,
+                  border: "none",
+                  background: "rgba(194,24,91,0.3)",
+                  color: "#C2185B",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  fontFamily: "inherit"
+                }}
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <Shell />
+    </AuthProvider>
+  );
+}
