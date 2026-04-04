@@ -1,16 +1,19 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet,
   TouchableOpacity, StatusBar, Animated, Dimensions
 } from 'react-native';
 import { colors, spacing, radius, shadow } from '../theme';
 import { Card, StatusBadge, QuickCard, SectionHeader } from '../components';
+import { auth } from '../config/firebase';
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
 
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen({ navigation }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+  const [userData, setUserData] = useState(null);
 
   useEffect(() => {
     Animated.parallel([
@@ -18,6 +21,35 @@ export default function HomeScreen({ navigation }) {
       Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 12, useNativeDriver: true }),
     ]).start();
   }, []);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+          const db = getFirestore();
+          const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+          if (userDoc.exists()) {
+            setUserData(userDoc.data());
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      }
+    };
+
+    fetchUserData();
+  }, []);
+
+  // Generate initials from first and last name
+  const getInitials = () => {
+    if (!userData) return 'U';
+    const first = userData.firstName ? userData.firstName.charAt(0).toUpperCase() : '';
+    const last = userData.lastName ? userData.lastName.charAt(0).toUpperCase() : '';
+    return (first + last) || 'U';
+  };
+
+  const firstName = userData?.firstName || 'User';
 
   return (
     <View style={styles.root}>
@@ -29,10 +61,10 @@ export default function HomeScreen({ navigation }) {
           <View style={styles.heroTop}>
             <View>
               <Text style={styles.heroGreet}>Good morning </Text>
-              <Text style={styles.heroName}>Maria</Text>
+              <Text style={styles.heroName}>{firstName}</Text>
             </View>
             <TouchableOpacity style={styles.heroAvatar}>
-              <Text style={styles.heroAvatarText}>M</Text>
+              <Text style={styles.heroAvatarText}>{getInitials()}</Text>
             </TouchableOpacity>
           </View>
 

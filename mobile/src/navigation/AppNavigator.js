@@ -8,7 +8,7 @@ import { colors } from '../theme';
 // 🔥 Firebase
 import { auth } from '../config/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, getDoc } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, onSnapshot } from 'firebase/firestore';
 
 // Auth Screens
 import WelcomeScreen from '../screens/auth/WelcomeScreen';
@@ -75,7 +75,9 @@ export default function AppNavigator() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (u) => {
+    let unsubAuth, unsubFirestore;
+
+    unsubAuth = onAuthStateChanged(auth, async (u) => {
       if (u) {
         // Verify user is in "users" collection (mobile user, not staff)
         try {
@@ -85,27 +87,51 @@ export default function AppNavigator() {
             // Only set user if registration is complete
             if (userDoc.data().registrationComplete === true) {
               setUser(u);
+              // Ensure any old unsubFirestore is cleaned up
+              unsubFirestore?.();
+              unsubFirestore = undefined;
             } else {
               // Registration not complete, stay in auth flow
               setUser(null);
+              // Unsubscribe from any old listener first
+              unsubFirestore?.();
+              // Listen for when registrationComplete becomes true (e.g., after RegisterSuccessScreen)
+              const unsubUser = onSnapshot(doc(db, 'users', u.uid), (snap) => {
+                if (snap.exists() && snap.data().registrationComplete === true) {
+                  console.log('Registration completed detected, logging in user');
+                  setUser(u);
+                }
+              }, (error) => {
+                console.error('Error listening to user registration:', error);
+              });
+              unsubFirestore = unsubUser;
             }
           } else {
             // User exists in Firebase Auth but not in "users" collection
             // This is likely a staff account that shouldn't have mobile access
+            unsubFirestore?.();
             await auth.signOut();
             setUser(null);
           }
         } catch (error) {
           console.error('Error verifying user:', error);
+          unsubFirestore?.();
           await auth.signOut();
           setUser(null);
         }
       } else {
+        // User logged out - clean up any existing listeners
+        unsubFirestore?.();
+        unsubFirestore = undefined;
         setUser(null);
       }
       setLoading(false);
     });
-    return unsub;
+
+    return () => {
+      unsubAuth?.();
+      unsubFirestore?.();
+    };
   }, []);
 
   if (loading) return null; // or splash screen

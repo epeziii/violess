@@ -9,6 +9,7 @@ import { colors, spacing, radius, shadow } from '../../theme';
 // 🔥 Firebase
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../config/firebase';
+import { getFirestore, doc, setDoc } from 'firebase/firestore';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -42,7 +43,13 @@ export default function LoginScreen({ navigation }) {
     setLoading(true);
 
     try {
-      await signInWithEmailAndPassword(auth, email.trim(), password);
+      const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password);
+
+      // Mark registration as complete for this user
+      const db = getFirestore();
+      await setDoc(doc(db, 'users', userCredential.user.uid), {
+        registrationComplete: true,
+      }, { merge: true });
 
       // ✅ Do NOT navigate manually
       // Your AppNavigator's Firebase listener will handle login redirect

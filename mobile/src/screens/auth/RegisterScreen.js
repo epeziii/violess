@@ -125,7 +125,6 @@ export default function RegisterScreen({ navigation }) {
       setLoading(false);
       setStep(2);
     } else {
-      if (!barangay.trim()) { setError('Please enter your barangay.'); return; }
       setLoading(true);
       setError('');
       try {
@@ -135,14 +134,15 @@ export default function RegisterScreen({ navigation }) {
         const db = getFirestore();
 
         // Update the Firestore document with profile data
+        // Do NOT set registrationComplete yet - wait until RegisterSuccessScreen
         await setDoc(doc(db, 'users', user.uid), {
           firstName: firstName.trim(),
           lastName: lastName.trim(),
           email: email.trim(),
           phone: '',
-          barangay: barangay.trim(),
+          barangay: '',
           status: 'active',
-          registrationComplete: true,
+          registrationComplete: false,
           accountCreated: Timestamp.now(),
           lastLogin: Timestamp.now(),
         });
@@ -390,20 +390,6 @@ export default function RegisterScreen({ navigation }) {
                     </Text>
                   </TouchableOpacity>
                 ))}
-              </View>
-            </View>
-
-            <View style={styles.field}>
-              <Text style={styles.label}>Your barangay</Text>
-              <View style={styles.inputRow}>
-                <Text style={styles.inputIcon}>📍</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g. Brgy. 123, Malate, Manila"
-                  placeholderTextColor={colors.placeholder}
-                  value={barangay}
-                  onChangeText={setBarangay}
-                />
               </View>
             </View>
 

@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   StatusBar, TextInput, ScrollView,
 } from 'react-native';
 import { colors, spacing, radius, shadow } from '../../theme';
+import { auth } from '../../config/firebase';
+import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
 
 // ─── Anonymous Report Screen ─────────────────────────────────────────────────
 export function AnonymousScreen({ navigation }) {
@@ -114,6 +116,31 @@ export function AnonymousScreen({ navigation }) {
 
 // ─── Register Success Screen ──────────────────────────────────────────────────
 export function RegisterSuccessScreen({ navigation }) {
+  const [userData, setUserData] = useState(null);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+          const db = getFirestore();
+          const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+          if (userDoc.exists()) {
+            setUserData(userDoc.data());
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      }
+    };
+
+    fetchUserData();
+  }, []);
+
+  const handleContinueToLogin = () => {
+    navigation.navigate('Login');
+  };
+
   return (
     <View style={[styles.root, { backgroundColor: colors.surface }]}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
@@ -123,7 +150,7 @@ export function RegisterSuccessScreen({ navigation }) {
         </View>
         <Text style={styles.successTitle}>You're all set!</Text>
         <Text style={styles.successSub}>
-          Welcome to Vio-less. Your account is active and protected. Your reports, chats, and case updates are fully encrypted.
+          Welcome to Vio-less. Your account is active and protected.
         </Text>
 
         <View style={[styles.card, { backgroundColor: colors.primaryLight, width: '100%', marginTop: spacing.xxl }]}>
@@ -133,27 +160,26 @@ export function RegisterSuccessScreen({ navigation }) {
               <Text style={{ fontSize: 20 }}>👩</Text>
             </View>
             <View>
-              <Text style={styles.profileName}>Maria Santos</Text>
-              <Text style={styles.profileRole}>Community Member · Brgy. 123</Text>
+              <Text style={styles.profileName}>
+                {userData ? `${userData.firstName} ${userData.lastName}` : 'Loading...'}
+              </Text>
+              <Text style={styles.profileRole}>
+                Community Member
+              </Text>
             </View>
           </View>
         </View>
 
-        <View style={{ width: '100%', marginTop: spacing.xl, gap: spacing.sm }}>
+        <View style={{ width: '100%', marginTop: spacing.xl }}>
           <TouchableOpacity
             style={[styles.btnPrimary, shadow.md]}
-            onPress={() => navigation.replace('MainApp')}
+            onPress={handleContinueToLogin}
             activeOpacity={0.85}
           >
-            <Text style={styles.btnPrimaryText}>Go to Home →</Text>
-          </TouchableOpacity>
-
-          <View style={[styles.safetyNote, { marginTop: 0 }]}>
-            <View style={styles.safetyDot} />
-            <Text style={styles.safetyText}>
-              Privacy Mode is ON by default. The app appears as "Weather App" on your home screen.
+            <Text style={styles.btnPrimaryText}>
+              Continue to Login →
             </Text>
-          </View>
+          </TouchableOpacity>
         </View>
       </View>
     </View>
