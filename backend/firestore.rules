@@ -1,0 +1,31 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── STAFF COLLECTION (Web-only) ────────────────────────────────
+    // Only staff members can read/write their own profiles
+    // Only backend with Admin SDK can create/update staff accounts
+    match /staff/{uid} {
+      // Authenticated users can only read their own staff profile
+      allow read: if request.auth.uid == uid;
+      // Staff cannot write their own profiles (only backend/admin can update)
+      allow write: if false;
+    }
+
+    // ─── USERS COLLECTION (Mobile users) ────────────────────────────
+    // Mobile users can CRUD their own profiles
+    match /users/{uid} {
+      // Authenticated users can read and write their own profile
+      allow read: if request.auth.uid == uid;
+      allow create: if request.auth.uid == uid &&
+                       request.resource.data.keys().hasAll(['firstName', 'lastName', 'email', 'phone']);
+      allow update: if request.auth.uid == uid;
+      allow delete: if request.auth.uid == uid;
+    }
+
+    // ─── DEFAULT DENY ──────────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

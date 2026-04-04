@@ -49,7 +49,8 @@ export default function LoginScreen({ navigation }) {
 
     } catch (e) {
       let msg = 'Incorrect email or password.';
-      if (e.code === 'auth/user-not-found') msg = 'User not found.';
+      if (e.message) msg = e.message;
+      if (e.code === 'auth/user-not-found') msg = 'Mobile user account not found.';
       if (e.code === 'auth/wrong-password') msg = 'Wrong password.';
       if (e.code === 'auth/invalid-email') msg = 'Invalid email format.';
 

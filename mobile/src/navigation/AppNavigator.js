@@ -8,6 +8,7 @@ import { colors } from '../theme';
 // 🔥 Firebase
 import { auth } from '../config/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
 
 // Auth Screens
 import WelcomeScreen from '../screens/auth/WelcomeScreen';
@@ -28,6 +29,7 @@ import PrivacyScreen from '../screens/PrivacyScreen';
 import ReportScreen from '../screens/ReportScreen';
 import SOSScreen from '../screens/SOSScreen';
 
+const db = getFirestore();
 const RootStack = createNativeStackNavigator();
 const AuthStack = createNativeStackNavigator();
 const AppStack = createNativeStackNavigator();
@@ -73,8 +75,28 @@ export default function AppNavigator() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
-      setUser(u);
+    const unsub = onAuthStateChanged(auth, async (u) => {
+      if (u) {
+        // Verify user is in "users" collection (mobile user, not staff)
+        try {
+          const userDoc = await getDoc(doc(db, 'users', u.uid));
+          if (userDoc.exists()) {
+            // User is a valid mobile user
+            setUser(u);
+          } else {
+            // User exists in Firebase Auth but not in "users" collection
+            // This is likely a staff account that shouldn't have mobile access
+            await auth.signOut();
+            setUser(null);
+          }
+        } catch (error) {
+          console.error('Error verifying user:', error);
+          await auth.signOut();
+          setUser(null);
+        }
+      } else {
+        setUser(null);
+      }
       setLoading(false);
     });
     return unsub;

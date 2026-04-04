@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   StatusBar, TextInput, KeyboardAvoidingView,
@@ -10,7 +10,10 @@ import {
   createUserWithEmailAndPassword,
   sendEmailVerification,
   reload,
+  signInWithEmailAndPassword,
+  onAuthStateChanged,
 } from 'firebase/auth';
+import { getFirestore, doc, setDoc, Timestamp } from 'firebase/firestore';
 
 const STEPS = ['Account', 'Check Email', 'Profile'];
 
@@ -28,7 +31,16 @@ export default function RegisterScreen({ navigation }) {
   const [emergency,    setEmergency]    = useState('');
   const [loading,      setLoading]      = useState(false);
   const [error,        setError]        = useState('');
+  const [currentUser, setCurrentUser]   = useState(null);
   const slideAnim = useRef(new Animated.Value(0)).current;
+
+  // Listen to auth state changes to reliably get current user
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setCurrentUser(u);
+    });
+    return unsub;
+  }, []);
 
   const pwStrength = () => {
     if (password.length < 6) return { level: 0, label: 'Too short', color: '#EEE' };
@@ -56,55 +68,89 @@ export default function RegisterScreen({ navigation }) {
       }
       setLoading(true);
       try {
-        // Create user account with Firebase
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        // Create Firebase account
+        const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
 
-        // Send verification email
+        // Send verification email using Firebase
         await sendEmailVerification(userCredential.user);
+
+        // Save user data to Firestore immediately
+        const db = getFirestore();
+        const userData = {
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          email: email.trim(),
+          phone: '',
+          barangay: '',
+          status: 'active',
+          accountCreated: Timestamp.now(),
+          lastLogin: Timestamp.now(),
+        };
+        console.log('Creating user doc for uid:', userCredential.user.uid);
+        console.log('User data:', userData);
+        await setDoc(doc(db, 'users', userCredential.user.uid), userData);
+        console.log('User document created successfully in Step 0');
 
         setLoading(false);
         setStep(1);
       } catch (err) {
         setLoading(false);
+        let errorMsg = err.message || 'Failed to create account. Please try again.';
         if (err.code === 'auth/email-already-in-use') {
-          setError('This email is already registered.');
+          errorMsg = 'This email is already registered.';
         } else if (err.code === 'auth/invalid-email') {
-          setError('Invalid email address.');
+          errorMsg = 'Invalid email address.';
         } else if (err.code === 'auth/weak-password') {
-          setError('Password is too weak.');
-        } else {
-          setError(err.message || 'Failed to create account. Please try again.');
+          errorMsg = 'Password is too weak.';
         }
+        setError(errorMsg);
       }
     } else if (step === 1) {
-      // Check if email is verified
-      setLoading(true);
-      try {
-        // Reload user to get latest email verification status
-        await reload(auth.currentUser);
-
-        if (auth.currentUser?.emailVerified) {
-          setLoading(false);
-          setStep(2);
-        } else {
-          setLoading(false);
-          setError('Please verify your email first. Check your inbox for the verification link.');
-        }
-      } catch (err) {
-        setLoading(false);
-        setError(err.message || 'Failed to check verification status.');
+      // Verify email and proceed to profile collection
+      const user = auth.currentUser;
+      if (!user) {
+        setError('Please verify your email first by clicking the link.');
+        return;
       }
+
+      // Refresh auth state to get latest email verification status from Firebase
+      await reload(user);
+
+      if (!user.emailVerified) {
+        setError('Please verify your email first by clicking the link.');
+        return;
+      }
+
+      setLoading(false);
+      setStep(2);
     } else {
       if (!barangay.trim()) { setError('Please enter your barangay.'); return; }
       setLoading(true);
+      setError('');
       try {
-        // TODO: Save additional profile data to Firestore (firstName, lastName, middleName, role, barangay, emergency)
-        await new Promise(r => setTimeout(r, 1000));
+        const user = auth.currentUser;
+        if (!user) throw new Error('No user logged in');
+
+        const db = getFirestore();
+
+        // Update the Firestore document with profile data
+        await setDoc(doc(db, 'users', user.uid), {
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          email: email.trim(),
+          phone: '',
+          barangay: barangay.trim(),
+          status: 'active',
+          accountCreated: Timestamp.now(),
+          lastLogin: Timestamp.now(),
+        });
+
         setLoading(false);
         navigation.replace('RegisterSuccess');
       } catch (err) {
         setLoading(false);
-        setError(err.message || 'Failed to complete setup.');
+        console.error('Profile error:', err);
+        setError(err?.message || 'Failed to save to Firestore.');
       }
     }
   };
@@ -114,11 +160,15 @@ export default function RegisterScreen({ navigation }) {
   const handleResendEmail = async () => {
     setError('');
     try {
-      await sendEmailVerification(auth.currentUser);
-      setError(''); // Clear any previous errors
+      const user = auth.currentUser;
+      if (!user) {
+        setError('Please wait a moment for your session to load...');
+        return;
+      }
+      await sendEmailVerification(user);
       alert('Verification email sent! Check your inbox.');
     } catch (err) {
-      setError('Failed to resend email. Please try again.');
+      setError('Failed to resend email: ' + err.message);
     }
   };
 
