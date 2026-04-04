@@ -82,7 +82,13 @@ export default function AppNavigator() {
           const userDoc = await getDoc(doc(db, 'users', u.uid));
           if (userDoc.exists()) {
             // User is a valid mobile user
-            setUser(u);
+            // Only set user if registration is complete
+            if (userDoc.data().registrationComplete === true) {
+              setUser(u);
+            } else {
+              // Registration not complete, stay in auth flow
+              setUser(null);
+            }
           } else {
             // User exists in Firebase Auth but not in "users" collection
             // This is likely a staff account that shouldn't have mobile access

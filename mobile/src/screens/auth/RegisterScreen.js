@@ -83,6 +83,7 @@ export default function RegisterScreen({ navigation }) {
           phone: '',
           barangay: '',
           status: 'active',
+          registrationComplete: false,
           accountCreated: Timestamp.now(),
           lastLogin: Timestamp.now(),
         };
@@ -141,6 +142,7 @@ export default function RegisterScreen({ navigation }) {
           phone: '',
           barangay: barangay.trim(),
           status: 'active',
+          registrationComplete: true,
           accountCreated: Timestamp.now(),
           lastLogin: Timestamp.now(),
         });
