@@ -83,7 +83,7 @@ export default function LoginScreen({ navigation }) {
 
         <View style={styles.heroContent}>
           <View style={styles.logoBox}>
-            <Text style={{ fontSize: 26 }}>🕊</Text>
+            <Text style={{ fontSize: 26 }}></Text>
           </View>
           <Text style={styles.heroTitle}>Welcome back</Text>
           <Text style={styles.heroSub}>Sign in to your Vio-less account</Text>

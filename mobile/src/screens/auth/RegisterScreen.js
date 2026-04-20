@@ -236,7 +236,7 @@ export default function RegisterScreen({ navigation }) {
             <View style={styles.field}>
               <Text style={styles.label}>First name</Text>
               <View style={styles.inputRow}>
-                <Text style={styles.inputIcon}>👤</Text>
+                <Text style={styles.inputIcon}></Text>
                 <TextInput
                   style={styles.input}
                   placeholder="Your first name"
@@ -250,7 +250,7 @@ export default function RegisterScreen({ navigation }) {
             <View style={styles.field}>
               <Text style={styles.label}>Last name</Text>
               <View style={styles.inputRow}>
-                <Text style={styles.inputIcon}>👤</Text>
+                <Text style={styles.inputIcon}></Text>
                 <TextInput
                   style={styles.input}
                   placeholder="Your last name"
@@ -264,7 +264,7 @@ export default function RegisterScreen({ navigation }) {
             <View style={styles.field}>
               <Text style={styles.label}>Middle name <Text style={styles.labelOptional}>(optional)</Text></Text>
               <View style={styles.inputRow}>
-                <Text style={styles.inputIcon}>👤</Text>
+                <Text style={styles.inputIcon}></Text>
                 <TextInput
                   style={styles.input}
                   placeholder="Your middle name"
@@ -278,7 +278,7 @@ export default function RegisterScreen({ navigation }) {
             <View style={styles.field}>
               <Text style={styles.label}>Email address</Text>
               <View style={styles.inputRow}>
-                <Text style={styles.inputIcon}>📧</Text>
+                <Text style={styles.inputIcon}></Text>
                 <TextInput
                   style={styles.input}
                   placeholder="your.email@example.com"

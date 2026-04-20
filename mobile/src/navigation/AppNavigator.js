@@ -24,6 +24,7 @@ import {
 import HomeScreen from '../screens/HomeScreen';
 import CaseTrackingScreen from '../screens/CaseTrackingScreen';
 import ChatScreen from '../screens/ChatScreen';
+import ChatbotScreen from '../screens/ChatbotScreen';
 import ResourcesScreen from '../screens/ResourcesScreen';
 import PrivacyScreen from '../screens/PrivacyScreen';
 import ReportScreen from '../screens/ReportScreen';
@@ -66,6 +67,7 @@ function MainApp() {
       <AppStack.Screen name="Tabs" component={MainTabs} />
       <AppStack.Screen name="Track" component={CaseTrackingScreen} />
       <AppStack.Screen name="Chat" component={ChatScreen} />
+      <AppStack.Screen name="Chatbot" component={ChatbotScreen} />
     </AppStack.Navigator>
   );
 }

@@ -22,7 +22,7 @@ export function AnonymousScreen({ navigation }) {
         </TouchableOpacity>
         <View style={{ alignItems: 'center' }}>
           <View style={styles.anonIconBox}>
-            <Text style={{ fontSize: 30 }}>🕵️</Text>
+            <Text style={{ fontSize: 30 }}></Text>
           </View>
           <Text style={styles.heroTitle}>Anonymous Mode</Text>
           <Text style={styles.heroSub}>Report safely without{'\n'}creating an account</Text>
@@ -94,7 +94,7 @@ export function AnonymousScreen({ navigation }) {
           activeOpacity={0.85}
         >
           <View style={styles.accountIconWrap}>
-            <Text style={{ fontSize: 20 }}>👤</Text>
+            <Text style={{ fontSize: 20 }}></Text>
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.accountTitle}>Create an account instead</Text>

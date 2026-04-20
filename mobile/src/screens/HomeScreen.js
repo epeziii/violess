@@ -96,46 +96,23 @@ export default function HomeScreen({ navigation }) {
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
 
           {/* ── SOS Panic Button ── */}
-          <TouchableOpacity
-            style={[styles.sosCard, shadow.lg]}
-            onPress={() => navigation.navigate('SOS')}
-            activeOpacity={0.9}
-          >
-            <View style={styles.sosIconWrap}>
-              <Text style={{ fontSize: 26 }}></Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.sosTitle}>SOS Emergency</Text>
-              <Text style={styles.sosSub}>Press for immediate help</Text>
-            </View>
-            <View style={styles.sosPulse} />
-          </TouchableOpacity>
+          
 
           {/* ── Quick Actions ── */}
           <SectionHeader title="Quick Actions" />
           <View style={styles.quickGrid}>
             <QuickCard
-              icon="" title="Report" desc="File a new incident"
-              onPress={() => navigation.navigate('Report')}
-              accent={colors.primaryLight}
-            />
-            <QuickCard
               icon="" title="Track Case" desc="View case status"
               onPress={() => navigation.navigate('Track')}
               accent={colors.infoLight}
             />
-          </View>
-          <View style={styles.quickGrid}>
             <QuickCard
               icon="" title="Chat Support" desc="Talk to a counselor"
               onPress={() => navigation.navigate('Chat')}
               accent={colors.accentLight}
             />
-            <QuickCard
-              icon="" title="Resources" desc="Rights & hotlines"
-              onPress={() => navigation.navigate('Resources')}
-              accent={colors.safeLight}
-            />
+          </View>
+          <View style={styles.quickGrid}>
           </View>
 
           {/* ── Recent Activity ── */}

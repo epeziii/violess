@@ -198,7 +198,7 @@ export default function ReportScreen({ navigation }) {
             <Text style={styles.fieldLabel}>Location</Text>
             <TextInput
               style={styles.input}
-              placeholder="Barangay / Address"
+              placeholder="Where did it happen?"
               placeholderTextColor={colors.placeholder}
               value={location}
               onChangeText={setLocation}

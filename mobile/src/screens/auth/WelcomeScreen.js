@@ -34,7 +34,7 @@ export default function WelcomeScreen({ navigation }) {
       {/* Logo area */}
       <Animated.View style={[styles.logoWrap, { transform: [{ scale: scaleAnim }] }]}>
         <View style={styles.logoBox}>
-          <Text style={styles.logoIcon}>🕊</Text>
+          <Text style={styles.logoIcon}></Text>
         </View>
         <Text style={styles.appName}>Vio-less</Text>
         <Text style={styles.tagline}>Your safe space to report,{'\n'}track, and find support</Text>

@@ -14,14 +14,14 @@ import AccountManagementPage from "./pages/AccountManagementPage";
 import "./styles/global.css";
 
 const NAV = [
-  { id: "dashboard",  icon: "⊞",  label: "Dashboard",       permission: "dashboard" },
-  { id: "cases",      icon: "📁", label: "Case Management", permission: "cases" },
-  { id: "referrals",  icon: "↗",  label: "Referrals",       permission: "referrals" },
-  { id: "comms",      icon: "💬", label: "Communications",  permission: "communications" },
-  { id: "analytics",  icon: "📊", label: "Analytics",       permission: "analytics" },
-  { id: "evidence",   icon: "🗂", label: "Evidence",        permission: "evidence" },
-  { id: "accounts",   icon: "👥", label: "Accounts",        permission: "accountManagement", adminOnly: true },
-  { id: "settings",   icon: "⚙️", label: "Settings",        permission: "systemSettings",   adminOnly: true },
+  { id: "dashboard",  icon: "",  label: "Dashboard",       permission: "dashboard" },
+  { id: "cases",      icon: "", label: "Case Management", permission: "cases" },
+  { id: "referrals",  icon: "",  label: "Referrals",       permission: "referrals" },
+  { id: "comms",      icon: "", label: "Communications",  permission: "communications" },
+  { id: "analytics",  icon: "", label: "Analytics",       permission: "analytics" },
+  { id: "evidence",   icon: "", label: "Evidence",        permission: "evidence" },
+  { id: "accounts",   icon: "", label: "Accounts",        permission: "accountManagement", adminOnly: true },
+  { id: "settings",   icon: "", label: "Settings",        permission: "systemSettings",   adminOnly: true },
 ];
 
 function SettingsPlaceholder() {
@@ -68,7 +68,7 @@ function Shell() {
     <div className="app-shell">
       <aside className={`sidebar ${sidebarOpen ? "open" : "collapsed"}`}>
         <div className="sidebar-brand">
-          <div className="brand-icon">🕊</div>
+          <div className="brand-icon"></div>
           {sidebarOpen && (
             <div className="brand-text">
               <span className="brand-name">Vio-less</span>
@@ -165,7 +165,7 @@ function Shell() {
                 gap: 6
               }}
             >
-              🚪 Sign Out
+               Sign Out
             </button>
           )}
         </div>

@@ -3,11 +3,11 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // ─── STAFF COLLECTION (Web-only) ────────────────────────────────
-    // Only staff members can read/write their own profiles
+    // Only authenticated staff can read (admin verified on frontend)
     // Only backend with Admin SDK can create/update staff accounts
     match /staff/{uid} {
-      // Authenticated users can only read their own staff profile
-      allow read: if request.auth.uid == uid;
+      // Authenticated staff members can read all staff profiles (admin access enforced on frontend)
+      allow read: if request.auth != null;
       // Staff cannot write their own profiles (only backend/admin can update)
       allow write: if false;
     }
