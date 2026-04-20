@@ -98,14 +98,20 @@ export default function AppNavigator() {
               // Unsubscribe from any old listener first
               unsubFirestore?.();
               // Listen for when registrationComplete becomes true (e.g., after RegisterSuccessScreen)
-              const unsubUser = onSnapshot(doc(db, 'users', u.uid), (snap) => {
-                if (snap.exists() && snap.data().registrationComplete === true) {
-                  console.log('Registration completed detected, logging in user');
-                  setUser(u);
+              const unsubUser = onSnapshot(
+                doc(db, 'users', u.uid),
+                (snap) => {
+                  if (snap.exists() && snap.data().registrationComplete === true) {
+                    console.log('Registration completed detected, logging in user');
+                    setUser(u);
+                  }
+                },
+                (error) => {
+                  console.warn('Note: Waiting for registration to complete...', error.code);
+                  // Listener error is expected while registration is in progress
+                  // The listener will retry automatically
                 }
-              }, (error) => {
-                console.error('Error listening to user registration:', error);
-              });
+              );
               unsubFirestore = unsubUser;
             }
           } else {

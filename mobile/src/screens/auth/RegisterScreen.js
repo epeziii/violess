@@ -17,6 +17,27 @@ import { getFirestore, doc, setDoc, Timestamp } from 'firebase/firestore';
 
 const STEPS = ['Account', 'Check Email', 'Profile'];
 
+const capitalize = (str) => {
+  if (!str) return '';
+  return str.trim().charAt(0).toUpperCase() + str.trim().slice(1);
+};
+
+// Format barangay and city: combine and capitalize
+const formatBarangayCity = (barangay, city) => {
+  const b = barangay.trim();
+  const c = city.trim();
+
+  if (!b || !c) {
+    return { error: 'Please fill in both barangay and city' };
+  }
+
+  // Capitalize each word in barangay and city
+  const formattedBarangay = b.split(/\s+/).map(w => capitalize(w)).join(' ');
+  const formattedCity = c.split(/\s+/).map(w => capitalize(w)).join(' ');
+
+  return { formatted: `${formattedBarangay}, ${formattedCity}` };
+};
+
 export default function RegisterScreen({ navigation }) {
   const [step,         setStep]         = useState(0);
   const [firstName,    setFirstName]    = useState('');
@@ -28,6 +49,7 @@ export default function RegisterScreen({ navigation }) {
   const [showPw,       setShowPw]       = useState(false);
   const [role,         setRole]         = useState('woman');
   const [barangay,     setBarangay]     = useState('');
+  const [city,         setCity]         = useState('');
   const [emergency,    setEmergency]    = useState('');
   const [loading,      setLoading]      = useState(false);
   const [error,        setError]        = useState('');
@@ -77,8 +99,8 @@ export default function RegisterScreen({ navigation }) {
         // Save user data to Firestore immediately
         const db = getFirestore();
         const userData = {
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
+          firstName: capitalize(firstName),
+          lastName: capitalize(lastName),
           email: email.trim(),
           phone: '',
           barangay: '',
@@ -127,6 +149,20 @@ export default function RegisterScreen({ navigation }) {
     } else {
       setLoading(true);
       setError('');
+      if (!emergency.trim()) {
+        setLoading(false);
+        setError('Please fill in emergency contact.');
+        return;
+      }
+
+      // Validate and format barangay and city
+      const barangayResult = formatBarangayCity(barangay, city);
+      if (barangayResult.error) {
+        setLoading(false);
+        setError(barangayResult.error);
+        return;
+      }
+
       try {
         const user = auth.currentUser;
         if (!user) throw new Error('No user logged in');
@@ -136,16 +172,16 @@ export default function RegisterScreen({ navigation }) {
         // Update the Firestore document with profile data
         // Do NOT set registrationComplete yet - wait until RegisterSuccessScreen
         await setDoc(doc(db, 'users', user.uid), {
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
+          firstName: capitalize(firstName),
+          lastName: capitalize(lastName),
           email: email.trim(),
           phone: '',
-          barangay: '',
+          barangay: barangayResult.formatted,
+          emergency: emergency.trim(),
           status: 'active',
           registrationComplete: false,
-          accountCreated: Timestamp.now(),
           lastLogin: Timestamp.now(),
-        });
+        }, { merge: true });
 
         setLoading(false);
         navigation.replace('RegisterSuccess');
@@ -177,7 +213,9 @@ export default function RegisterScreen({ navigation }) {
   return (
     <KeyboardAvoidingView
       style={styles.root}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      enabled
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
     >
       <StatusBar barStyle="light-content" backgroundColor={colors.primaryDark} />
 
@@ -394,18 +432,47 @@ export default function RegisterScreen({ navigation }) {
             </View>
 
             <View style={styles.field}>
-              <Text style={styles.label}>Emergency contact (optional)</Text>
+              <Text style={styles.label}>Emergency contact</Text>
               <View style={styles.inputRow}>
                 <Text style={styles.inputIcon}>🆘</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="Name · +63 9XX XXX XXXX"
+                  placeholder="+63 9XX XXX XXXX"
                   placeholderTextColor={colors.placeholder}
                   value={emergency}
                   onChangeText={setEmergency}
+                  keyboardType="phone-pad"
                 />
               </View>
               <Text style={styles.fieldHint}>This person will be notified when you press SOS</Text>
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Barangay</Text>
+              <View style={styles.inputRow}>
+                <Text style={styles.inputIcon}>📍</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g., Mabayuan"
+                  placeholderTextColor={colors.placeholder}
+                  value={barangay}
+                  onChangeText={setBarangay}
+                />
+              </View>
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>City</Text>
+              <View style={styles.inputRow}>
+                <Text style={styles.inputIcon}>🏙️</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g., Olongapo City"
+                  placeholderTextColor={colors.placeholder}
+                  value={city}
+                  onChangeText={setCity}
+                />
+              </View>
             </View>
           </>
         )}

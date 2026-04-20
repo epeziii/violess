@@ -15,11 +15,14 @@ service cloud.firestore {
     // ─── USERS COLLECTION (Mobile users) ────────────────────────────
     // Mobile users can CRUD their own profiles
     match /users/{uid} {
-      // Authenticated users can read and write their own profile
+      // Authenticated users can read their own profile
       allow read: if request.auth.uid == uid;
+      // Users can create their profile with required fields
       allow create: if request.auth.uid == uid &&
-                       request.resource.data.keys().hasAll(['firstName', 'lastName', 'email', 'phone']);
+                       request.resource.data.keys().hasAll(['firstName', 'lastName', 'email']);
+      // Users can update their profile
       allow update: if request.auth.uid == uid;
+      // Users can delete their profile
       allow delete: if request.auth.uid == uid;
     }
 
