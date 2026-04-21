@@ -38,9 +38,9 @@ export default function ChatScreen({ navigation }) {
             <Text style={s.onlineText}>Online · 🔒 Encrypted</Text>
           </View>
         </View>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}
-          onPress={() => navigation.navigate('Chatbot')}
+          onPress={() => navigation.replace('Chatbot')}
         >
           <Text style={{ fontSize: 18 }}>🤖</Text>
         </TouchableOpacity>

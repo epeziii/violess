@@ -63,7 +63,10 @@ export default function HomeScreen({ navigation }) {
               <Text style={styles.heroGreet}>Good morning </Text>
               <Text style={styles.heroName}>{firstName}</Text>
             </View>
-            <TouchableOpacity style={styles.heroAvatar}>
+            <TouchableOpacity
+              style={styles.heroAvatar}
+              onPress={() => navigation.navigate('Profile')}
+            >
               <Text style={styles.heroAvatarText}>{getInitials()}</Text>
             </TouchableOpacity>
           </View>

@@ -29,6 +29,7 @@ import ResourcesScreen from '../screens/ResourcesScreen';
 import PrivacyScreen from '../screens/PrivacyScreen';
 import ReportScreen from '../screens/ReportScreen';
 import SOSScreen from '../screens/SOSScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 
 const db = getFirestore();
 const RootStack = createNativeStackNavigator();
@@ -68,6 +69,7 @@ function MainApp() {
       <AppStack.Screen name="Track" component={CaseTrackingScreen} />
       <AppStack.Screen name="Chat" component={ChatScreen} />
       <AppStack.Screen name="Chatbot" component={ChatbotScreen} />
+      <AppStack.Screen name="Profile" component={ProfileScreen} />
     </AppStack.Navigator>
   );
 }

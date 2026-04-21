@@ -68,7 +68,7 @@ export default function ChatbotScreen({ navigation }) {
         </View>
         <TouchableOpacity
           style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}
-          onPress={() => navigation.navigate('Chat')}
+          onPress={() => navigation.replace('Chat')}
         >
           <Text style={{ fontSize: 18 }}>💬</Text>
         </TouchableOpacity>
