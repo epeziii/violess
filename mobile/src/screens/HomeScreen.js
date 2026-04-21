@@ -110,8 +110,8 @@ export default function HomeScreen({ navigation }) {
               accent={colors.infoLight}
             />
             <QuickCard
-              icon="" title="Chat Support" desc="Talk to a counselor"
-              onPress={() => navigation.navigate('Chat')}
+              icon="" title="Chat Support" desc="Talk to SafeTalk AI"
+              onPress={() => navigation.navigate('Chatbot')}
               accent={colors.accentLight}
             />
           </View>

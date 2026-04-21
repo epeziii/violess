@@ -66,7 +66,7 @@ export default function CaseTrackingScreen({ navigation }) {
               <Text style={s.officerName}>{selected.officer}</Text>
               <Text style={s.officerRole}>VAWC Desk · Brgy. 123</Text>
             </View>
-            <TouchableOpacity style={s.msgBtn}>
+            <TouchableOpacity style={s.msgBtn} onPress={() => navigation.navigate('Chat')}>
               <Text style={s.msgBtnText}>Message</Text>
             </TouchableOpacity>
           </View>
