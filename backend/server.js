@@ -292,6 +292,8 @@ app.post("/submit-report", async (req, res) => {
       isAnonymous,
       reporterName,
       status: "pending",
+      priorityLevel: "normal",
+      assignedOfficer: "",
       createdAt: new Date(),
       updatedAt: new Date(),
     };

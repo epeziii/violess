@@ -7,6 +7,7 @@ import { colors, spacing, radius } from '../theme';
 import { Card, Button } from '../components';
 import { auth } from '../config/firebase';
 import { API_BASE_URL } from '../config/api';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 const INCIDENT_TYPES = [
   { id: 'domestic', label: 'Domestic Violence', icon: '' },
@@ -23,7 +24,11 @@ export default function ReportScreen({ navigation }) {
   const [step, setStep] = useState(1);
   const [description, setDescription] = useState('');
   const [location, setLocation] = useState('');
-  const [datetime, setDatetime] = useState('');
+  const [date, setDate] = useState(new Date());
+const [showDatePicker, setShowDatePicker] = useState(false);
+
+const [time, setTime] = useState(new Date());
+const [showTimePicker, setShowTimePicker] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [caseId, setCaseId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -66,7 +71,10 @@ export default function ReportScreen({ navigation }) {
           incidentType: selectedType,
           description,
           location,
-          datetime,
+          datetime: `${date.toDateString()} ${time.toLocaleTimeString([], {
+  hour: '2-digit',
+  minute: '2-digit'
+})}`,
           isAnonymous,
         }),
       });
@@ -241,14 +249,49 @@ export default function ReportScreen({ navigation }) {
               onChangeText={setLocation}
             />
 
-            <Text style={styles.fieldLabel}>Date & Time</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. March 15, 8:30 PM"
-              placeholderTextColor={colors.placeholder}
-              value={datetime}
-              onChangeText={setDatetime}
-            />
+            <Text style={styles.fieldLabel}>Date</Text>
+<TouchableOpacity
+  style={styles.input}
+  onPress={() => setShowDatePicker(true)}
+>
+  <Text>
+    {date ? date.toDateString() : 'Select date'}
+  </Text>
+</TouchableOpacity>
+
+<Text style={styles.fieldLabel}>Time</Text>
+<TouchableOpacity
+  style={styles.input}
+  onPress={() => setShowTimePicker(true)}
+>
+  <Text>
+    {time ? time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Select time'}
+  </Text>
+</TouchableOpacity>
+
+{showDatePicker && (
+  <DateTimePicker
+    value={date}
+    mode="date"
+    display="default"
+    onChange={(event, selectedDate) => {
+      setShowDatePicker(false);
+      if (selectedDate) setDate(selectedDate);
+    }}
+  />
+)}
+
+{showTimePicker && (
+  <DateTimePicker
+    value={time}
+    mode="time"
+    display="default"
+    onChange={(event, selectedTime) => {
+      setShowTimePicker(false);
+      if (selectedTime) setTime(selectedTime);
+    }}
+  />
+)}
 
             <View style={styles.navRow}>
               <Button label="← Back" variant="ghost" onPress={() => setStep(1)} style={{ flex: 1 }} />
@@ -292,11 +335,16 @@ export default function ReportScreen({ navigation }) {
                 </View>
               )}
 
-              {datetime && (
-                <View style={styles.reviewRow}>
-                  <Text style={styles.reviewLabel}>Date & Time:</Text>
-                  <Text style={styles.reviewValue}>{datetime}</Text>
-                </View>
+              {(date || time) && (
+              <View style={styles.reviewRow}>
+                <Text style={styles.reviewLabel}>Date & Time:</Text>
+                <Text style={styles.reviewValue}>
+                  {`${date.toDateString()} ${time.toLocaleTimeString([], {
+  hour: '2-digit',
+  minute: '2-digit'
+})}`}
+                </Text>
+              </View>
               )}
 
               <View style={styles.reviewRow}>

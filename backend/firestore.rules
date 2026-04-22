@@ -27,14 +27,19 @@ service cloud.firestore {
     }
 
     // ─── REPORTS COLLECTION ────────────────────────────────────────────
-    // Only backend (admin) can create/write reports
-    // Staff (web) can read all reports
+    // Only backend (admin) can create reports
+    // Staff (web) can read all reports and update case management fields
     // Mobile users cannot directly access reports (backend handles submission)
     match /reports/{reportId} {
       // Staff can read all reports
       allow read: if get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.role in ['admin', 'officer'];
-      // Only backend with Admin SDK can create/write reports
-      allow write: if false;
+      // Staff can update case management fields
+      allow update: if get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.role in ['admin', 'officer'] &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'priorityLevel', 'assignedOfficer', 'updatedAt']);
+      // Only backend with Admin SDK can create reports
+      allow create: if false;
+      // Reports cannot be deleted
+      allow delete: if false;
     }
 
     // ─── DEFAULT DENY ──────────────────────────────────
