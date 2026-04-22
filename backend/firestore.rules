@@ -26,6 +26,17 @@ service cloud.firestore {
       allow delete: if request.auth.uid == uid;
     }
 
+    // ─── REPORTS COLLECTION ────────────────────────────────────────────
+    // Only backend (admin) can create/write reports
+    // Staff (web) can read all reports
+    // Mobile users cannot directly access reports (backend handles submission)
+    match /reports/{reportId} {
+      // Staff can read all reports
+      allow read: if get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.role in ['admin', 'officer'];
+      // Only backend with Admin SDK can create/write reports
+      allow write: if false;
+    }
+
     // ─── DEFAULT DENY ──────────────────────────────────
     match /{document=**} {
       allow read, write: if false;

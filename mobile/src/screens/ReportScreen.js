@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet,
-  TouchableOpacity, Switch, StatusBar, TextInput, Alert
+  TouchableOpacity, Switch, StatusBar, TextInput, Alert, ActivityIndicator
 } from 'react-native';
 import { colors, spacing, radius } from '../theme';
 import { Card, Button } from '../components';
+import { auth } from '../config/firebase';
+import { API_BASE_URL } from '../config/api';
 
 const INCIDENT_TYPES = [
   { id: 'domestic', label: 'Domestic Violence', icon: '' },
@@ -23,6 +25,8 @@ export default function ReportScreen({ navigation }) {
   const [location, setLocation] = useState('');
   const [datetime, setDatetime] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [caseId, setCaseId] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   // ✅ VALIDATION FUNCTIONS
   const validateStep1 = () => {
@@ -41,19 +45,48 @@ export default function ReportScreen({ navigation }) {
     return true;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validateStep1() || !validateStep2()) return;
 
-    // 🔥 ready for backend integration later
-    console.log({
-      selectedType,
-      isAnonymous,
-      description,
-      location,
-      datetime,
-    });
+    setIsLoading(true);
 
-    setSubmitted(true);
+    try {
+      const uid = auth.currentUser?.uid;
+      if (!uid) {
+        Alert.alert('Error', 'User not authenticated');
+        setIsLoading(false);
+        return;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/submit-report`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          uid,
+          incidentType: selectedType,
+          description,
+          location,
+          datetime,
+          isAnonymous,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        Alert.alert('Error', data.error || 'Failed to submit report');
+        setIsLoading(false);
+        return;
+      }
+
+      setCaseId(data.caseId);
+      setSubmitted(true);
+    } catch (error) {
+      console.error('Error submitting report:', error);
+      Alert.alert('Error', 'Failed to submit report. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // ✅ SUCCESS SCREEN
@@ -61,7 +94,7 @@ export default function ReportScreen({ navigation }) {
     return (
       <View style={styles.successWrap}>
         <View style={styles.successIcon}>
-          <Text style={{ fontSize: 40 }}>✅</Text>
+          <Text style={{ fontSize: 40 }}>✓</Text>
         </View>
 
         <Text style={styles.successTitle}>Report Submitted</Text>
@@ -75,7 +108,7 @@ export default function ReportScreen({ navigation }) {
 
         <View style={styles.caseIdBox}>
           <Text style={styles.caseIdLabel}>Your Case ID</Text>
-          <Text style={styles.caseIdValue}>#VIO-2026-001</Text>
+          <Text style={styles.caseIdValue}>{caseId || '#VIO-2026-001'}</Text>
         </View>
 
         <Button
@@ -185,11 +218,15 @@ export default function ReportScreen({ navigation }) {
           <>
             <Text style={styles.stepLabel}>Step 2 of 3 — Details</Text>
 
+            <View style={styles.infoBox}>
+              <Text style={styles.infoText}>When filing a report, you must provide clear, accurate, and precise information to ensure the issue can be properly understood and addressed.</Text>
+            </View>
+
             <Text style={styles.fieldLabel}>What happened? *</Text>
             <TextInput
               style={styles.textArea}
               multiline
-              placeholder="Describe the incident..."
+              placeholder="Describe the incident in detail..."
               placeholderTextColor={colors.placeholder}
               value={description}
               onChangeText={setDescription}
@@ -231,19 +268,59 @@ export default function ReportScreen({ navigation }) {
           <>
             <Text style={styles.stepLabel}>Step 3 of 3 — Review</Text>
 
+            <View style={styles.infoBox}>
+              <Text style={styles.infoText}>Please review your report carefully to ensure all information is accurate, complete, and clearly presented before submission.</Text>
+            </View>
+
             <Card>
               <Text style={styles.reviewTitle}>Summary</Text>
 
-              <Text>Type: {INCIDENT_TYPES.find(t => t.id === selectedType)?.label}</Text>
-              <Text>Anonymous: {isAnonymous ? 'Yes' : 'No'}</Text>
-              <Text>Location: {location || 'N/A'}</Text>
-              <Text>Description: {description}</Text>
+              <View style={styles.reviewRow}>
+                <Text style={styles.reviewLabel}>Type:</Text>
+                <Text style={styles.reviewValue}>{INCIDENT_TYPES.find(t => t.id === selectedType)?.label}</Text>
+              </View>
+
+              <View style={styles.reviewRow}>
+                <Text style={styles.reviewLabel}>Anonymous:</Text>
+                <Text style={styles.reviewValue}>{isAnonymous ? 'Yes' : 'No'}</Text>
+              </View>
+
+              {location && (
+                <View style={styles.reviewRow}>
+                  <Text style={styles.reviewLabel}>Location:</Text>
+                  <Text style={styles.reviewValue}>{location}</Text>
+                </View>
+              )}
+
+              {datetime && (
+                <View style={styles.reviewRow}>
+                  <Text style={styles.reviewLabel}>Date & Time:</Text>
+                  <Text style={styles.reviewValue}>{datetime}</Text>
+                </View>
+              )}
+
+              <View style={styles.reviewRow}>
+                <Text style={styles.reviewLabel}>Description:</Text>
+                <Text style={styles.reviewValue}>{description}</Text>
+              </View>
             </Card>
 
             <View style={styles.navRow}>
               <Button label="← Back" variant="ghost" onPress={() => setStep(2)} style={{ flex: 1 }} />
-              <Button label="Submit Report" onPress={handleSubmit} style={{ flex: 2 }} />
+              <Button
+                label={isLoading ? "Submitting..." : "Submit Report"}
+                onPress={handleSubmit}
+                style={{ flex: 2 }}
+                disabled={isLoading}
+              />
             </View>
+
+            {isLoading && (
+              <View style={styles.loadingOverlay}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={styles.loadingText}>Submitting your report...</Text>
+              </View>
+            )}
           </>
         )}
 
@@ -284,7 +361,8 @@ const styles = StyleSheet.create({
   stepLine: { width: 40, height: 2, backgroundColor: '#eee' },
   stepLineActive: { backgroundColor: colors.primary },
 
-  content: { padding: spacing.lg },
+  scroll: { flex: 1 },
+  content: { padding: spacing.lg, flexGrow: 1, width: '100%' },
 
   stepLabel: { marginBottom: spacing.md, fontWeight: '700' },
 
@@ -315,7 +393,23 @@ const styles = StyleSheet.create({
 
   typeLabelActive: { color: colors.primary },
 
-  fieldLabel: { marginTop: spacing.sm },
+  infoTitle: { fontWeight: '700', marginBottom: spacing.sm, fontSize: 14, textAlign: 'center' },
+  infoText: {
+  fontSize: 13,        // 👈 slightly smaller
+  lineHeight: 18,      // keep it readable
+  color: '#333',
+},
+
+infoBox: {
+  backgroundColor: colors.primaryLight,
+  borderRadius: radius.lg,
+  padding: spacing.lg,
+  marginBottom: spacing.md,
+  borderWidth: 0.5,
+  borderColor: 'rgba(0,0,0,0.08)',
+},
+
+  fieldLabel: { marginTop: spacing.md, fontWeight: '600' },
 
   textArea: {
     borderWidth: 1,
@@ -323,6 +417,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     padding: spacing.md,
     minHeight: 100,
+    marginTop: spacing.sm,
   },
 
   input: {
@@ -330,6 +425,7 @@ const styles = StyleSheet.create({
     borderColor: '#ddd',
     borderRadius: radius.md,
     padding: spacing.md,
+    marginTop: spacing.sm,
   },
 
   navRow: {
@@ -370,4 +466,25 @@ const styles = StyleSheet.create({
   caseIdValue: { fontSize: 20, fontWeight: 'bold' },
 
   reviewTitle: { fontWeight: '700', marginBottom: spacing.sm },
+
+  reviewRow: { marginBottom: spacing.md },
+  reviewLabel: { fontWeight: '600', marginBottom: spacing.xs },
+  reviewValue: { fontSize: 13, color: '#666' },
+
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  loadingText: {
+    marginTop: spacing.md,
+    color: colors.primary,
+    fontWeight: '600',
+  },
 });

@@ -1,8 +1,10 @@
 // DashboardPage.jsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Badge from "./Badge";
+import { db } from "../firebase";
+import { collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
 
-const CASES = [
+const SAMPLE_CASES = [
   { id: "#VIO-001", type: "Harassment", reporter: "Anonymous", location: "Brgy. 123", status: "reviewing", date: "Feb 12" },
   { id: "#VIO-002", type: "Domestic Abuse", reporter: "Maria D.", location: "Brgy. 456", status: "urgent", date: "Feb 13" },
   { id: "#VIO-003", type: "Bullying", reporter: "Anonymous", location: "School Zone", status: "referred", date: "Feb 14" },
@@ -10,7 +12,58 @@ const CASES = [
   { id: "#VIO-005", type: "Harassment", reporter: "Anonymous", location: "Market Area", status: "resolved", date: "Feb 10" },
 ];
 
+const getStatusFromString = (status) => {
+  if (status === "pending") return "pending";
+  if (status === "urgent") return "urgent";
+  if (status === "resolved") return "resolved";
+  if (status === "reviewing") return "reviewing";
+  if (status === "referred") return "referred";
+  return "pending";
+};
+
+const formatDate = (date) => {
+  if (!date) return "";
+  const d = date instanceof Date ? date : date.toDate?.();
+  if (!d) return "";
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+};
+
 export default function DashboardPage({ onNavigate }) {
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    try {
+      // Real-time listener for reports collection
+      const q = query(
+        collection(db, "reports"),
+        orderBy("createdAt", "desc"),
+        limit(10)
+      );
+
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const reportsData = snapshot.docs.map((doc) => ({
+          id: doc.data().caseId,
+          type: doc.data().incidentType,
+          reporter: doc.data().reporterName,
+          location: doc.data().location || "N/A",
+          status: getStatusFromString(doc.data().status),
+          date: formatDate(doc.data().createdAt),
+        }));
+        setReports(reportsData);
+        setLoading(false);
+      });
+
+      return () => unsubscribe();
+    } catch (error) {
+      console.error("Error fetching reports:", error);
+      setReports(SAMPLE_CASES);
+      setLoading(false);
+    }
+  }, []);
+
+  const displayReports = loading ? SAMPLE_CASES : (reports.length > 0 ? reports : SAMPLE_CASES);
+
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
@@ -57,7 +110,7 @@ export default function DashboardPage({ onNavigate }) {
               <tr><th>Case ID</th><th>Type</th><th>Reporter</th><th>Location</th><th>Status</th><th>Date</th><th>Action</th></tr>
             </thead>
             <tbody>
-              {CASES.map(c => (
+              {displayReports.map(c => (
                 <tr key={c.id}>
                   <td className="bold">{c.id}</td>
                   <td>{c.type}</td>
