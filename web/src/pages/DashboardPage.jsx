@@ -31,6 +31,12 @@ const formatDate = (date) => {
 export default function DashboardPage({ onNavigate }) {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    total: 0,
+    urgent: 0,
+    active: 0,
+    resolved: 0
+  });
 
   useEffect(() => {
     try {
@@ -62,6 +68,47 @@ export default function DashboardPage({ onNavigate }) {
     }
   }, []);
 
+  // Fetch statistics from all reports
+  useEffect(() => {
+    try {
+      const q = query(collection(db, "reports"));
+
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        let totalCount = 0;
+        let urgentCount = 0;
+        let activeCount = 0;
+        let resolvedCount = 0;
+
+        snapshot.docs.forEach((doc) => {
+          const data = doc.data();
+          const status = data.status;
+          const priorityLevel = data.priorityLevel;
+
+          totalCount++;
+
+          if (status === "resolved") {
+            resolvedCount++;
+          } else if (priorityLevel === "urgent") {
+            urgentCount++;
+          } else if (status === "pending" || status === "reviewing" || status === "referred") {
+            activeCount++;
+          }
+        });
+
+        setStats({
+          total: totalCount,
+          urgent: urgentCount,
+          active: activeCount,
+          resolved: resolvedCount
+        });
+      });
+
+      return () => unsubscribe();
+    } catch (error) {
+      console.error("Error fetching statistics:", error);
+    }
+  }, []);
+
   const displayReports = loading ? SAMPLE_CASES : (reports.length > 0 ? reports : SAMPLE_CASES);
 
   return (
@@ -74,10 +121,10 @@ export default function DashboardPage({ onNavigate }) {
       {/* Stat cards */}
       <div className="stat-grid">
         {[
-          { label: 'Total Reports', value: '47', change: '+5 this week', cls: 'up', variant: 'pink' },
-          { label: 'Urgent Cases', value: '8', change: 'Needs attention', cls: 'up', variant: 'red' },
-          { label: 'Active Cases', value: '19', change: 'In progress', cls: 'neutral', variant: 'blue' },
-          { label: 'Resolved', value: '20', change: '+3 this week', cls: 'ok', variant: 'green' },
+          { label: 'Total Reports', value: stats.total.toString(), change: 'All reports', cls: 'neutral', variant: 'pink' },
+          { label: 'Urgent Cases', value: stats.urgent.toString(), change: 'Needs attention', cls: 'up', variant: 'red' },
+          { label: 'Active Cases', value: stats.active.toString(), change: 'In progress', cls: 'neutral', variant: 'blue' },
+          { label: 'Resolved', value: stats.resolved.toString(), change: 'Completed', cls: 'ok', variant: 'green' },
         ].map(s => (
           <div key={s.label} className={`stat-card ${s.variant}`}>
             <div className="stat-label">{s.label}</div>

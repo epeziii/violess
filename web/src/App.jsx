@@ -15,7 +15,7 @@ import "./styles/global.css";
 
 const NAV = [
   { id: "dashboard",  icon: "",  label: "Dashboard",       permission: "dashboard" },
-  { id: "cases",      icon: "", label: "Case Management", permission: "cases" },
+  { id: "cases",      icon: "", label: "Case Management", permission: "cases", adminOnly: true },
   { id: "referrals",  icon: "",  label: "Referrals",       permission: "referrals" },
   { id: "comms",      icon: "", label: "Communications",  permission: "communications" },
   { id: "analytics",  icon: "", label: "Analytics",       permission: "analytics" },
@@ -55,7 +55,7 @@ function Shell() {
   const visibleNav = NAV.filter(n => can(n.permission));
   const pages = {
     dashboard: <DashboardPage onNavigate={setPage} />,
-    cases:     <CasesPage />,
+    cases:     <ProtectedRoute permission="cases"><CasesPage /></ProtectedRoute>,
     referrals: <ReferralPage />,
     comms:     <CommunicationsPage />,
     analytics: <AnalyticsPage />,

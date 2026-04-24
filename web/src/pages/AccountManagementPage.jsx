@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { getAuth, createUserWithEmailAndPassword, updatePassword } from "firebase/auth";
-import { getFirestore, collection, setDoc, getDocs, doc, updateDoc } from "firebase/firestore";
+import { getFirestore, collection, getDocs } from "firebase/firestore";
 import { app } from "../firebase"; // Make sure your firebase.js exports initialized app
 
 const auth = getAuth(app);
@@ -70,11 +70,6 @@ function AccountRow({ account, onEdit, onSuspend, onActivate }) {
       <td>
         <div style={{ display: "flex", gap: 6 }}>
           <button className="btn btn-ghost btn-sm" onClick={() => onEdit(account)}>Edit</button>
-          {(account.status === "inactive" || account.status === "suspended") && (
-            <button className="btn btn-primary btn-sm" onClick={() => onActivate(account)}>
-              {account.status === "suspended" ? "Restore" : "Activate"}
-            </button>
-          )}
         </div>
       </td>
     </tr>
@@ -108,18 +103,6 @@ function CreateModal({ onClose, refreshAccounts }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to create staff");
       if (!data.uid) throw new Error("UID missing from server response");
-
-      const roleColors = { admin: "blue", officer: "pink" };
-      await setDoc(doc(db, "staff", data.uid), {
-        firstName: form.firstName,
-        lastName: form.lastName,
-        email: form.email,
-        role: form.role,
-        status: "active",
-        lastLogin: null,
-        cases: 0,
-        color: roleColors[form.role] || "pink",
-      });
 
       refreshAccounts();
       onClose();
@@ -194,20 +177,20 @@ function EditModal({ account, onClose, refreshAccounts }) {
 
   const handleSave = async () => {
     try {
-      const docRef = doc(db, "staff", account.id);
-
-      // Map role to avatar color
-      const roleColors = { admin: "blue", officer: "pink" };
-      const newColor = roleColors[form.role] || "pink";
-
-      // Update Firestore document with role AND color
-      await updateDoc(docRef, {
-        firstName: form.firstName,
-        lastName: form.lastName,
-        role: form.role,
-        status: form.status,
-        color: newColor, // automatically update avatar color
+      const res = await fetch("http://localhost:5000/update-staff", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uid: account.id,
+          firstName: form.firstName,
+          lastName: form.lastName,
+          role: form.role,
+          status: form.status,
+        }),
       });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update staff");
 
       refreshAccounts();
       onClose();
@@ -268,8 +251,18 @@ function ConfirmModal({ type, account, onClose, refreshAccounts }) {
   const isSuspend = type === "suspend";
   const handleConfirm = async () => {
     try {
-      const docRef = doc(db, "staff", account.id);
-      await updateDoc(docRef, { status: isSuspend ? "suspended" : "active" });
+      const res = await fetch("http://localhost:5000/update-staff-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uid: account.id,
+          status: isSuspend ? "suspended" : "active",
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update status");
+
       refreshAccounts();
       onClose();
     } catch (err) {

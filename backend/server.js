@@ -82,6 +82,87 @@ app.post("/update-staff-status", async (req, res) => {
   }
 });
 
+// ─── UPDATE CASE (with officer assignment) ────────────────────────────
+app.post("/update-case", async (req, res) => {
+  try {
+    const { uid, caseId, status, priorityLevel, assignedOfficer } = req.body;
+    if (!uid || !caseId) return res.status(400).json({ error: "uid and caseId are required" });
+
+    // Verify user is admin
+    const staffSnap = await db.collection("staff").doc(uid).get();
+    if (!staffSnap.exists) {
+      return res.status(403).json({ error: "Unauthorized: user not found" });
+    }
+
+    const staffData = staffSnap.data();
+    if (staffData.role !== "admin") {
+      return res.status(403).json({ error: "Unauthorized: only admins can update cases" });
+    }
+
+    // Get the current case to check previous assignment
+    const caseRef = db.collection("reports").doc(caseId);
+    const caseSnap = await caseRef.get();
+
+    if (!caseSnap.exists) {
+      return res.status(404).json({ error: "Case not found" });
+    }
+
+    const caseData = caseSnap.data();
+    const oldAssignedOfficer = caseData.assignedOfficer || "";
+    const newAssignedOfficer = assignedOfficer || "";
+
+    // Update the case
+    const updateData = {};
+    if (status !== undefined) updateData.status = status;
+    if (priorityLevel !== undefined) updateData.priorityLevel = priorityLevel;
+    if (assignedOfficer !== undefined) updateData.assignedOfficer = assignedOfficer || "";
+    updateData.updatedAt = new Date();
+
+    // Handle officer assignment changes
+    if (oldAssignedOfficer !== newAssignedOfficer) {
+      // Decrement old officer's case count
+      if (oldAssignedOfficer) {
+        const staffSnapshot = await db.collection("staff").where("firstName", "!=", "").get();
+        let oldOfficerFound = false;
+
+        for (const doc of staffSnapshot.docs) {
+          const staffData = doc.data();
+          const fullName = `${staffData.firstName} ${staffData.lastName}`.trim();
+          if (fullName === oldAssignedOfficer) {
+            const newCount = Math.max(0, (staffData.cases || 0) - 1);
+            await db.collection("staff").doc(doc.id).update({ cases: newCount });
+            oldOfficerFound = true;
+            break;
+          }
+        }
+      }
+
+      // Increment new officer's case count
+      if (newAssignedOfficer) {
+        const staffSnapshot = await db.collection("staff").where("firstName", "!=", "").get();
+        let newOfficerFound = false;
+
+        for (const doc of staffSnapshot.docs) {
+          const staffData = doc.data();
+          const fullName = `${staffData.firstName} ${staffData.lastName}`.trim();
+          if (fullName === newAssignedOfficer) {
+            const newCount = (staffData.cases || 0) + 1;
+            await db.collection("staff").doc(doc.id).update({ cases: newCount });
+            newOfficerFound = true;
+            break;
+          }
+        }
+      }
+    }
+
+    await caseRef.update(updateData);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Error updating case:", err);
+    res.status(500).json({ error: err.message || "Failed to update case" });
+  }
+});
+
 // ─── REGISTER MOBILE USER ──────────────────────────────────────────────
 app.post("/register-user", async (req, res) => {
   try {
@@ -284,7 +365,7 @@ app.post("/submit-report", async (req, res) => {
     // Create report document
     const reportData = {
       caseId,
-      uid: isAnonymous ? null : uid,
+      uid: uid,  // Always store uid so user can retrieve their cases (even if anonymous)
       incidentType,
       description,
       location: location || "",
@@ -311,6 +392,133 @@ app.post("/submit-report", async (req, res) => {
   }
 });
 
-// ─── START SERVER ──────────────────────────────────────────────
+// ─── GET USER'S CASES ──────────────────────────────────────────────
+app.get("/user/:uid/cases", async (req, res) => {
+  try {
+    const { uid } = req.params;
+    if (!uid) return res.status(400).json({ error: "UID is required" });
+
+    const reportsRef = db.collection("reports");
+    const snapshot = await reportsRef
+      .where("uid", "==", uid)
+      .orderBy("createdAt", "desc")
+      .get();
+
+    if (snapshot.empty) {
+      return res.json({ success: true, cases: [] });
+    }
+
+    const cases = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt,
+      updatedAt: doc.data().updatedAt?.toDate?.() || doc.data().updatedAt,
+    }));
+
+    res.json({ success: true, cases });
+  } catch (err) {
+    console.error("Error fetching user cases:", err);
+    res.status(500).json({ error: err.message || "Failed to fetch cases" });
+  }
+});
+
+// ─── GET MESSAGES FOR A CASE ──────────────────────────────────────────────
+app.get("/case/:caseId/messages", async (req, res) => {
+  try {
+    const { caseId } = req.params;
+    const authUid = req.headers["x-user-id"]; // Get user ID from header (mobile app sends this)
+
+    if (!caseId || !authUid) {
+      return res.status(400).json({ error: "caseId and user ID are required" });
+    }
+
+    // Verify the user filed this case
+    const reportsRef = db.collection("reports");
+    const caseSnapshot = await reportsRef
+      .where("caseId", "==", caseId)
+      .where("uid", "==", authUid)
+      .get();
+
+    if (caseSnapshot.empty) {
+      return res.status(403).json({ error: "Unauthorized: user did not file this case" });
+    }
+
+    // Fetch messages for this case
+    const messagesRef = db.collection("messages");
+    const messagesSnapshot = await messagesRef
+      .where("caseId", "==", caseId)
+      .orderBy("timestamp", "asc")
+      .get();
+
+    const messages = messagesSnapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        timestamp: data.timestamp?.toDate?.() || data.timestamp,
+      };
+    });
+
+    res.json({ success: true, messages });
+  } catch (err) {
+    console.error("Error fetching messages:", err);
+    res.status(500).json({ error: err.message || "Failed to fetch messages" });
+  }
+});
+
+// ─── SEND MESSAGE ──────────────────────────────────────────────────────────
+app.post("/case/:caseId/send-message", async (req, res) => {
+  try {
+    const { caseId } = req.params;
+    const { text } = req.body;
+    const authUid = req.headers["x-user-id"]; // Get user ID from header
+
+    if (!caseId || !text || !authUid) {
+      return res.status(400).json({ error: "caseId, text, and user ID are required" });
+    }
+
+    // Verify the user filed this case
+    const reportsRef = db.collection("reports");
+    const caseSnapshot = await reportsRef
+      .where("caseId", "==", caseId)
+      .where("uid", "==", authUid)
+      .get();
+
+    if (caseSnapshot.empty) {
+      return res.status(403).json({ error: "Unauthorized: user did not file this case" });
+    }
+
+    // Get user info for the message
+    const userSnap = await db.collection("users").doc(authUid).get();
+    if (!userSnap.exists) {
+      return res.status(404).json({ error: "User profile not found" });
+    }
+
+    const userData = userSnap.data();
+    const reporterName = `${userData.firstName} ${userData.lastName}`.trim();
+
+    // Create message
+    const messagesRef = db.collection("messages");
+    const docRef = await messagesRef.add({
+      caseId,
+      from: 'reporter',
+      reporterUid: authUid,
+      reporterName: reporterName,
+      text,
+      timestamp: new Date(),
+    });
+
+    res.json({
+      success: true,
+      messageId: docRef.id,
+      message: "Message sent successfully"
+    });
+  } catch (err) {
+    console.error("Error sending message:", err);
+    res.status(500).json({ error: err.message || "Failed to send message" });
+  }
+});
+
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));

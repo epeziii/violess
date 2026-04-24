@@ -2,7 +2,8 @@
 import { useState, useEffect } from "react";
 import Badge from "./Badge";
 import { db } from "../firebase";
-import { collection, query, orderBy, limit, onSnapshot, doc, updateDoc } from "firebase/firestore";
+import { collection, query, orderBy, limit, onSnapshot, where } from "firebase/firestore";
+import { useAuth } from "../AuthContext";
 
 const SAMPLE_CASES = [
   { id: "#VIO-001", type: "Harassment", reporter: "Anonymous", location: "Brgy. 123", status: "reviewing", date: "Feb 12" },
@@ -54,6 +55,7 @@ const formatIncidentDateTime = (value) => {
 };
 
 export default function CasesPage() {
+  const { user } = useAuth();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCase, setSelectedCase] = useState(null);
@@ -63,6 +65,7 @@ export default function CasesPage() {
   const [note, setNote] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [filterType, setFilterType] = useState("all");
+  const [officers, setOfficers] = useState([]);
   const [notes, setNotes] = useState([
     { by: "Officer Reyes", time: "Feb 12, 11:30 AM", text: "Reviewed initial report. Victim confirmed details. Scheduled follow-up interview for Feb 14." },
     { by: "Social Worker Ana", time: "Feb 13, 9:00 AM", text: "Conducted preliminary assessment. Recommending counseling referral." },
@@ -116,6 +119,36 @@ export default function CasesPage() {
     }
   }, []);
 
+  useEffect(() => {
+    try {
+      // Fetch active officers from staff collection
+      const q = query(
+        collection(db, "staff"),
+        where("role", "==", "officer"),
+        where("status", "==", "active")
+      );
+
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const officersData = snapshot.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            name: `${data.firstName || ""} ${data.lastName || ""}`.trim(),
+            firstName: data.firstName || "",
+            lastName: data.lastName || "",
+            email: data.email || "",
+          };
+        });
+        setOfficers(officersData);
+      });
+
+      return () => unsubscribe();
+    } catch (error) {
+      console.error("Error fetching officers:", error);
+      setOfficers([]);
+    }
+  }, []);
+
   const displayReports = loading ? SAMPLE_CASES : (reports.length > 0 ? reports : SAMPLE_CASES);
 
   const filteredReports = displayReports.filter(c => {
@@ -155,13 +188,21 @@ export default function CasesPage() {
     }
 
     try {
-      const caseRef = doc(db, "reports", selectedCase.docId);
-      await updateDoc(caseRef, {
-        status: status,
-        priorityLevel: priorityLevel,
-        assignedOfficer: assignedOfficer || "",
-        updatedAt: new Date(),
+      const res = await fetch("http://localhost:5000/update-case", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uid: user.uid,
+          caseId: selectedCase.docId,
+          status: status,
+          priorityLevel: priorityLevel,
+          assignedOfficer: assignedOfficer || "",
+        }),
       });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update case");
+
       console.log("Case updated successfully");
       alert("Case updated successfully");
     } catch (error) {
@@ -232,11 +273,11 @@ export default function CasesPage() {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Assign Officer</label>
-                    <select className="form-select" value={assignedOfficer} onChange={e => setAssignedOfficer(e.target.value)}>
+                    <select className="form-select" value={assignedOfficer} onChange={e => setAssignedOfficer(e.target.value)} disabled={status === "pending"} style={status === "pending" ? { opacity: 0.5, cursor: "not-allowed", backgroundColor: "var(--bg-muted)" } : {}}>
                       <option value="">-- Unassigned --</option>
-                      <option value="Officer Reyes">Officer Reyes</option>
-                      <option value="Social Worker Ana">Social Worker Ana</option>
-                      <option value="Counselor Cruz">Counselor Cruz</option>
+                      {officers.map((officer) => (
+                        <option key={officer.id} value={officer.name}>{officer.name}</option>
+                      ))}
                     </select>
                   </div>
                   <div className="form-group">

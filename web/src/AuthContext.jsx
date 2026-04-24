@@ -21,7 +21,7 @@ export const PERMISSIONS = {
   },
   officer: {
     dashboard:        true,
-    cases:            true,
+    cases:            false,
     referrals:        true,
     communications:   true,
     analytics:        "view",
