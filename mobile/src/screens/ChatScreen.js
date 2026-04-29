@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, FlatList, TextInput, TouchableOpacity, StatusBar, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, TextInput, TouchableOpacity, StatusBar, KeyboardAvoidingView, Platform, ActivityIndicator, Keyboard } from 'react-native';
 import { ch, s } from './sharedStyles';
 import { colors, spacing } from '../theme';
 import { auth } from '../config/firebase';
@@ -15,7 +15,28 @@ export default function ChatScreen({ navigation, route }) {
   const [error, setError] = useState(null);
   const [caseData, setCaseData] = useState(null);
   const [officerName, setOfficerName] = useState('Officer');
+  const [sending, setSending] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const listRef = useRef();
+  const isInitialLoadRef = useRef(true);
+
+  // Handle keyboard show/hide
+  useEffect(() => {
+    const keyboardDidShow = (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    };
+    const keyboardDidHide = () => {
+      setKeyboardHeight(0);
+    };
+
+    const showListener = Keyboard.addListener('keyboardDidShow', keyboardDidShow);
+    const hideListener = Keyboard.addListener('keyboardDidHide', keyboardDidHide);
+
+    return () => {
+      showListener.remove();
+      hideListener.remove();
+    };
+  }, []);
 
   // Fetch case details to get assigned officer
   useEffect(() => {
@@ -85,9 +106,12 @@ export default function ChatScreen({ navigation, route }) {
         if (!isMounted) return;
 
         if (!data.success) {
-          setError(data.error || "Failed to fetch messages");
-          setMessages([]);
-          setLoading(false);
+          // Only show error on initial load, not on polling
+          if (isInitialLoadRef.current) {
+            setError(data.error || "Failed to fetch messages");
+            setMessages([]);
+            setLoading(false);
+          }
           return;
         }
 
@@ -106,13 +130,24 @@ export default function ChatScreen({ navigation, route }) {
         setMessages(fetchedMessages);
         setError(null);
         setLoading(false);
-        setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
+
+        // Only scroll to end on initial load
+        if (isInitialLoadRef.current) {
+          isInitialLoadRef.current = false;
+          setTimeout(() => listRef.current?.scrollToEnd({ animated: false }), 100);
+        }
       } catch (error) {
         if (isMounted) {
           console.error('Error fetching messages:', error);
-          setError("Failed to load messages");
-          setMessages([]);
-          setLoading(false);
+          // Only show error on initial load, not on polling
+          if (isInitialLoadRef.current) {
+            setError("Failed to load messages");
+            setMessages([]);
+            setLoading(false);
+          } else {
+            // On polling, silently continue - error will trigger next retry
+            setError(null);
+          }
         }
       }
     };
@@ -130,9 +165,10 @@ export default function ChatScreen({ navigation, route }) {
   }, [caseId]);
 
   const send = async () => {
-    if (!input.trim() || !caseId) return;
+    if (!input.trim() || !caseId || sending) return;
 
     try {
+      setSending(true);
       const currentUser = auth.currentUser;
       if (!currentUser) return;
 
@@ -186,8 +222,7 @@ export default function ChatScreen({ navigation, route }) {
       }
 
       // Add message to Firestore
-      await addDoc(collection(db, "messages"), {
-        caseId,
+      await addDoc(collection(db, "messages", caseId, "messages"), {
         from: 'reporter',
         reporterUid: currentUser.uid,
         reporterName: reporterName,
@@ -199,11 +234,16 @@ export default function ChatScreen({ navigation, route }) {
       setInput('');
     } catch (error) {
       console.error('Error sending message:', error);
+    } finally {
+      setSending(false);
     }
   };
 
   return (
-    <View style={[s.root, { backgroundColor: colors.surface }]}>
+    <KeyboardAvoidingView
+      style={[s.root, { backgroundColor: colors.surface }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       <StatusBar barStyle="light-content" backgroundColor={colors.primaryDark} />
 
       {/* Header */}
@@ -222,55 +262,56 @@ export default function ChatScreen({ navigation, route }) {
       </View>
 
       {/* Messages */}
-      {loading ? (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      ) : error ? (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.lg }}>
-          <Text style={{ color: colors.error, textAlign: 'center', marginBottom: spacing.md }}>Error loading messages</Text>
-          <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>{error}</Text>
-        </View>
-      ) : !caseId ? (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: colors.textMuted }}>No case selected</Text>
-        </View>
-      ) : (
-        <FlatList
-          ref={listRef}
-          data={messages}
-          keyExtractor={m => m.id}
-          contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing.xl }}
-          renderItem={({ item }) => (
-            <View style={[ch.msgWrap, item.from === 'reporter' && ch.msgWrapMe]}>
-              {item.from !== 'reporter' && <Text style={ch.senderName}>{item.name}</Text>}
-              <View style={[ch.bubble, item.from === 'reporter' ? ch.bubbleMe : ch.bubbleThem]}>
-                <Text style={[ch.bubbleText, item.from === 'reporter' && { color: '#fff' }]}>{item.text}</Text>
-                <Text style={[ch.timeText, item.from === 'reporter' && { color: 'rgba(255,255,255,0.65)' }]}>{item.time}</Text>
+      <View style={{ flex: 1 }}>
+        {loading ? (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        ) : error ? (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.lg }}>
+            <Text style={{ color: colors.error, textAlign: 'center', marginBottom: spacing.md }}>Error loading messages</Text>
+            <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>{error}</Text>
+          </View>
+        ) : !caseId ? (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <Text style={{ color: colors.textMuted }}>No case selected</Text>
+          </View>
+        ) : (
+          <FlatList
+            ref={listRef}
+            scrollEnabled
+            data={messages}
+            keyExtractor={m => m.id}
+            contentContainerStyle={{ padding: spacing.lg }}
+            renderItem={({ item }) => (
+              <View style={[ch.msgWrap, item.from === 'reporter' && ch.msgWrapMe]}>
+                {item.from !== 'reporter' && <Text style={ch.senderName}>{item.name}</Text>}
+                <View style={[ch.bubble, item.from === 'reporter' ? ch.bubbleMe : ch.bubbleThem]}>
+                  <Text style={[ch.bubbleText, item.from === 'reporter' && { color: '#fff' }]}>{item.text}</Text>
+                  <Text style={[ch.timeText, item.from === 'reporter' && { color: 'rgba(255,255,255,0.65)' }]}>{item.time}</Text>
+                </View>
               </View>
-            </View>
-          )}
-        />
-      )}
+            )}
+          />
+        )}
+      </View>
 
       {/* Input */}
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={ch.inputRow}>
-          <TouchableOpacity style={ch.attachBtn}><Text style={{ fontSize: 18 }}>📎</Text></TouchableOpacity>
-          <TextInput
-            style={ch.input}
-            value={input}
-            onChangeText={setInput}
-            placeholder="Type a message..."
-            placeholderTextColor={colors.placeholder}
-            multiline
-            editable={!!caseId}
-          />
-          <TouchableOpacity style={ch.sendBtn} onPress={send} disabled={!caseId}>
-            <Text style={ch.sendIcon}>➤</Text>
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    </View>
+      <View style={ch.inputRow}>
+        <TouchableOpacity style={ch.attachBtn}><Text style={{ fontSize: 18 }}>📎</Text></TouchableOpacity>
+        <TextInput
+          style={ch.input}
+          value={input}
+          onChangeText={setInput}
+          placeholder="Type a message..."
+          placeholderTextColor={colors.placeholder}
+          multiline
+          editable={!!caseId}
+        />
+        <TouchableOpacity style={ch.sendBtn} onPress={send} disabled={!caseId || sending || !input.trim()}>
+          <Text style={ch.sendIcon}>➤</Text>
+        </TouchableOpacity>
+      </View>
+    </KeyboardAvoidingView>
   );
 }

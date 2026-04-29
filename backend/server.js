@@ -443,12 +443,9 @@ app.get("/case/:caseId/messages", async (req, res) => {
       return res.status(403).json({ error: "Unauthorized: user did not file this case" });
     }
 
-    // Fetch messages for this case
-    const messagesRef = db.collection("messages");
-    const messagesSnapshot = await messagesRef
-      .where("caseId", "==", caseId)
-      .orderBy("timestamp", "asc")
-      .get();
+    // Fetch messages from subcollection
+    const messagesRef = db.collection("messages").doc(caseId).collection("messages");
+    const messagesSnapshot = await messagesRef.orderBy("timestamp", "asc").get();
 
     const messages = messagesSnapshot.docs.map((doc) => {
       const data = doc.data();
@@ -497,10 +494,9 @@ app.post("/case/:caseId/send-message", async (req, res) => {
     const userData = userSnap.data();
     const reporterName = `${userData.firstName} ${userData.lastName}`.trim();
 
-    // Create message
-    const messagesRef = db.collection("messages");
+    // Create message in subcollection
+    const messagesRef = db.collection("messages").doc(caseId).collection("messages");
     const docRef = await messagesRef.add({
-      caseId,
       from: 'reporter',
       reporterUid: authUid,
       reporterName: reporterName,

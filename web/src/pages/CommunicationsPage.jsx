@@ -12,6 +12,7 @@ export default function CommunicationsPage() {
   const [assignedCases, setAssignedCases] = useState([]);
   const [loadingCases, setLoadingCases] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -57,8 +58,7 @@ export default function CommunicationsPage() {
     try {
       setLoadingMessages(true);
       const messagesQuery = query(
-        collection(db, "messages"),
-        where("caseId", "==", selectedCase.id),
+        collection(db, "messages", selectedCase.id, "messages"),
         orderBy("timestamp", "asc")
       );
 
@@ -79,11 +79,11 @@ export default function CommunicationsPage() {
   }, [selectedCase]);
 
   const send = async () => {
-    if (!input.trim() || !selectedCase) return;
+    if (!input.trim() || !selectedCase || sending) return;
 
     try {
-      await addDoc(collection(db, "messages"), {
-        caseId: selectedCase.id,
+      setSending(true);
+      await addDoc(collection(db, "messages", selectedCase.id, "messages"), {
         reporterUid: selectedCase.uid,
         officerUid: user.uid,
         officerName: `${user.firstName} ${user.lastName}`,
@@ -95,6 +95,8 @@ export default function CommunicationsPage() {
       setInput("");
     } catch (error) {
       console.error("Error sending message:", error);
+    } finally {
+      setSending(false);
     }
   };
 
@@ -205,10 +207,10 @@ export default function CommunicationsPage() {
               placeholder={selectedCase ? "Type a message..." : "Select a case to message..."}
               value={input}
               onChange={e => setInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && send()}
+              onKeyDown={e => e.key === 'Enter' && !sending && send()}
               disabled={!selectedCase}
             />
-            <button className="chat-send" onClick={send} disabled={!selectedCase}>➤</button>
+            <button className="chat-send" onClick={send} disabled={!selectedCase || sending || !input.trim()}>➤</button>
           </div>
         </div>
       </div>

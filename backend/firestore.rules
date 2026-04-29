@@ -46,28 +46,32 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // ─── MESSAGES COLLECTION ──────────────────────────────────────────
+    // ─── MESSAGES COLLECTION (with subcollections by case) ────────────────
+    // Messages organized as: messages/{caseId}/messages/{messageId}
     // Officers and reporters can send/read messages for assigned cases
-    match /messages/{messageId} {
-      // Allow read if:
-      // 1. User is a staff member (officer/admin), OR
-      // 2. User is the reporter for this message, OR
-      // 3. User is the officer who sent this message
-      allow read: if (exists(/databases/$(database)/documents/staff/$(request.auth.uid)) &&
-                       get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.role in ['admin', 'officer']) ||
-                     (request.auth.uid == resource.data.reporterUid) ||
-                     (request.auth.uid == resource.data.officerUid);
-      // Allow create if:
-      // 1. User is staff and sending as officer, OR
-      // 2. User is the reporter sending as reporter
-      allow create: if ((exists(/databases/$(database)/documents/staff/$(request.auth.uid)) &&
-                         get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.role in ['admin', 'officer']) &&
-                        (request.resource.data.from == 'officer')) ||
-                       ((request.auth.uid == request.resource.data.reporterUid) &&
-                        (request.resource.data.from == 'reporter'));
-      // Cannot update or delete messages
-      allow update: if false;
-      allow delete: if false;
+    match /messages/{caseId} {
+      // Allow subcollection reads/writes for authenticated users
+      match /messages/{messageId} {
+        // Allow read if:
+        // 1. User is a staff member (officer/admin), OR
+        // 2. User is the reporter for this message, OR
+        // 3. User is the officer who sent this message
+        allow read: if (exists(/databases/$(database)/documents/staff/$(request.auth.uid)) &&
+                         get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.role in ['admin', 'officer']) ||
+                       (request.auth.uid == resource.data.reporterUid) ||
+                       (request.auth.uid == resource.data.officerUid);
+        // Allow create if:
+        // 1. User is staff and sending as officer, OR
+        // 2. User is the reporter sending as reporter
+        allow create: if ((exists(/databases/$(database)/documents/staff/$(request.auth.uid)) &&
+                           get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.role in ['admin', 'officer']) &&
+                          (request.resource.data.from == 'officer')) ||
+                         ((request.auth.uid == request.resource.data.reporterUid) &&
+                          (request.resource.data.from == 'reporter'));
+        // Cannot update or delete messages
+        allow update: if false;
+        allow delete: if false;
+      }
     }
 
     // ─── DEFAULT DENY ──────────────────────────────────
