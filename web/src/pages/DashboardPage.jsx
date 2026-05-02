@@ -1,72 +1,15 @@
 // DashboardPage.jsx
 import { useState, useEffect } from "react";
-import Badge from "./Badge";
 import { db } from "../firebase";
-import { collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
-
-const SAMPLE_CASES = [
-  { id: "#VIO-001", type: "Harassment", reporter: "Anonymous", location: "Brgy. 123", status: "reviewing", date: "Feb 12" },
-  { id: "#VIO-002", type: "Domestic Abuse", reporter: "Maria D.", location: "Brgy. 456", status: "urgent", date: "Feb 13" },
-  { id: "#VIO-003", type: "Bullying", reporter: "Anonymous", location: "School Zone", status: "referred", date: "Feb 14" },
-  { id: "#VIO-004", type: "Threats", reporter: "Ana L.", location: "Brgy. 123", status: "pending", date: "Feb 15" },
-  { id: "#VIO-005", type: "Harassment", reporter: "Anonymous", location: "Market Area", status: "resolved", date: "Feb 10" },
-];
-
-const getStatusFromString = (status) => {
-  if (status === "pending") return "pending";
-  if (status === "urgent") return "urgent";
-  if (status === "resolved") return "resolved";
-  if (status === "reviewing") return "reviewing";
-  if (status === "referred") return "referred";
-  return "pending";
-};
-
-const formatDate = (date) => {
-  if (!date) return "";
-  const d = date instanceof Date ? date : date.toDate?.();
-  if (!d) return "";
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-};
+import { collection, query, onSnapshot } from "firebase/firestore";
 
 export default function DashboardPage({ onNavigate }) {
-  const [reports, setReports] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     total: 0,
     urgent: 0,
     active: 0,
     resolved: 0
   });
-
-  useEffect(() => {
-    try {
-      // Real-time listener for reports collection
-      const q = query(
-        collection(db, "reports"),
-        orderBy("createdAt", "desc"),
-        limit(10)
-      );
-
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const reportsData = snapshot.docs.map((doc) => ({
-          id: doc.data().caseId,
-          type: doc.data().incidentType,
-          reporter: doc.data().reporterName,
-          location: doc.data().location || "N/A",
-          status: getStatusFromString(doc.data().status),
-          date: formatDate(doc.data().createdAt),
-        }));
-        setReports(reportsData);
-        setLoading(false);
-      });
-
-      return () => unsubscribe();
-    } catch (error) {
-      console.error("Error fetching reports:", error);
-      setReports(SAMPLE_CASES);
-      setLoading(false);
-    }
-  }, []);
 
   // Fetch statistics from all reports
   useEffect(() => {
@@ -88,7 +31,7 @@ export default function DashboardPage({ onNavigate }) {
 
           if (status === "resolved") {
             resolvedCount++;
-          } else if (priorityLevel === "urgent") {
+} else if (priorityLevel === "urgent") {
             urgentCount++;
           } else if (status === "pending" || status === "reviewing" || status === "referred") {
             activeCount++;
@@ -108,8 +51,6 @@ export default function DashboardPage({ onNavigate }) {
       console.error("Error fetching statistics:", error);
     }
   }, []);
-
-  const displayReports = loading ? SAMPLE_CASES : (reports.length > 0 ? reports : SAMPLE_CASES);
 
   return (
     <div>
@@ -136,44 +77,7 @@ export default function DashboardPage({ onNavigate }) {
         ))}
       </div>
 
-      <div className="grid-2" style={{ marginBottom: 20 }}>
-        {/* Recent reports table */}
-        <div className="card" style={{ gridColumn: 'span 2' }}>
-          <div className="card-header">
-            <span className="card-title">Recent Reports</span>
-            <button className="card-action" onClick={() => onNavigate("cases")}>View all →</button>
-          </div>
-          <div style={{ padding: '10px 16px 0', display: 'flex', gap: 8 }}>
-            <input className="form-input" placeholder="Search cases..." style={{ maxWidth: 260 }} />
-            <select className="form-select" style={{ width: 140 }}>
-              <option>All status</option>
-              <option>Pending</option>
-              <option>Urgent</option>
-              <option>Resolved</option>
-            </select>
-          </div>
-          <table className="data-table" style={{ margin: 0 }}>
-            <thead>
-              <tr><th>Case ID</th><th>Type</th><th>Reporter</th><th>Location</th><th>Status</th><th>Date</th><th>Action</th></tr>
-            </thead>
-            <tbody>
-              {displayReports.map(c => (
-                <tr key={c.id}>
-                  <td className="bold">{c.id}</td>
-                  <td>{c.type}</td>
-                  <td>{c.reporter}</td>
-                  <td>{c.location}</td>
-                  <td><Badge status={c.status} /></td>
-                  <td>{c.date}</td>
-                  <td><button className="btn btn-ghost btn-sm" onClick={() => onNavigate("cases")}>Review</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Charts */}
+{/* Charts */}
       <div className="grid-2">
         <div className="card">
           <div className="card-header"><span className="card-title">Cases by Type</span></div>

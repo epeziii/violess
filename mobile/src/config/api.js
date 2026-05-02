@@ -8,4 +8,4 @@
 
 // export const API_BASE_URL = 'http://10.0.2.2:5000'; // Android emulator default
 // export const API_BASE_URL = 'http://localhost:5000'; // iOS simulator
-export const API_BASE_URL = 'http://192.168.68.125:5000'; // Physical device
+export const API_BASE_URL = 'http://192.168.68.128:5000'; // Physical device

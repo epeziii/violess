@@ -516,5 +516,24 @@ app.post("/case/:caseId/send-message", async (req, res) => {
 });
 
 
+// ─── GET ALL HELP CENTERS ──────────────────────────────────────────────
+app.get("/help-centers", async (req, res) => {
+  try {
+    const snapshot = await db.collection("helpCenters").get();
+    const centers = [];
+    snapshot.forEach(doc => {
+      centers.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+    res.json({ success: true, centers });
+  } catch (err) {
+    console.error("Error fetching help centers:", err);
+    res.status(500).json({ error: err.message || "Failed to fetch help centers" });
+  }
+});
+
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));

@@ -322,12 +322,30 @@ export default function CasesPage() {
             </select>
           </div>
           <table className="data-table" style={{ margin: 0 }}>
-            <thead>
-              <tr><th>Case ID</th><th>Type</th><th>Reporter</th><th>Location</th><th>Status</th><th>Priority</th><th>Date Filed</th><th>Action</th></tr>
+<thead>
+              <tr><th>Case ID</th><th>Type</th><th>Reporter</th><th>Location</th><th>Status</th><th>Priority</th><th>Date Filed</th></tr>
             </thead>
-            <tbody>
+<tbody>
               {filteredReports.map(c => (
-                <tr key={c.id}>
+                <tr 
+                  key={c.id} 
+                  onClick={() => handleViewCase(c)}
+                  style={{ 
+                    cursor: 'pointer',
+                    backgroundColor: selectedCase?.docId === c.docId ? 'var(--bg-muted)' : 'transparent',
+                    transition: 'background-color 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (selectedCase?.docId !== c.docId) {
+                      e.currentTarget.style.backgroundColor = 'var(--bg)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (selectedCase?.docId !== c.docId) {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }
+                  }}
+                >
                   <td className="bold">{c.id}</td>
                   <td>{c.type}</td>
                   <td>{c.reporter}</td>
@@ -347,7 +365,6 @@ export default function CasesPage() {
                     </span>
                   </td>
                   <td>{c.date}</td>
-                  <td><button className="btn btn-ghost btn-sm" onClick={() => handleViewCase(c)}>View</button></td>
                 </tr>
               ))}
             </tbody>

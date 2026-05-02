@@ -173,23 +173,14 @@ function Shell() {
       </aside>
 
       <div className="main-area">
-        <header className="topbar">
+<header className="topbar">
           <div className="topbar-left">
             <button className="toggle-btn" onClick={() => setSidebarOpen(o => !o)}>☰</button>
-            <div className="topbar-breadcrumb">
-              <span className="breadcrumb-parent">Vio-less</span>
-              <span className="breadcrumb-sep">/</span>
-              <span className="breadcrumb-current">{NAV.find(n => n.id === page)?.label}</span>
-            </div>
           </div>
           <div className="topbar-right">
             <div className="alert-indicator">
               <span className="alert-bell">🔔</span>
               <span className="alert-count">3</span>
-            </div>
-            <div className="topbar-search">
-              <span className="search-icon">🔍</span>
-              <input placeholder="Search cases..." className="search-input" />
             </div>
           </div>
         </header>

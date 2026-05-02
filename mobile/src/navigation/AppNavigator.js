@@ -26,6 +26,7 @@ import CaseTrackingScreen from '../screens/CaseTrackingScreen';
 import ChatScreen from '../screens/ChatScreen';
 import ChatbotScreen from '../screens/ChatbotScreen';
 import ResourcesScreen from '../screens/ResourcesScreen';
+import ResourceDetailScreen from '../screens/ResourceDetailScreen';
 import PrivacyScreen from '../screens/PrivacyScreen';
 import ReportScreen from '../screens/ReportScreen';
 import SOSScreen from '../screens/SOSScreen';
@@ -70,6 +71,7 @@ function MainApp() {
       <AppStack.Screen name="Chat" component={ChatScreen} />
       <AppStack.Screen name="Chatbot" component={ChatbotScreen} />
       <AppStack.Screen name="Profile" component={ProfileScreen} />
+      <AppStack.Screen name="ResourceDetail" component={ResourceDetailScreen} />
     </AppStack.Navigator>
   );
 }

@@ -8,10 +8,9 @@ import { signOut } from 'firebase/auth';
 import { auth } from '../config/firebase';
 
 export default function PrivacyScreen({ navigation }) {
-  const [settings, setSettings] = useState({
+const [settings, setSettings] = useState({
     disguise: true,
     quickExit: true,
-    hideIcon: false,
     clearHistory: true,
   });
 
@@ -39,10 +38,9 @@ export default function PrivacyScreen({ navigation }) {
     );
   };
 
-  const SETTINGS = [
+const SETTINGS = [
     { key: 'disguise',     icon: '', title: 'Disguised app name',  desc: 'Shows as "Weather App" on home screen' },
     { key: 'quickExit',    icon: '', title: 'Quick exit button',   desc: 'Shake phone to close app instantly' },
-    { key: 'hideIcon',     icon: '', title: 'Hide app icon',       desc: 'Remove icon from visible apps list' },
     { key: 'clearHistory', icon: '', title: 'Clear history on exit', desc: 'Delete activity when app closes' },
   ];
 

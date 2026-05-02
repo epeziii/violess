@@ -25,8 +25,34 @@ export default function CaseTrackingScreen({ navigation }) {
           return;
         }
 
-        const response = await fetch(`${API_BASE_URL}/user/${currentUser.uid}/cases`);
-        const data = await response.json();
+        let response;
+        try {
+          response = await fetch(`${API_BASE_URL}/user/${currentUser.uid}/cases`);
+        } catch (networkError) {
+          console.error('Network error:', networkError);
+          setError("Unable to connect to server. Please check your network connection.");
+          setCases([]);
+          setLoading(false);
+          return;
+        }
+
+        let data;
+        try {
+          data = await response.json();
+        } catch (parseError) {
+          console.error('JSON parse error:', parseError);
+          setError("Invalid response from server");
+          setCases([]);
+          setLoading(false);
+          return;
+        }
+
+        if (!response.ok) {
+          setError(data.error || `Server error: ${response.status}`);
+          setCases([]);
+          setLoading(false);
+          return;
+        }
 
         if (!data.success) {
           setError(data.error || "Failed to fetch cases");
