@@ -3,15 +3,18 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
+    "date-fns": "^4.1.0",
     "firebase": "^12.11.0",
     "react": "^18.2.0",
+    "react-datepicker": "^9.1.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^7.13.2",
     "react-scripts": "5.0.1"
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build"
+    "build": "react-scripts build",
+    "vercel-build": "react-scripts build"
   },
   "browserslist": {
     "production": [
@@ -23,3 +26,4 @@
     ]
   }
 }
+

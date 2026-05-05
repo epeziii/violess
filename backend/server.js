@@ -4,7 +4,7 @@ const cors = require("cors");
 const nodemailer = require("nodemailer");
 
 // 🔑 Firebase Admin SDK service account
-const serviceAccount = require("./violess-4e542-firebase-adminsdk-fbsvc-78fd8f52d9.json");
+const serviceAccount = JSON.parse(process.env.FIREBASE_CREDENTIALS || "{}");
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
@@ -163,7 +163,203 @@ app.post("/update-case", async (req, res) => {
   }
 });
 
-// ─── REGISTER MOBILE USER ──────────────────────────────────────────────
+// ─── HELPER: Create activity log entry ─────────────────────────────────
+async function createActivityLog(caseId, action, actionBy, actionByName, fromStatus, toStatus, notes = "") {
+  try {
+    const logId = db.collection("reports").doc().id; // Generate ID
+    await db.collection("reports").doc(caseId).collection("activityLog").doc(logId).set({
+      logId,
+      timestamp: new Date(),
+      action,
+      actionBy,
+      actionByName,
+      fromStatus: fromStatus || null,
+      toStatus: toStatus || null,
+      notes,
+      metadata: {}
+    });
+  } catch (error) {
+    console.error("Error creating activity log:", error);
+  }
+}
+
+// ─── SUBMIT RESOLUTION (Officer submits resolution for review) ─────────
+app.post("/submit-resolution", async (req, res) => {
+  try {
+    const { uid, caseId, notes, completionDate } = req.body;
+    if (!uid || !caseId || !notes) {
+      return res.status(400).json({ error: "uid, caseId, and notes are required" });
+    }
+
+    // Verify user is officer
+    const staffSnap = await db.collection("staff").doc(uid).get();
+    if (!staffSnap.exists) {
+      return res.status(403).json({ error: "Unauthorized: user not found" });
+    }
+
+    const staffData = staffSnap.data();
+    if (staffData.role !== "officer") {
+      return res.status(403).json({ error: "Unauthorized: only officers can submit resolutions" });
+    }
+
+    // Get the case
+    const caseRef = db.collection("reports").doc(caseId);
+    const caseSnap = await caseRef.get();
+
+    if (!caseSnap.exists) {
+      return res.status(404).json({ error: "Case not found" });
+    }
+
+    const caseData = caseSnap.data();
+
+    // Verify officer is assigned to case
+    const officerFullName = `${staffData.firstName} ${staffData.lastName}`.trim();
+    if (caseData.assignedOfficer !== officerFullName) {
+      return res.status(403).json({ error: "Unauthorized: you are not assigned to this case" });
+    }
+
+    // Create resolution document
+    const resolutionId = db.collection("reports").doc().id;
+    await db.collection("reports").doc(caseId).collection("resolutions").doc(resolutionId).set({
+      resolutionId,
+      submittedBy: uid,
+      submittedByName: officerFullName,
+      submittedAt: new Date(),
+      notes,
+      completionDate: completionDate || null,
+      evidenceUrls: [],
+      status: "pending",
+      reviewedBy: null,
+      reviewedByName: null,
+      reviewedAt: null,
+      reviewComments: "",
+      caseId,
+      reporterName: caseData.reporterName
+    });
+
+    // Update case status to pending_admin_review
+    await caseRef.update({
+      status: "pending_admin_review",
+      updatedAt: new Date()
+    });
+
+    // Create activity log
+    await createActivityLog(caseId, "resolution_submitted", uid, officerFullName, caseData.status, "pending_admin_review", notes);
+
+    res.json({ success: true, resolutionId });
+  } catch (error) {
+    console.error("Error submitting resolution:", error);
+    res.status(500).json({ error: error.message || "Failed to submit resolution" });
+  }
+});
+
+// ─── APPROVE RESOLUTION (Admin approves officer's resolution) ──────────
+app.post("/approve-resolution", async (req, res) => {
+  try {
+    const { uid, caseId, resolutionId, comments } = req.body;
+    if (!uid || !caseId || !resolutionId) {
+      return res.status(400).json({ error: "uid, caseId, and resolutionId are required" });
+    }
+
+    // Verify user is admin
+    const staffSnap = await db.collection("staff").doc(uid).get();
+    if (!staffSnap.exists) {
+      return res.status(403).json({ error: "Unauthorized: user not found" });
+    }
+
+    const staffData = staffSnap.data();
+    if (staffData.role !== "admin") {
+      return res.status(403).json({ error: "Unauthorized: only admins can approve resolutions" });
+    }
+
+    const adminFullName = `${staffData.firstName} ${staffData.lastName}`.trim();
+
+    // Get the resolution
+    const resolutionSnap = await db.collection("reports").doc(caseId).collection("resolutions").doc(resolutionId).get();
+    if (!resolutionSnap.exists) {
+      return res.status(404).json({ error: "Resolution not found" });
+    }
+
+    // Update resolution to approved
+    await db.collection("reports").doc(caseId).collection("resolutions").doc(resolutionId).update({
+      status: "approved",
+      reviewedBy: uid,
+      reviewedByName: adminFullName,
+      reviewedAt: new Date(),
+      reviewComments: comments || ""
+    });
+
+    // Update case status to closed
+    const caseRef = db.collection("reports").doc(caseId);
+    await caseRef.update({
+      status: "closed",
+      updatedAt: new Date()
+    });
+
+    // Create activity log
+    await createActivityLog(caseId, "resolution_approved", uid, adminFullName, "pending_admin_review", "closed", `Approved by ${adminFullName}. ${comments || ""}`);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Error approving resolution:", error);
+    res.status(500).json({ error: error.message || "Failed to approve resolution" });
+  }
+});
+
+// ─── REJECT RESOLUTION (Admin rejects officer's resolution) ────────────
+app.post("/reject-resolution", async (req, res) => {
+  try {
+    const { uid, caseId, resolutionId, comments } = req.body;
+    if (!uid || !caseId || !resolutionId) {
+      return res.status(400).json({ error: "uid, caseId, and resolutionId are required" });
+    }
+
+    // Verify user is admin
+    const staffSnap = await db.collection("staff").doc(uid).get();
+    if (!staffSnap.exists) {
+      return res.status(403).json({ error: "Unauthorized: user not found" });
+    }
+
+    const staffData = staffSnap.data();
+    if (staffData.role !== "admin") {
+      return res.status(403).json({ error: "Unauthorized: only admins can reject resolutions" });
+    }
+
+    const adminFullName = `${staffData.firstName} ${staffData.lastName}`.trim();
+
+    // Get the resolution
+    const resolutionSnap = await db.collection("reports").doc(caseId).collection("resolutions").doc(resolutionId).get();
+    if (!resolutionSnap.exists) {
+      return res.status(404).json({ error: "Resolution not found" });
+    }
+
+    // Update resolution to rejected
+    await db.collection("reports").doc(caseId).collection("resolutions").doc(resolutionId).update({
+      status: "rejected",
+      reviewedBy: uid,
+      reviewedByName: adminFullName,
+      reviewedAt: new Date(),
+      reviewComments: comments || ""
+    });
+
+    // Update case status back to in_progress
+    const caseRef = db.collection("reports").doc(caseId);
+    await caseRef.update({
+      status: "in_progress",
+      updatedAt: new Date()
+    });
+
+    // Create activity log
+    await createActivityLog(caseId, "resolution_rejected", uid, adminFullName, "pending_admin_review", "in_progress", `Rejected by ${adminFullName}. Reason: ${comments || "No reason provided"}`);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Error rejecting resolution:", error);
+    res.status(500).json({ error: error.message || "Failed to reject resolution" });
+  }
+});
+
+
 app.post("/register-user", async (req, res) => {
   try {
     const { firstName, lastName, email, password, phone, barangay } = req.body;
@@ -536,4 +732,4 @@ app.get("/help-centers", async (req, res) => {
 
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`Server running on http://0.0.0.0:${PORT}`));

@@ -4,6 +4,7 @@ import Badge from "./Badge";
 import { db } from "../firebase";
 import { collection, query, orderBy, limit, onSnapshot, where } from "firebase/firestore";
 import { useAuth } from "../AuthContext";
+import API_BASE_URL from "../config/api";
 
 const SAMPLE_CASES = [
   { id: "#VIO-001", type: "Harassment", reporter: "Anonymous", location: "Brgy. 123", status: "reviewing", date: "Feb 12" },
@@ -56,6 +57,12 @@ const formatIncidentDateTime = (value) => {
 
 export default function CasesPage() {
   const { user } = useAuth();
+  const [stats, setStats] = useState({
+    total: 0,
+    urgent: 0,
+    active: 0,
+    resolved: 0
+  });
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCase, setSelectedCase] = useState(null);
@@ -70,6 +77,11 @@ export default function CasesPage() {
     { by: "Officer Reyes", time: "Feb 12, 11:30 AM", text: "Reviewed initial report. Victim confirmed details. Scheduled follow-up interview for Feb 14." },
     { by: "Social Worker Ana", time: "Feb 13, 9:00 AM", text: "Conducted preliminary assessment. Recommending counseling referral." },
   ]);
+  const [pendingResolution, setPendingResolution] = useState(null);
+  const [approvalComments, setApprovalComments] = useState("");
+  const [approving, setApproving] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
+  const [actionMode, setActionMode] = useState("none"); // "none", "update", "resolution"
 
   useEffect(() => {
     try {
@@ -164,6 +176,8 @@ export default function CasesPage() {
     let matchesFilter = filterType === 'all';
     if (filterType === 'pending') matchesFilter = c.status === 'pending';
     else if (filterType === 'reviewing') matchesFilter = c.status === 'reviewing';
+    else if (filterType === 'in_progress') matchesFilter = c.status === 'in_progress';
+    else if (filterType === 'pending_admin_review') matchesFilter = c.status === 'pending_admin_review';
     else if (filterType === 'referred') matchesFilter = c.status === 'referred';
     else if (filterType === 'resolved') matchesFilter = c.status === 'resolved';
     else if (filterType === 'closed') matchesFilter = c.status === 'closed';
@@ -188,7 +202,7 @@ export default function CasesPage() {
     }
 
     try {
-      const res = await fetch("http://localhost:5000/update-case", {
+      const res = await fetch(`${API_BASE_URL}/update-case`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -211,10 +225,161 @@ export default function CasesPage() {
     }
   };
 
+  useEffect(() => {
+    try {
+      const q = query(collection(db, "reports"));
+
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        let totalCount = 0;
+        let urgentCount = 0;
+        let activeCount = 0;
+        let resolvedCount = 0;
+
+        snapshot.docs.forEach((doc) => {
+          const data = doc.data();
+          const status = data.status;
+          const priorityLevel = data.priorityLevel;
+
+          totalCount++;
+
+          if (status === "resolved") {
+            resolvedCount++;
+          } else if (priorityLevel === "urgent") {
+            urgentCount++;
+          } else if (status === "pending" || status === "reviewing" || status === "referred") {
+            activeCount++;
+          }
+        });
+
+        setStats({
+          total: totalCount,
+          urgent: urgentCount,
+          active: activeCount,
+          resolved: resolvedCount
+        });
+      });
+
+      return () => unsubscribe();
+    } catch (error) {
+      console.error("Error fetching statistics:", error);
+    }
+  }, []);
+
+  // Fetch pending resolution for selected case
+  useEffect(() => {
+    if (!selectedCase) {
+      setPendingResolution(null);
+      return;
+    }
+
+    try {
+      const resolutionQuery = query(
+        collection(db, "reports", selectedCase.docId, "resolutions"),
+        where("status", "==", "pending")
+      );
+
+      const unsubscribe = onSnapshot(resolutionQuery, (snapshot) => {
+        if (snapshot.docs.length > 0) {
+          setPendingResolution(snapshot.docs[0].data());
+        } else {
+          setPendingResolution(null);
+        }
+      });
+
+      return () => unsubscribe();
+    } catch (error) {
+      console.error("Error fetching resolution:", error);
+    }
+  }, [selectedCase]);
+
+
+
+  const handleApproveResolution = async () => {
+    if (!selectedCase || !pendingResolution || approving) return;
+
+    try {
+      setApproving(true);
+
+      const res = await fetch(`${API_BASE_URL}/approve-resolution`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uid: user.uid,
+          caseId: selectedCase.docId,
+          resolutionId: pendingResolution.resolutionId,
+          comments: approvalComments
+        })
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to approve");
+      }
+
+      alert("Resolution approved! Case is now closed.");
+      setApprovalComments("");
+    } catch (error) {
+      console.error("Error approving resolution:", error);
+      alert(`Error: ${error.message}`);
+    } finally {
+      setApproving(false);
+    }
+  };
+
+  const handleRejectResolution = async () => {
+    if (!selectedCase || !pendingResolution || rejecting) return;
+
+    try {
+      setRejecting(true);
+
+      const res = await fetch(`${API_BASE_URL}/reject-resolution`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uid: user.uid,
+          caseId: selectedCase.docId,
+          resolutionId: pendingResolution.resolutionId,
+          comments: approvalComments
+        })
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to reject");
+      }
+
+      alert("Resolution rejected! Case returned to officer for revision.");
+      setApprovalComments("");
+    } catch (error) {
+      console.error("Error rejecting resolution:", error);
+      alert(`Error: ${error.message}`);
+    } finally {
+      setRejecting(false);
+    }
+  };
+
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', letterSpacing: -0.5 }}>Case Management</h1>
+      </div>
+
+      {/* Stat cards - MOVED FROM DASHBOARD */}
+      <div className="stat-grid">
+        {[
+          { label: 'Total Reports', value: stats.total.toString(), change: 'All reports', cls: 'neutral', variant: 'pink' },
+          { label: 'Urgent Cases', value: stats.urgent.toString(), change: 'Needs attention', cls: 'up', variant: 'red' },
+          { label: 'Active Cases', value: stats.active.toString(), change: 'In progress', cls: 'neutral', variant: 'blue' },
+          { label: 'Resolved', value: stats.resolved.toString(), change: 'Completed', cls: 'ok', variant: 'green' },
+        ].map(s => (
+          <div key={s.label} className={`stat-card ${s.variant}`}>
+            <div className="stat-label">{s.label}</div>
+            <div className="stat-value" style={{ color: s.variant === 'pink' ? 'var(--primary)' : s.variant === 'red' ? 'var(--sos)' : s.variant === 'blue' ? 'var(--info)' : 'var(--safe)' }}>
+              {s.value}
+            </div>
+            <div className={`stat-change ${s.cls}`}>{s.change}</div>
+          </div>
+        ))}
       </div>
       <div className="grid-2" style={{ alignItems: 'start' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -255,48 +420,122 @@ export default function CasesPage() {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Update status */}
+          {/* Case Actions - Consolidated with Dropdown */}
           <div className="card">
-            <div className="card-header"><span className="card-title">Update Case</span></div>
+            <div className="card-header">
+              <span className="card-title">Case Actions</span>
+            </div>
             <div className="card-body">
               {selectedCase ? (
                 <>
                   <div className="form-group">
-                    <label className="form-label">Case Status</label>
-                    <select className="form-select" value={status} onChange={e => setStatus(e.target.value)}>
-                      <option value="pending">Pending</option>
-                      <option value="reviewing">Under Review</option>
-                      <option value="referred">Referred</option>
-                      <option value="resolved">Resolved</option>
-                      <option value="closed">Case Closed</option>
+                    <label className="form-label">Select Action</label>
+                    <select 
+                      className="form-select" 
+                      value={actionMode} 
+                      onChange={(e) => setActionMode(e.target.value)}
+                    >
+                      <option value="none">-- Select Action --</option>
+                      <option value="update">Update Case</option>
+                      <option value="resolution">Resolution Approvals</option>
                     </select>
                   </div>
-                  <div className="form-group">
-                    <label className="form-label">Assign Officer</label>
-                    <select className="form-select" value={assignedOfficer} onChange={e => setAssignedOfficer(e.target.value)} disabled={status === "pending"} style={status === "pending" ? { opacity: 0.5, cursor: "not-allowed", backgroundColor: "var(--bg-muted)" } : {}}>
-                      <option value="">-- Unassigned --</option>
-                      {officers.map((officer) => (
-                        <option key={officer.id} value={officer.name}>{officer.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Priority Level</label>
-                    <select className="form-select" value={priorityLevel} onChange={e => setPriorityLevel(e.target.value)}>
-                      <option value="normal">Normal</option>
-                      <option value="high">High</option>
-                      <option value="urgent">Urgent</option>
-                    </select>
-                  </div>
-                  <button className="btn btn-primary" style={{ width: '100%' }} onClick={handleSaveChanges}>Save Changes</button>
+
+                  {actionMode === "update" && (
+                    <>
+                      <div className="form-group">
+                        <label className="form-label">Case Status</label>
+                        <select className="form-select" value={status} onChange={e => setStatus(e.target.value)}>
+                          <option value="pending">Pending</option>
+                          <option value="reviewing">Under Review</option>
+                          <option value="referred">Referred</option>
+                          <option value="resolved">Resolved</option>
+                          <option value="closed">Case Closed</option>
+                        </select>
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Assign Officer</label>
+                        <select className="form-select" value={assignedOfficer} onChange={e => setAssignedOfficer(e.target.value)} disabled={status === "pending"} style={status === "pending" ? { opacity: 0.5, cursor: "not-allowed", backgroundColor: "var(--bg-muted)" } : {}}>
+                          <option value="">-- Unassigned --</option>
+                          {officers.map((officer) => (
+                            <option key={officer.id} value={officer.name}>{officer.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Priority Level</label>
+                        <select className="form-select" value={priorityLevel} onChange={e => setPriorityLevel(e.target.value)}>
+                          <option value="normal">Normal</option>
+                          <option value="high">High</option>
+                          <option value="urgent">Urgent</option>
+                        </select>
+                      </div>
+                      <button className="btn btn-primary" style={{ width: '100%' }} onClick={handleSaveChanges}>Save Changes</button>
+                    </>
+                  )}
+
+                  {actionMode === "resolution" && (
+                    <>
+                      <div style={{ marginBottom: 16 }}>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>Submitted By</div>
+                        <div style={{ fontSize: 13, fontWeight: 600 }}>{pendingResolution?.submittedByName}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                          {pendingResolution?.submittedAt?.toDate ? pendingResolution.submittedAt.toDate().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'N/A'}
+                        </div>
+                      </div>
+
+                      <div style={{ marginBottom: 16, padding: 12, backgroundColor: 'var(--bg)', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--border)' }}>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>Officer's Summary</div>
+                        <div style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{pendingResolution?.notes}</div>
+                      </div>
+
+                      <div className="form-group">
+                        <label className="form-label">Your Review Comments (Optional)</label>
+                        <textarea
+                          className="form-input"
+                          placeholder="Comments visible to officer if rejected..."
+                          value={approvalComments}
+                          onChange={(e) => setApprovalComments(e.target.value)}
+                          style={{ minHeight: 80, resize: 'vertical', fontFamily: 'inherit' }}
+                        />
+                      </div>
+
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          className="btn btn-primary"
+                          style={{ flex: 1 }}
+                          onClick={handleApproveResolution}
+                          disabled={approving || !pendingResolution}
+                        >
+                          {approving ? 'Approving...' : '✓ Approve & Close'}
+                        </button>
+                        <button
+                          className="btn btn-ghost"
+                          style={{ flex: 1 }}
+                          onClick={handleRejectResolution}
+                          disabled={rejecting || !pendingResolution}
+                        >
+                          {rejecting ? 'Rejecting...' : '✗ Reject'}
+                        </button>
+                      </div>
+                    </>
+                  )}
+
+                  {actionMode === "none" && (
+                    <div style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: '20px' }}>
+                      Select "Update Case" or "Resolution Approvals" to proceed
+                    </div>
+                  )}
                 </>
               ) : (
-                <div style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: '20px' }}>Select a case to view details</div>
+                <div style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: '20px' }}>
+                  Select a case first
+                </div>
               )}
             </div>
           </div>
 
-          {/* Timeline */}
+
 
         </div>
       </div>
@@ -313,6 +552,8 @@ export default function CasesPage() {
               <option value="all">All</option>
               <option value="pending">Pending</option>
               <option value="reviewing">Reviewing</option>
+              <option value="in_progress">In Progress</option>
+              <option value="pending_admin_review">Pending Review</option>
               <option value="referred">Referred</option>
               <option value="resolved">Resolved</option>
               <option value="closed">Closed</option>

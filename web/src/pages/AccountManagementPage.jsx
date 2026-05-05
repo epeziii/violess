@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { getAuth, createUserWithEmailAndPassword, updatePassword } from "firebase/auth";
 import { getFirestore, collection, getDocs } from "firebase/firestore";
 import { app } from "../firebase"; // Make sure your firebase.js exports initialized app
+import API_BASE_URL from "../config/api";
 
 const auth = getAuth(app);
 const db = getFirestore(app);
@@ -88,7 +89,7 @@ function CreateModal({ onClose, refreshAccounts }) {
     }
 
     try {
-      const res = await fetch("http://localhost:5000/create-staff", {
+      const res = await fetch(`${API_BASE_URL}/create-staff`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -177,7 +178,7 @@ function EditModal({ account, onClose, refreshAccounts }) {
 
   const handleSave = async () => {
     try {
-      const res = await fetch("http://localhost:5000/update-staff", {
+      const res = await fetch(`${API_BASE_URL}/update-staff`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -251,7 +252,7 @@ function ConfirmModal({ type, account, onClose, refreshAccounts }) {
   const isSuspend = type === "suspend";
   const handleConfirm = async () => {
     try {
-      const res = await fetch("http://localhost:5000/update-staff-status", {
+      const res = await fetch(`${API_BASE_URL}/update-staff-status`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
