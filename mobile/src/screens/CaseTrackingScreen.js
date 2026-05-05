@@ -12,6 +12,40 @@ export default function CaseTrackingScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const fetchWithRetry = async (url, maxRetries = 2) => {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const controller = new AbortController();
+        let timeoutId = null;
+        timeoutId = setTimeout(() => controller.abort(), 10000);
+
+        const response = await fetch(url, { 
+          signal: controller.signal,
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (timeoutId !== null) clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          if (attempt < maxRetries) continue;
+          return null;
+        }
+
+        return await response.json();
+      } catch (error) {
+        if (timeoutId) clearTimeout(timeoutId);
+        if (error.name === 'AbortError') {
+          console.warn('Fetch timeout, retrying...');
+        } else if (attempt < maxRetries) {
+          console.warn(`Fetch attempt ${attempt + 1} failed, retrying...`, error.message);
+          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+        } else {
+          throw error;
+        }
+      }
+    }
+  };
+
   useEffect(() => {
     const fetchUserCases = async () => {
       try {
@@ -25,37 +59,26 @@ export default function CaseTrackingScreen({ navigation }) {
           return;
         }
 
-        let response;
-        try {
-          response = await fetch(`${API_BASE_URL}/user/${currentUser.uid}/cases`);
-        } catch (networkError) {
-          console.error('Network error:', networkError);
-          setError("Unable to connect to server. Please check your network connection.");
-          setCases([]);
-          setLoading(false);
-          return;
-        }
-
-        let data;
-        try {
-          data = await response.json();
-        } catch (parseError) {
-          console.error('JSON parse error:', parseError);
-          setError("Invalid response from server");
-          setCases([]);
-          setLoading(false);
-          return;
-        }
-
-        if (!response.ok) {
-          setError(data.error || `Server error: ${response.status}`);
+        console.log('🔍 [Track] Fetching cases for uid:', currentUser.uid);
+        console.log('🔗 [Track] Using API:', API_BASE_URL);
+        
+        const data = await fetchWithRetry(`${API_BASE_URL}/user/${currentUser.uid}/cases`, 2);
+        
+        console.log('📱 [Track] Backend response:', data);
+        
+        if (!data) {
+          const errMsg = "Unable to connect to server after retries. Check network/backend.";
+          console.error('❌ [Track] No data response:', errMsg);
+          setError(errMsg);
           setCases([]);
           setLoading(false);
           return;
         }
 
         if (!data.success) {
-          setError(data.error || "Failed to fetch cases");
+          const errMsg = data.error || "Failed to fetch cases";
+          console.error('❌ [Track] Backend error:', errMsg);
+          setError(errMsg);
           setCases([]);
           setLoading(false);
           return;

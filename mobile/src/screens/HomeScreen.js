@@ -7,6 +7,7 @@ import { colors, spacing, radius, shadow } from '../theme';
 import { Card, StatusBadge, QuickCard, SectionHeader } from '../components';
 import { auth } from '../config/firebase';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
+import { API_BASE_URL } from '../config/api';
 
 const { width } = Dimensions.get('window');
 
@@ -14,6 +15,7 @@ export default function HomeScreen({ navigation }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const [userData, setUserData] = useState(null);
+  const [activeCasesCount, setActiveCasesCount] = useState(0);
 
   useEffect(() => {
     Animated.parallel([
@@ -39,6 +41,71 @@ export default function HomeScreen({ navigation }) {
     };
 
     fetchUserData();
+  }, []);
+
+  useEffect(() => {
+    const fetchWithRetry = async (url, maxRetries = 2) => {
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          const controller = new AbortController();
+          let timeoutId = null;
+          timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
+          const response = await fetch(url, { 
+            signal: controller.signal,
+            headers: { 'Content-Type': 'application/json' }
+          });
+
+          if (timeoutId !== null) clearTimeout(timeoutId);
+
+          if (!response.ok) {
+            if (attempt < maxRetries) continue;
+            return null;
+          }
+
+          return await response.json();
+        } catch (error) {
+          if (timeoutId !== null) clearTimeout(timeoutId);
+          if (error.name === 'AbortError') {
+            console.warn('Fetch timeout, retrying...');
+          } else if (attempt < maxRetries) {
+            console.warn(`Fetch attempt ${attempt + 1} failed, retrying...`, error.message);
+            await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1))); // Backoff
+          } else {
+            throw error;
+          }
+        }
+      }
+    };
+
+    const fetchActiveCases = async () => {
+      try {
+        const currentUser = auth.currentUser;
+        if (!currentUser) return;
+
+        console.log('🔍 [Home] Fetching cases for uid:', currentUser.uid);
+        console.log('🔗 [Home] Using API:', API_BASE_URL);
+        
+        const data = await fetchWithRetry(`${API_BASE_URL}/user/${currentUser.uid}/cases`);
+        
+        console.log('📱 [Home] Backend response:', data);
+        
+        if (data?.success && data.cases) {
+          const activeCount = data.cases.filter(
+            c => c.status !== 'resolved' && c.status !== 'closed'
+          ).length;
+          console.log('✅ [Home] Active cases count:', activeCount);
+          setActiveCasesCount(activeCount);
+        } else {
+          console.warn('⚠️ [Home] No success data or no cases:', data);
+        }
+      } catch (error) {
+        console.error('❌ [Home] Error fetching active cases:', error.message || error);
+        console.error('🔗 [Home] Full error:', error);
+      }
+    };
+
+    fetchActiveCases();
   }, []);
 
   // Generate initials from first and last name
@@ -74,7 +141,7 @@ export default function HomeScreen({ navigation }) {
           {/* Stats row */}
           <View style={styles.statsRow}>
             {[
-              { value: '1', label: 'Active case' },
+              { value: activeCasesCount.toString(), label: 'Active case' },
               { value: '3', label: 'Contacts' },
               { value: 'Safe', label: 'Status' },
             ].map((s, i) => (

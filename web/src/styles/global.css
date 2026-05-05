@@ -300,6 +300,56 @@ input, textarea, select { font-family: inherit; outline: none; }
   color: var(--text);
   transition: border-color 0.15s;
 }
+
+.form-input[type="date"] {
+  color: transparent;
+  padding-right: 40px;
+  position: relative;
+}
+
+.form-input[type="date"]:valid {
+  color: var(--text);
+}
+
+.form-input[type="date"]::-webkit-datetime-edit {
+  color: var(--text-muted);
+}
+
+.form-input[type="date"]::-webkit-datetime-edit-fields-wrapper {
+  padding: 0;
+}
+
+.form-input[type="date"]::-webkit-datetime-edit-text {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.form-input[type="date"]::-webkit-calendar-picker-indicator {
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0.6;
+  filter: brightness(0.5);
+}
+
+.form-input[type="date"]::-webkit-datetime-edit-year-field,
+.form-input[type="date"]::-webkit-datetime-edit-month-field,
+.form-input[type="date"]::-webkit-datetime-edit-day-field,
+.form-input[type="date"]::-webkit-datetime-edit-text {
+  color: var(--text-muted) !important;
+}
+
+input[type="date"].form-input::-webkit-datetime-edit-fields-wrapper {
+  color: var(--text-muted);
+}
+
+.form-input[type="date"]:focus {
+  border-color: var(--primary);
+  background: #fff;
+}
+
+.form-input[type="date"]:invalid {
+  color: transparent;
+}
 .form-input:focus, .form-select:focus, .form-textarea:focus {
   border-color: var(--primary);
   background: #fff;
@@ -423,3 +473,246 @@ input, textarea, select { font-family: inherit; outline: none; }
   .stat-grid { grid-template-columns: repeat(2,1fr); }
   .grid-2 { grid-template-columns: 1fr; }
 }
+
+.date-input-with-icon {
+  position: relative;
+}
+
+.date-input-with-icon .react-datepicker-wrapper {
+  display: block;
+}
+
+.date-input-with-icon .react-datepicker__input-container {
+  position: relative;
+}
+
+.date-input-with-icon .react-datepicker__input-container::after {
+  content: "🗓️";
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  font-size: 16px;
+  z-index: 1;
+  color: var(--text-muted);
+}
+
+.date-input-with-icon input[type="text"] {
+  padding-right: 40px !important;
+}
+
+.date-wrapper {
+  position: relative;
+  display: block;
+}
+
+.date-icon-btn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 18px;
+  cursor: pointer;
+  z-index: 2;
+  padding: 4px;
+  border-radius: 4px;
+  line-height: 1;
+  height: 24px;
+  width: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.date-icon-btn:hover {
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
+input[type="date"].form-input {
+  padding-right: 48px;
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: var(--bg);
+}
+
+input[type="date"].form-input::-webkit-calendar-picker-indicator {
+  display: none !important;
+  opacity: 0;
+}
+
+input[type="date"].form-input::-webkit-inner-spin-button,
+input[type="date"].form-input::-webkit-clear-button {
+  display: none;
+}
+
+/* ── React DatePicker Time Picker Styles ───────────────────────────────────────── */
+.react-datepicker-wrapper {
+  display: block;
+  width: 100%;
+}
+
+.react-datepicker__input-container input {
+  /* Hide any browser-default "Selected time" text */
+  color: var(--text) !important;
+  font-size: 12px;
+}
+
+.react-datepicker__input-container input::placeholder {
+  color: var(--text-muted);
+}
+
+/* Main popup */
+.react-datepicker {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 8px 0;
+  font-size: 13px;
+}
+
+/* Header (time caption) */
+.react-datepicker__header {
+  background: var(--primary);
+  color: #fff;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  padding: 12px 16px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 13px;
+  border: none;
+}
+
+.react-datepicker__current-time {
+  display: none; /* Hide "Selected time" or similar headers if present */
+}
+
+/* Time list wrapper */
+.react-datepicker-time__container {
+  border-left: 1px solid var(--border-strong);
+  padding-left: 12px;
+}
+
+.react-datepicker__time-container {
+  width: 100px;
+  border-left: none;
+}
+
+/* Time list */
+.react-datepicker__time-list {
+  margin: 0;
+  padding: 0;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.react-datepicker__time-list-item {
+  padding: 8px 16px;
+  margin: 0;
+  cursor: pointer;
+  transition: all 0.15s;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-weight: 500;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+}
+
+.react-datepicker__time-list-item:hover,
+.react-datepicker__time-list-item--selected {
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
+.react-datepicker__time-list-item--selected {
+  background: var(--primary) !important;
+  color: #fff !important;
+  font-weight: 600;
+}
+
+/* Scrollbar for time list */
+.react-datepicker__time-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.react-datepicker__time-list::-webkit-scrollbar-thumb {
+  background: rgba(194,24,91,0.3);
+  border-radius: 2px;
+}
+
+.react-datepicker__time-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Time caption/legend */
+.react-datepicker-time__caption {
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 8px 16px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+
+/* Close button if any */
+.react-datepicker__close-icon {
+  display: none;
+}
+
+/* Focus states */
+.react-datepicker__time-list-item:focus {
+  outline: none;
+  background: rgba(194,24,91,0.1);
+}
+
+/* Ensure input doesn't show extra text */
+.form-input.react-datepicker__input-container input {
+  padding-right: 12px;
+  background: var(--bg) !important;
+  border: 0.5px solid rgba(194,24,91,0.15) !important;
+}
+
+.form-input.react-datepicker__input-container input:focus {
+  border-color: var(--primary) !important;
+  background: #fff !important;
+}
+
+/* ── MUI DesktopTimePicker Styles ───────────────────────────────────────── */
+.MuiDesktopTimePicker-root .MuiOutlinedInput-notchedOutline {
+  border: none !important;
+}
+
+.MuiDesktopTimePicker-root .MuiOutlinedInput-root {
+  background: var(--bg) !important;
+  border: 0.5px solid rgba(194,24,91,0.15) !important;
+  border-radius: var(--radius-md) !important;
+  padding: 0 !important;
+  width: 100% !important;
+}
+
+.MuiDesktopTimePicker-root .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
+  border-color: var(--primary) !important;
+}
+
+.MuiDesktopTimePicker-root .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: var(--primary) !important;
+  background: #fff !important;
+}
+
+.MuiDesktopTimePicker-root .MuiOutlinedInput-input {
+  padding: 9px 12px !important;
+  font-size: 12px !important;
+  color: var(--text) !important;
+}
+
+

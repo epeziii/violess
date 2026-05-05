@@ -1,7 +1,9 @@
 
 // CommunicationsPage.jsx
 import { useState, useEffect } from "react";
-import DatePicker from "react-datepicker";
+import { DesktopTimePicker } from "@mui/x-date-pickers/DesktopTimePicker";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { format } from "date-fns";
 import { addDoc, collection, serverTimestamp, doc, query, where, onSnapshot, orderBy, getDocs } from "firebase/firestore";
 import { db } from "../firebase";
@@ -18,7 +20,7 @@ export default function CommunicationsPage() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
-  const [selectedTime, setSelectedTime] = useState(null);
+  const [selectedTimeValue, setSelectedTimeValue] = useState(null);
   const [interviewMode, setInterviewMode] = useState("Barangay Hall (private room)");
   const [scheduling, setScheduling] = useState(false);
   const [scheduleMessage, setScheduleMessage] = useState("");
@@ -93,12 +95,12 @@ export default function CommunicationsPage() {
   }, [selectedCase]);
 
   const scheduleInterview = async () => {
-    if (!selectedCase || !selectedDate || !selectedTime || scheduling) return;
+    if (!selectedCase || !selectedDate || !selectedTimeValue || scheduling) return;
     try {
       setScheduling(true);
       setScheduleMessage("");
       const interviewDateTime = new Date(selectedDate);
-      interviewDateTime.setHours(selectedTime.getHours(), selectedTime.getMinutes(), 0, 0);
+      interviewDateTime.setHours(selectedTimeValue.getHours(), selectedTimeValue.getMinutes(), 0, 0);
       await addDoc(collection(db, `reports/${selectedCase.docId}/interviews`), {
         caseId: selectedCase.id,
         reporterUid: selectedCase.uid,
@@ -124,7 +126,7 @@ export default function CommunicationsPage() {
         timestamp: new Date(),
       });
       setSelectedDate(null);
-      setSelectedTime(null);
+      setSelectedTimeValue(null);
       setInterviewMode("Barangay Hall (private room)");
     } catch (error) {
       console.error("Error scheduling interview:", error);
@@ -307,16 +309,15 @@ export default function CommunicationsPage() {
                       </div>
                       <div className="form-group">
                         <label className="form-label">TIME</label>
-                      <DatePicker
-                        selected={selectedTime}
-                        onChange={setSelectedTime}
-                        showTimeSelect
-                        showTimeSelectOnly
-                        timeIntervals={15}
-                        dateFormat="h:mm aa"
-                        className="form-input"
-                        placeholderText="Select time"
-                      />
+                        <div style={{ width: '100%' }}>
+                          <LocalizationProvider dateAdapter={AdapterDateFns}>
+                            <DesktopTimePicker
+                              value={selectedTimeValue}
+                              onChange={(newValue) => setSelectedTimeValue(newValue)}
+                              sx={{ width: '100%' }}
+                            />
+                          </LocalizationProvider>
+                        </div>
                       </div>
                       <div className="form-group">
                         <label className="form-label">Mode</label>
@@ -334,7 +335,7 @@ export default function CommunicationsPage() {
                         className="btn btn-primary"
                         style={{ width: '100%' }}
                         onClick={scheduleInterview}
-                        disabled={!selectedCase || !selectedDate || !selectedTime || scheduling}
+                        disabled={!selectedCase || !selectedDate || !selectedTimeValue || scheduling}
                       >
                         {scheduling ? 'Scheduling...' : 'Schedule Interview'}
                       </button>

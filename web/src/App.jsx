@@ -14,12 +14,11 @@ import AccountManagementPage from "./pages/AccountManagementPage";
 import "./styles/global.css";
 
 const NAV = [
-  { id: "dashboard",  icon: "",  label: "Dashboard",       permission: "dashboard" },
+  { id: "analytics",  icon: "", label: "Dashboard Analytics", permission: "analytics" },
   { id: "cases",      icon: "", label: "Case Management", permission: "cases", adminOnly: true },
-  { id: "referrals",  icon: "",  label: "Referrals",       permission: "referrals" },
   { id: "comms",      icon: "", label: "Communications",  permission: "communications" },
-  { id: "analytics",  icon: "", label: "Analytics",       permission: "analytics" },
   { id: "evidence",   icon: "", label: "Evidence",        permission: "evidence" },
+  { id: "referrals",  icon: "",  label: "Referrals",       permission: "referrals" },
   { id: "accounts",   icon: "", label: "Accounts",        permission: "accountManagement", adminOnly: true },
   { id: "settings",   icon: "", label: "Settings",        permission: "systemSettings",   adminOnly: true },
 ];
@@ -37,7 +36,7 @@ function SettingsPlaceholder() {
 
 function Shell() {
   const { user, logout, can, loading } = useAuth(); // ✅ include loading
-  const [page, setPage] = useState("dashboard");
+  const [page, setPage] = useState("analytics");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
 
@@ -54,7 +53,6 @@ function Shell() {
 
   const visibleNav = NAV.filter(n => can(n.permission));
   const pages = {
-    dashboard: <DashboardPage onNavigate={setPage} />,
     cases:     <ProtectedRoute permission="cases"><CasesPage /></ProtectedRoute>,
     referrals: <ReferralPage />,
     comms:     <CommunicationsPage />,

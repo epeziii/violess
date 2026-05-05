@@ -7,6 +7,39 @@ import { db } from '../config/firebase';
 import { collection, query, where, onSnapshot, orderBy, addDoc, getDoc, doc, getDocs, updateDoc, arrayUnion } from 'firebase/firestore';
 import { API_BASE_URL } from '../config/api';
 
+const formatMessageTime = (timestamp) => {
+  if (!timestamp) return 'Just now';
+  
+  try {
+    let date;
+    
+    // Firebase Timestamp
+    if (timestamp.toDate) {
+      date = timestamp.toDate();
+    } 
+    // Already Date
+    else if (timestamp instanceof Date) {
+      date = timestamp;
+    } 
+    // String/number - parse safely
+    else {
+      date = new Date(timestamp);
+    }
+    
+    // Invalid date check
+    if (isNaN(date.getTime())) {
+      return 'Just now';
+    }
+    
+    return date.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit' 
+    });
+  } catch {
+    return 'Just now';
+  }
+};
+
 export default function ChatScreen({ navigation, route }) {
   const { caseId } = route.params || {};
   const [messages, setMessages] = useState([]);
@@ -16,6 +49,8 @@ export default function ChatScreen({ navigation, route }) {
   const [caseData, setCaseData] = useState(null);
   const [officerName, setOfficerName] = useState('Officer');
   const [sending, setSending] = useState(false);
+  const [showReasonFor, setShowReasonFor] = useState(null);
+  const [reasonInput, setReasonInput] = useState('');
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const listRef = useRef();
   const isInitialLoadRef = useRef(true);
@@ -115,16 +150,12 @@ export default function ChatScreen({ navigation, route }) {
           return;
         }
 
-        const fetchedMessages = data.messages.map((msg) => ({
+          const fetchedMessages = data.messages.map((msg) => ({
           id: msg.id,
           from: msg.from === 'officer' ? 'officer' : 'reporter',
           name: msg.from === 'officer' ? msg.officerName : undefined,
           text: msg.text,
-          time: msg.timestamp?.toDate?.()
-            ? new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-            : msg.timestamp instanceof Date
-            ? msg.timestamp.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-            : 'Now',
+          time: formatMessageTime(msg.timestamp),
         }));
 
         setMessages(fetchedMessages);
@@ -164,8 +195,8 @@ export default function ChatScreen({ navigation, route }) {
     };
   }, [caseId]);
 
-  const send = async () => {
-    if (!input.trim() || !caseId || sending) return;
+  const quickSend = async (messageText) => {
+    if (!messageText.trim() || !caseId || sending) return;
 
     try {
       setSending(true);
@@ -227,16 +258,28 @@ export default function ChatScreen({ navigation, route }) {
         reporterUid: currentUser.uid,
         reporterName: reporterName,
         officerUid: officerUid || "",
-        text: input,
+        text: messageText,
         timestamp: new Date(),
       });
 
-      setInput('');
+      // Reset reason input if used
+      if (showReasonFor) {
+        setReasonInput('');
+        setShowReasonFor(null);
+      } else {
+        // Regular input - handled in send()
+      }
     } catch (error) {
       console.error('Error sending message:', error);
     } finally {
       setSending(false);
     }
+  };
+
+  const send = async () => {
+    if (!input.trim() || !caseId || sending) return;
+    await quickSend(input);
+    setInput('');
   };
 
   return (
@@ -283,15 +326,79 @@ export default function ChatScreen({ navigation, route }) {
             data={messages}
             keyExtractor={m => m.id}
             contentContainerStyle={{ padding: spacing.lg }}
-            renderItem={({ item }) => (
-              <View style={[ch.msgWrap, item.from === 'reporter' && ch.msgWrapMe]}>
-                {item.from !== 'reporter' && <Text style={ch.senderName}>{item.name}</Text>}
-                <View style={[ch.bubble, item.from === 'reporter' ? ch.bubbleMe : ch.bubbleThem]}>
-                  <Text style={[ch.bubbleText, item.from === 'reporter' && { color: '#fff' }]}>{item.text}</Text>
-                  <Text style={[ch.timeText, item.from === 'reporter' && { color: 'rgba(255,255,255,0.65)' }]}>{item.time}</Text>
+            renderItem={({ item }) => {
+              const isInterviewMsg = item.text.match(/📅 Interview scheduled.*Reply ACCEPT/i);
+              const isMyReason = showReasonFor === item.id;
+
+              const handleAccept = () => {
+                quickSend(`✅ ACCEPT - Confirmed for ${item.text.match(/📅 Interview scheduled for (.*?)\(/)?.[1] || 'scheduled interview'}`);
+              };
+
+              const handleReasonSend = () => {
+                quickSend(reasonInput || 'Reason for unavailability');
+                setReasonInput('');
+              };
+
+              const handleReasonCancel = () => {
+                setReasonInput('');
+                setShowReasonFor(null);
+              };
+
+              return (
+                <View style={[ch.msgWrap, item.from === 'reporter' && ch.msgWrapMe]}>
+                  {item.from !== 'reporter' && <Text style={ch.senderName}>{item.name}</Text>}
+                  <View style={[ch.bubble, item.from === 'reporter' ? ch.bubbleMe : ch.bubbleThem]}>
+                    <Text style={[ch.bubbleText, item.from === 'reporter' && { color: '#fff' }]}>{item.text}</Text>
+                    <Text style={[ch.timeText, item.from === 'reporter' && { color: 'rgba(255,255,255,0.65)' }]}>{item.time}</Text>
+                  </View>
+                  {isInterviewMsg && item.from === 'officer' && !isMyReason && (
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, paddingHorizontal: 4 }}>
+                      <TouchableOpacity 
+                        style={{ flex: 1, backgroundColor: colors.safe, padding: 10, borderRadius: 8, alignItems: 'center' }}
+                        onPress={handleAccept}
+                        disabled={sending}
+                      >
+                        <Text style={{ color: 'white', fontWeight: '600' }}>✅ Accept</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                        style={{ flex: 1, backgroundColor: colors.warning, padding: 10, borderRadius: 8, alignItems: 'center' }}
+                        onPress={() => setShowReasonFor(item.id)}
+                        disabled={sending}
+                      >
+                        <Text style={{ color: 'white', fontWeight: '600' }}>❌ Reason</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                  {isMyReason && (
+                    <View style={{ marginTop: 8, gap: 8 }}>
+                      <TextInput
+                        style={[ch.input, { flex: 0, minHeight: 40 }]}
+                        value={reasonInput}
+                        onChangeText={setReasonInput}
+                        placeholder="Enter reason for unavailability..."
+                        placeholderTextColor={colors.placeholder}
+                        multiline
+                      />
+                      <View style={{ flexDirection: 'row', gap: 8 }}>
+                        <TouchableOpacity 
+                          style={{ flex: 1, backgroundColor: colors.primary, padding: 10, borderRadius: 8, alignItems: 'center' }}
+                          onPress={handleReasonSend}
+                          disabled={sending || !reasonInput.trim()}
+                        >
+                          <Text style={{ color: 'white', fontWeight: '600' }}>Send Reason</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity 
+                          style={{ flex: 1, backgroundColor: colors.surfaceVariant, padding: 10, borderRadius: 8, alignItems: 'center' }}
+                          onPress={handleReasonCancel}
+                        >
+                          <Text style={{ color: colors.textMuted, fontWeight: '600' }}>Cancel</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  )}
                 </View>
-              </View>
-            )}
+              );
+            }}
           />
         )}
       </View>
