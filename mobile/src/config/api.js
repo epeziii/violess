@@ -25,7 +25,7 @@ const getApiBaseUrl = () => {
 
 // For physical device development:
 // Replace with your host IP (from `ip addr show` -> wlan0)
-export const PHYSICAL_DEVICE_URL = 'http://192.168.68.128:5000'; 
+export const PHYSICAL_DEVICE_URL = 'http://172.18.49.47:5000'; 
 
 // Use this in screens for now (override emulator URL on physical device)
 export const API_BASE_URL = PHYSICAL_DEVICE_URL;

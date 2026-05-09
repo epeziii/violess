@@ -4,7 +4,12 @@ const cors = require("cors");
 const nodemailer = require("nodemailer");
 
 // 🔑 Firebase Admin SDK service account
-const serviceAccount = JSON.parse(process.env.FIREBASE_CREDENTIALS || "{}");
+const serviceAccount = process.env.FIREBASE_CREDENTIALS ? JSON.parse(process.env.FIREBASE_CREDENTIALS) : null;
+
+if (!serviceAccount) {
+  console.error('FIREBASE_CREDENTIALS environment variable is not set or invalid');
+  process.exit(1);
+}
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
