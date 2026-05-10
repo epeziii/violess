@@ -41,7 +41,7 @@ const [settings, setSettings] = useState({
 
 const SETTINGS = [
     { key: 'disguise',     icon: 'eye-slash', title: 'Disguised app name',  desc: 'Shows as "Weather App" on home screen' },
-    { key: 'quickExit',    icon: 'bolt', title: 'Quick exit button',   desc: 'Shake phone to close app instantly' },
+    { key: 'quickExit',    icon: 'bolt', title: 'Quick exit',   desc: 'Shake phone to close app instantly' },
     { key: 'clearHistory', icon: 'trash', title: 'Clear history on exit', desc: 'Delete activity when app closes' },
   ];
 

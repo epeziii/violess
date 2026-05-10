@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { FontAwesome6 } from '@expo/vector-icons';
 import { colors } from '../theme';
 
 // 🔥 Firebase
@@ -33,6 +34,14 @@ import SOSScreen from '../screens/SOSScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 
 const db = getFirestore();
+
+const TAB_ICON_MAP = {
+  Home: 'house',
+  Report: 'file-circle-plus',
+  SOS: 'triangle-exclamation',
+  Resources: 'book',
+  Privacy: 'shield',
+};
 const RootStack = createNativeStackNavigator();
 const AuthStack = createNativeStackNavigator();
 const AppStack = createNativeStackNavigator();
@@ -51,14 +60,82 @@ function AuthNavigator() {
   );
 }
 
+const styles = StyleSheet.create({
+  tabBar: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(194,24,91,0.1)',
+    height: 65,
+    paddingBottom: Platform.OS === 'ios' ? 10 : 5,
+  },
+  sosIconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: colors.sos,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+});
+
+function SOSTabIcon() {
+  return (
+    <View style={styles.sosIconContainer}>
+      <FontAwesome6 name="triangle-exclamation" size={24} color="#fff" />
+    </View>
+  );
+}
+
 function MainTabs() {
   return (
-    <Tab.Navigator screenOptions={{ headerShown: false }}>
-      <Tab.Screen name="HomeTab" component={HomeScreen} />
-      <Tab.Screen name="ReportTab" component={ReportScreen} />
-      <Tab.Screen name="SOSTab" component={SOSScreen} />
-      <Tab.Screen name="ResourcesTab" component={ResourcesScreen} />
-      <Tab.Screen name="PrivacyTab" component={PrivacyScreen} />
+    <Tab.Navigator
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textMuted,
+        tabBarStyle: styles.tabBar,
+      }}
+    >
+      <Tab.Screen
+        name="Home"
+        component={HomeScreen}
+        options={{ tabBarLabel: 'Home', tabBarIcon: ({ color, size }) => (
+          <FontAwesome6 name={TAB_ICON_MAP.Home} size={size} color={color} />
+        )}}
+      />
+      <Tab.Screen
+        name="Report"
+        component={ReportScreen}
+        options={{ tabBarLabel: 'Report', tabBarIcon: ({ color, size }) => (
+          <FontAwesome6 name={TAB_ICON_MAP.Report} size={size} color={color} />
+        )}}
+      />
+      <Tab.Screen
+        name="SOS"
+        component={SOSScreen}
+        options={{
+          tabBarLabel: '',
+          tabBarIcon: () => <SOSTabIcon />,
+        }}
+      />
+      <Tab.Screen
+        name="Resources"
+        component={ResourcesScreen}
+        options={{ tabBarLabel: 'Resources', tabBarIcon: ({ color, size }) => (
+          <FontAwesome6 name={TAB_ICON_MAP.Resources} size={size} color={color} />
+        )}}
+      />
+      <Tab.Screen
+        name="Privacy"
+        component={PrivacyScreen}
+        options={{ tabBarLabel: 'Privacy', tabBarIcon: ({ color, size }) => (
+          <FontAwesome6 name={TAB_ICON_MAP.Privacy} size={size} color={color} />
+        )}}
+      />
     </Tab.Navigator>
   );
 }
