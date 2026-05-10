@@ -1,20 +1,22 @@
-import React from 'react';
-import {
-  View, Text, ScrollView, StyleSheet,
-  TouchableOpacity, StatusBar, Linking,
-} from 'react-native';
-import { colors, spacing, radius, shadow } from '../theme';
+// ───────── ResourceDetailScreen.js ─────────
 
-// ─── Resource content data ────────────────────────────────────────────────────
+import React from 'react';
+import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View, Linking } from 'react-native';
+import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
+
+import { colors, radius, shadow, spacing } from '../theme';
+
+// ───────── Resource data ─────────
 export const RESOURCE_DATA = {
   ra9262: {
-    id:       'ra9262',
-    icon:     '⚖️',
-    title:    "Women's Rights (RA 9262)",
+    id: 'ra9262',
+    icon: 'shield',
+    title: "Women's Rights (RA 9262)",
     subtitle: 'Anti-Violence Against Women and Children Act of 2004',
-    color:    colors.primaryLight,
+    color: colors.primaryLight,
     accentColor: colors.primary,
-    overview: 'Republic Act 9262, also known as the Anti-VAWC Act, protects women and their children from physical, sexual, psychological, and economic abuse committed by a spouse, former spouse, or any person with whom the victim has or had a dating or sexual relationship.',
+    overview:
+      'Republic Act 9262, also known as the Anti-VAWC Act, protects women and their children from physical, sexual, psychological, and economic abuse committed by a spouse, former spouse, or any person with whom the victim has or had a dating or sexual relationship.',
     sections: [
       {
         heading: 'Who is protected?',
@@ -61,25 +63,26 @@ export const RESOURCE_DATA = {
         'File an incident blotter at the PNP or NBI',
         'Seek medical attention and request a medico-legal certificate',
         'Contact DSWD or a social worker for shelter and support',
-        'Consult the Public Attorney\'s Office (PAO) for free legal help',
+        "Consult the Public Attorney's Office (PAO) for free legal help",
       ],
     },
     hotlines: [
-      { label: 'PNP Women & Children Protection',  number: '(02) 8723-0401' },
-      { label: 'DSWD Crisis Hotline',               number: '931' },
+      { label: 'PNP Women & Children Protection', number: '(02) 8723-0401' },
+      { label: 'DSWD Crisis Hotline', number: '931' },
       { label: 'PCW (Philippine Commission on Women)', number: '(02) 8532-0955' },
-      { label: 'Libreng Tulong (PAO)',               number: '(02) 8929-9436' },
+      { label: "Libreng Tulong (PAO)", number: '(02) 8929-9436' },
     ],
   },
 
   youthLaws: {
-    id:       'youthLaws',
-    icon:     '🛡️',
-    title:    'Youth Protection Laws',
+    id: 'youthLaws',
+    icon: 'people-group',
+    title: 'Youth Protection Laws',
     subtitle: 'Rights and legal protections for minors in the Philippines',
-    color:    colors.infoLight,
+    color: colors.infoLight,
     accentColor: colors.info,
-    overview: 'The Philippines has strong laws protecting children and youth from abuse, exploitation, and violence. These include the Special Protection of Children Act (RA 7610), the Juvenile Justice Act (RA 9344), and the Anti-Bullying Act (RA 10627).',
+    overview:
+      'The Philippines has strong laws protecting children and youth from abuse, exploitation, and violence. These include the Special Protection of Children Act (RA 7610), the Juvenile Justice Act (RA 9344), and the Anti-Bullying Act (RA 10627).',
     sections: [
       {
         heading: 'RA 7610 — Special Protection of Children',
@@ -128,21 +131,22 @@ export const RESOURCE_DATA = {
       ],
     },
     hotlines: [
-      { label: 'Bantay Bata 163 (SOS)',       number: '163' },
-      { label: 'DSWD Crisis Hotline',          number: '931' },
-      { label: 'NBI Anti-Human Trafficking',   number: '(02) 8523-8231' },
-      { label: 'DepEd Child Protection',       number: '(02) 8636-5284' },
+      { label: 'Bantay Bata 163 (SOS)', number: '163' },
+      { label: 'DSWD Crisis Hotline', number: '931' },
+      { label: 'NBI Anti-Human Trafficking', number: '(02) 8523-8231' },
+      { label: 'DepEd Child Protection', number: '(02) 8636-5284' },
     ],
   },
 
   hotlines: {
-    id:       'hotlines',
-    icon:     '📞',
-    title:    'Emergency Hotlines',
+    id: 'hotlines',
+    icon: 'phone',
+    title: 'Emergency Hotlines',
     subtitle: 'Direct lines for immediate help and support',
-    color:    colors.sosLight,
+    color: colors.sosLight,
     accentColor: colors.sos,
-    overview: 'In an emergency, call these numbers immediately. Save them on your phone. All calls are confidential and your safety is the priority.',
+    overview:
+      'In an emergency, call these numbers immediately. Save them on your phone. All calls are confidential and your safety is the priority.',
     sections: [
       {
         heading: 'Emergency & Police',
@@ -185,26 +189,27 @@ export const RESOURCE_DATA = {
         'Stay as calm as possible and speak clearly',
         'State your name and exact location first',
         'Describe the emergency briefly',
-        'Follow the operator\'s instructions',
+        "Follow the operator's instructions",
         'Stay on the line unless told otherwise',
       ],
     },
     hotlines: [
-      { label: 'PNP Emergency',   number: '911' },
-      { label: 'DSWD',            number: '931' },
-      { label: 'Bantay Bata',     number: '163' },
-      { label: 'DOH',             number: '1555' },
+      { label: 'PNP Emergency', number: '911' },
+      { label: 'DSWD', number: '931' },
+      { label: 'Bantay Bata', number: '163' },
+      { label: 'DOH', number: '1555' },
     ],
   },
 
   afterAbuse: {
-    id:       'afterAbuse',
-    icon:     '🏥',
-    title:    'What to do after abuse',
+    id: 'afterAbuse',
+    icon: 'shield-heart',
+    title: 'What to do after abuse',
     subtitle: 'Immediate steps to ensure your safety and begin recovery',
-    color:    colors.safeLight,
+    color: colors.safeLight,
     accentColor: colors.safe,
-    overview: 'If you or someone you know has experienced abuse, taking the right steps immediately can protect your safety, preserve evidence, and begin the process of getting justice and healing.',
+    overview:
+      'If you or someone you know has experienced abuse, taking the right steps immediately can protect your safety, preserve evidence, and begin the process of getting justice and healing.',
     sections: [
       {
         heading: 'Immediate safety (first 24 hours)',
@@ -260,21 +265,22 @@ export const RESOURCE_DATA = {
       ],
     },
     hotlines: [
-      { label: 'PNP Emergency',       number: '911' },
+      { label: 'PNP Emergency', number: '911' },
       { label: 'DSWD Crisis Hotline', number: '931' },
-      { label: 'Hopeline',            number: '(02) 8804-4673' },
-      { label: 'NCMH Crisis',         number: '1553' },
+      { label: 'Hopeline', number: '(02) 8804-4673' },
+      { label: 'NCMH Crisis', number: '1553' },
     ],
   },
 
   legalSteps: {
-    id:       'legalSteps',
-    icon:     '📄',
-    title:    'Legal Steps',
+    id: 'legalSteps',
+    icon: 'gavel',
+    title: 'Legal Steps',
     subtitle: 'How to file a complaint and seek legal protection',
-    color:    colors.warnLight,
+    color: colors.warnLight,
     accentColor: colors.warn,
-    overview: 'The legal process can feel overwhelming, but there are clear steps and people who will help you. You do not need a lawyer to start. Your first step is the barangay or police station.',
+    overview:
+      'The legal process can feel overwhelming, but there are clear steps and people who will help you. You do not need a lawyer to start. Your first step is the barangay or police station.',
     sections: [
       {
         heading: 'Step 1 — Barangay Protection Order (BPO)',
@@ -309,7 +315,7 @@ export const RESOURCE_DATA = {
       {
         heading: 'Step 4 — Criminal complaint',
         items: [
-          'A formal complaint can be filed at the City Prosecutor\'s Office',
+          "A formal complaint can be filed at the City Prosecutor's Office",
           'Bring all evidence: medical certificate, photos, blotter, witnesses',
           'The prosecutor will determine if there is probable cause',
           'If probable cause is found, a case is filed in court',
@@ -320,23 +326,22 @@ export const RESOURCE_DATA = {
     steps: {
       heading: 'Where to go for free legal help',
       list: [
-        'Public Attorney\'s Office (PAO) — free for those who cannot afford a lawyer',
+        "Public Attorney's Office (PAO) — free for those who cannot afford a lawyer",
         'Integrated Bar of the Philippines (IBP) — free legal aid clinics',
         'DSWD — social workers who can guide the legal process',
         'University legal aid clinics — free consultations',
-        'Women\'s legal rights organizations in your city',
+        "Women's legal rights organizations in your city",
       ],
     },
     hotlines: [
-      { label: 'PAO (Public Attorney\'s Office)', number: '(02) 8929-9436' },
-      { label: 'IBP Legal Aid',                   number: '(02) 8531-7635' },
-      { label: 'DSWD',                            number: '931' },
-      { label: 'PNP Women & Children Desk',       number: '(02) 8723-0401' },
+      { label: "PAO (Public Attorney's Office)", number: '(02) 8929-9436' },
+      { label: 'IBP Legal Aid', number: '(02) 8531-7635' },
+      { label: 'DSWD', number: '931' },
+      { label: 'PNP Women & Children Desk', number: '(02) 8723-0401' },
     ],
   },
 };
 
-// ─── ResourceDetailScreen ─────────────────────────────────────────────────────
 export default function ResourceDetailScreen({ navigation, route }) {
   const { resourceId } = route.params;
   const data = RESOURCE_DATA[resourceId];
@@ -351,49 +356,35 @@ export default function ResourceDetailScreen({ navigation, route }) {
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor={colors.primaryDark} />
 
-      {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.primaryDark }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Text style={styles.backIcon}>←</Text>
+          <FontAwesome6 name="arrow-left" size={20} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1}>Resource Center</Text>
+        <Text style={styles.headerTitle} numberOfLines={1}>
+          Resource Center
+        </Text>
         <View style={{ width: 36 }} />
       </View>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Hero banner */}
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={[styles.heroBanner, { backgroundColor: data.color }]}>
           <View style={[styles.heroIconWrap, { backgroundColor: data.accentColor + '22' }]}>
-            <Text style={styles.heroIcon}>{data.icon}</Text>
+            <FontAwesome6 name={data.icon} size={32} color={data.accentColor} />
           </View>
           <Text style={[styles.heroTitle, { color: data.accentColor }]}>{data.title}</Text>
           <Text style={[styles.heroSubtitle, { color: data.accentColor + 'BB' }]}>{data.subtitle}</Text>
         </View>
 
-        {/* Overview */}
         <View style={styles.overviewCard}>
           <Text style={styles.overviewText}>{data.overview}</Text>
         </View>
 
-        {/* Sections */}
         {data.sections.map((section, si) => (
           <View key={si} style={styles.section}>
-            <Text style={[styles.sectionHeading, { color: data.accentColor }]}>
-              {section.heading}
-            </Text>
+            <Text style={[styles.sectionHeading, { color: data.accentColor }]}>{section.heading}</Text>
             <View style={styles.sectionCard}>
               {section.items.map((item, ii) => (
-                <View
-                  key={ii}
-                  style={[
-                    styles.bulletRow,
-                    ii < section.items.length - 1 && styles.bulletRowBorder,
-                  ]}
-                >
+                <View key={ii} style={[styles.bulletRow, ii < section.items.length - 1 && styles.bulletRowBorder]}>
                   <View style={[styles.bulletDot, { backgroundColor: data.accentColor }]} />
                   <Text style={styles.bulletText}>{item}</Text>
                 </View>
@@ -402,20 +393,11 @@ export default function ResourceDetailScreen({ navigation, route }) {
           </View>
         ))}
 
-        {/* Action steps */}
         <View style={styles.section}>
-          <Text style={[styles.sectionHeading, { color: data.accentColor }]}>
-            {data.steps.heading}
-          </Text>
+          <Text style={[styles.sectionHeading, { color: data.accentColor }]}>{data.steps.heading}</Text>
           <View style={styles.sectionCard}>
             {data.steps.list.map((step, i) => (
-              <View
-                key={i}
-                style={[
-                  styles.stepRow,
-                  i < data.steps.list.length - 1 && styles.bulletRowBorder,
-                ]}
-              >
+              <View key={i} style={[styles.stepRow, i < data.steps.list.length - 1 && styles.bulletRowBorder]}>
                 <View style={[styles.stepNumber, { backgroundColor: data.accentColor }]}>
                   <Text style={styles.stepNumberText}>{i + 1}</Text>
                 </View>
@@ -425,11 +407,8 @@ export default function ResourceDetailScreen({ navigation, route }) {
           </View>
         </View>
 
-        {/* Hotlines */}
         <View style={styles.section}>
-          <Text style={[styles.sectionHeading, { color: data.accentColor }]}>
-            Hotlines & contacts
-          </Text>
+          <Text style={[styles.sectionHeading, { color: data.accentColor }]}>Hotlines & contacts</Text>
           {data.hotlines.map((h, i) => (
             <TouchableOpacity
               key={i}
@@ -439,9 +418,7 @@ export default function ResourceDetailScreen({ navigation, route }) {
             >
               <View style={styles.hotlineLeft}>
                 <Text style={styles.hotlineLabel}>{h.label}</Text>
-                <Text style={[styles.hotlineNumber, { color: data.accentColor }]}>
-                  {h.number}
-                </Text>
+                <Text style={[styles.hotlineNumber, { color: data.accentColor }]}>{h.number}</Text>
               </View>
               <View style={[styles.callBtn, { backgroundColor: data.accentColor }]}>
                 <Text style={styles.callBtnText}>Call</Text>
@@ -450,30 +427,30 @@ export default function ResourceDetailScreen({ navigation, route }) {
           ))}
         </View>
 
-{/* Bottom note */}
         <View style={[styles.noteCard, { backgroundColor: data.color, borderColor: data.accentColor + '25' }]}>
           <Text style={[styles.noteText, { color: data.accentColor }]}>
             All reports filed through Vio-less are confidential. You can also report anonymously if you are not comfortable sharing your identity.
           </Text>
         </View>
-
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root:   { flex: 1, backgroundColor: colors.surface },
+  root: { flex: 1, backgroundColor: colors.surface },
   header: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingTop: 52, paddingBottom: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 52,
+    paddingBottom: spacing.lg,
     paddingHorizontal: spacing.lg,
   },
-  backBtn:     { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  backIcon:    { fontSize: 20, color: '#fff' },
+  backBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  backIcon: { fontSize: 20, color: '#fff' },
   headerTitle: { flex: 1, textAlign: 'center', fontSize: 15, fontWeight: '700', color: '#fff' },
 
-  scroll:  { flex: 1, backgroundColor: colors.surface },
+  scroll: { flex: 1, backgroundColor: colors.surface },
   content: { paddingBottom: 48 },
 
   heroBanner: {
@@ -483,13 +460,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   heroIconWrap: {
-    width: 68, height: 68, borderRadius: 20,
-    alignItems: 'center', justifyContent: 'center',
+    width: 68,
+    height: 68,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: spacing.md,
   },
-  heroIcon:    { fontSize: 32 },
-  heroTitle:   { fontSize: 18, fontWeight: '800', textAlign: 'center', marginBottom: spacing.xs, letterSpacing: -0.3 },
-  heroSubtitle:{ fontSize: 12, textAlign: 'center', lineHeight: 18 },
+  heroTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginBottom: spacing.xs,
+    letterSpacing: -0.3,
+  },
+  heroSubtitle: { fontSize: 12, textAlign: 'center', lineHeight: 18 },
 
   overviewCard: {
     margin: spacing.lg,
@@ -501,10 +486,12 @@ const styles = StyleSheet.create({
   },
   overviewText: { fontSize: 13, color: colors.textSecondary, lineHeight: 22 },
 
-  section:        { paddingHorizontal: spacing.lg, marginBottom: spacing.md },
+  section: { paddingHorizontal: spacing.lg, marginBottom: spacing.md },
   sectionHeading: {
-    fontSize: 11, fontWeight: '800',
-    letterSpacing: 0.8, textTransform: 'uppercase',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
     marginBottom: spacing.sm,
   },
   sectionCard: {
@@ -522,8 +509,11 @@ const styles = StyleSheet.create({
   },
   bulletRowBorder: { borderBottomWidth: 0.5, borderBottomColor: colors.borderLight },
   bulletDot: {
-    width: 6, height: 6, borderRadius: 3,
-    marginTop: 6, flexShrink: 0,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginTop: 6,
+    flexShrink: 0,
   },
   bulletText: { fontSize: 13, color: colors.text, lineHeight: 20, flex: 1 },
 
@@ -534,9 +524,13 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   stepNumber: {
-    width: 22, height: 22, borderRadius: 11,
-    alignItems: 'center', justifyContent: 'center',
-    flexShrink: 0, marginTop: 1,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    marginTop: 1,
   },
   stepNumberText: { fontSize: 11, fontWeight: '800', color: '#fff' },
 
@@ -550,8 +544,8 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     marginBottom: spacing.sm,
   },
-  hotlineLeft:   { flex: 1 },
-  hotlineLabel:  { fontSize: 12, fontWeight: '600', color: colors.text, marginBottom: 2 },
+  hotlineLeft: { flex: 1 },
+  hotlineLabel: { fontSize: 12, fontWeight: '600', color: colors.text, marginBottom: 2 },
   hotlineNumber: { fontSize: 15, fontWeight: '800', letterSpacing: -0.3 },
   callBtn: {
     paddingHorizontal: spacing.md,
@@ -568,12 +562,5 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   noteText: { fontSize: 12, lineHeight: 19, fontWeight: '500' },
-
-  ctaBtn: {
-    marginHorizontal: spacing.lg,
-    borderRadius: radius.lg,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  ctaBtnText: { fontSize: 15, fontWeight: '800', color: '#fff' },
 });
+

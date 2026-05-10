@@ -3,6 +3,7 @@ import {
   View, Text, ScrollView, StyleSheet,
   TouchableOpacity, Switch, StatusBar, TextInput, Alert, ActivityIndicator
 } from 'react-native';
+import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { colors, spacing, radius } from '../theme';
 import { Card, Button } from '../components';
 import { auth } from '../config/firebase';
@@ -10,12 +11,12 @@ import { API_BASE_URL } from '../config/api';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 const INCIDENT_TYPES = [
-  { id: 'domestic', label: 'Domestic Violence', icon: '' },
-  { id: 'harassment', label: 'Harassment', icon: '' },
-  { id: 'bullying', label: 'Bullying', icon: '' },
-  { id: 'abuse', label: 'Abuse', icon: '' },
-  { id: 'threats', label: 'Threats', icon: '' },
-  { id: 'other', label: 'Other', icon: '' },
+  { id: 'domestic', label: 'Domestic Violence', icon: 'heart-crack' },
+  { id: 'harassment', label: 'Harassment', icon: 'ban' },
+  { id: 'bullying', label: 'Bullying', icon: 'users-slash' },
+  { id: 'abuse', label: 'Abuse', icon: 'shield-halved' },
+  { id: 'threats', label: 'Threats', icon: 'triangle-exclamation' },
+  { id: 'other', label: 'Other', icon: 'question' },
 ];
 
 export default function ReportScreen({ navigation }) {
@@ -102,7 +103,7 @@ const [showTimePicker, setShowTimePicker] = useState(false);
     return (
       <View style={styles.successWrap}>
         <View style={styles.successIcon}>
-          <Text style={{ fontSize: 40 }}>✓</Text>
+          <FontAwesome6 name="check-circle" size={60} color={colors.safe} />
         </View>
 
         <Text style={styles.successTitle}>Report Submitted</Text>
@@ -142,7 +143,7 @@ const [showTimePicker, setShowTimePicker] = useState(false);
       {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Text style={styles.backIcon}>←</Text>
+          <FontAwesome6 name="arrow-left" size={20} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>File Incident Report</Text>
         <View style={{ width: 36 }} />
@@ -198,7 +199,7 @@ const [showTimePicker, setShowTimePicker] = useState(false);
                   ]}
                   onPress={() => setSelectedType(t.id)}
                 >
-                  <Text style={styles.typeIcon}>{t.icon}</Text>
+                  <FontAwesome6 name={t.icon} size={24} color={selectedType === t.id ? colors.primary : colors.textMuted} />
                   <Text
                     style={[
                       styles.typeLabel,

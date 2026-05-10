@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, Animated,
   TouchableOpacity, StatusBar, ScrollView, Easing
 } from 'react-native';
+import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { colors, spacing, radius, shadow } from '../theme';
 import { Card, Button, TimelineStep } from '../components';
 
@@ -63,7 +64,7 @@ export default function SOSScreen({ navigation }) {
 
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Text style={styles.backIcon}>←</Text>
+          <FontAwesome6 name="arrow-left" size={20} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>SOS Emergency</Text>
         <View style={{ width: 36 }} />
@@ -86,7 +87,7 @@ export default function SOSScreen({ navigation }) {
                 onPressIn={startHold}
                 onPressOut={cancelHold}
               >
-                <Text style={styles.sosBtnIcon}>🚨</Text>
+                <FontAwesome6 name="triangle-exclamation" size={28} color="#fff" />
                 <Text style={styles.sosBtnText}>
                   {holding ? countdown : 'SOS'}
                 </Text>
@@ -105,7 +106,7 @@ export default function SOSScreen({ navigation }) {
         ) : (
           <View style={styles.activatedWrap}>
             <View style={styles.activatedIcon}>
-              <Text style={{ fontSize: 36 }}>📡</Text>
+              <FontAwesome6 name="tower-broadcast" size={36} color={colors.sos} />
             </View>
             <Text style={styles.activatedTitle}>Alert Sent!</Text>
             <Text style={styles.activatedSub}>

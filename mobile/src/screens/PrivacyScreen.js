@@ -1,6 +1,7 @@
 // ─── PrivacyScreen.js ─────────────────────────────────────────────────────────
 import React, { useState } from 'react';
 import { View, Text, ScrollView, StatusBar, Switch, TouchableOpacity, Alert } from 'react-native';
+import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { colors, spacing } from '../theme';
 import { Card } from '../components';
 import { pv, s } from './sharedStyles';
@@ -39,9 +40,9 @@ const [settings, setSettings] = useState({
   };
 
 const SETTINGS = [
-    { key: 'disguise',     icon: '', title: 'Disguised app name',  desc: 'Shows as "Weather App" on home screen' },
-    { key: 'quickExit',    icon: '', title: 'Quick exit button',   desc: 'Shake phone to close app instantly' },
-    { key: 'clearHistory', icon: '', title: 'Clear history on exit', desc: 'Delete activity when app closes' },
+    { key: 'disguise',     icon: 'eye-slash', title: 'Disguised app name',  desc: 'Shows as "Weather App" on home screen' },
+    { key: 'quickExit',    icon: 'bolt', title: 'Quick exit button',   desc: 'Shake phone to close app instantly' },
+    { key: 'clearHistory', icon: 'trash', title: 'Clear history on exit', desc: 'Delete activity when app closes' },
   ];
 
   return (
@@ -49,7 +50,7 @@ const SETTINGS = [
       <StatusBar barStyle="light-content" backgroundColor={colors.primaryDark} />
       <View style={s.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
-          <Text style={s.backIcon}>←</Text>
+          <FontAwesome6 name="arrow-left" size={20} color="#fff" />
         </TouchableOpacity>
         <Text style={s.headerTitle}>Privacy & Safety</Text>
         <View style={{ width: 36 }} />
@@ -69,7 +70,7 @@ const SETTINGS = [
           <Card key={item.key}>
             <View style={pv.row}>
               <View style={[pv.icon, { backgroundColor: colors.primaryLight }]}>
-                <Text style={{ fontSize: 18 }}>{item.icon}</Text>
+                <FontAwesome6 name={item.icon} size={18} color={colors.primary} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={pv.title}>{item.title}</Text>
@@ -86,7 +87,7 @@ const SETTINGS = [
         ))}
 
         <TouchableOpacity style={pv.exitBtn} onPress={handleLogout} activeOpacity={0.85}>
-          <Text style={{ fontSize: 18, marginRight: spacing.sm }}></Text>
+          <FontAwesome6 name="right-from-bracket" size={18} color="#fff" style={{ marginRight: spacing.sm }} />
           <Text style={pv.exitBtnText}>Log out</Text>
         </TouchableOpacity>
       </ScrollView>

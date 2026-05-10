@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, FlatList, TextInput, TouchableOpacity, StatusBar, KeyboardAvoidingView, Platform, ActivityIndicator, Keyboard } from 'react-native';
+import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { ch, s } from './sharedStyles';
 import { colors, spacing } from '../theme';
 import { auth } from '../config/firebase';
@@ -292,13 +293,14 @@ export default function ChatScreen({ navigation, route }) {
       {/* Header */}
       <View style={s.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
-          <Text style={s.backIcon}>←</Text>
+          <FontAwesome6 name="arrow-left" size={20} color="#fff" />
         </TouchableOpacity>
         <View style={{ flex: 1, alignItems: 'center' }}>
           <Text style={s.headerTitle}>{officerName}</Text>
           <View style={s.onlineRow}>
             <View style={s.onlineDot} />
-            <Text style={s.onlineText}>Online · 🔒 Encrypted</Text>
+            <FontAwesome6 name="lock" size={12} color={colors.textMuted} style={{ marginRight: 4 }} />
+            <Text style={s.onlineText}>Online · Encrypted</Text>
           </View>
         </View>
         <View style={{ width: 36 }} />
@@ -331,7 +333,7 @@ export default function ChatScreen({ navigation, route }) {
               const isMyReason = showReasonFor === item.id;
 
               const handleAccept = () => {
-                quickSend(`✅ ACCEPT - Confirmed for ${item.text.match(/📅 Interview scheduled for (.*?)\(/)?.[1] || 'scheduled interview'}`);
+                quickSend(`ACCEPT - Confirmed for ${item.text.match(/📅 Interview scheduled for (.*?)\(/)?.[1] || 'scheduled interview'}`);
               };
 
               const handleReasonSend = () => {
@@ -353,19 +355,21 @@ export default function ChatScreen({ navigation, route }) {
                   </View>
                   {isInterviewMsg && item.from === 'officer' && !isMyReason && (
                     <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, paddingHorizontal: 4 }}>
-                      <TouchableOpacity 
-                        style={{ flex: 1, backgroundColor: colors.safe, padding: 10, borderRadius: 8, alignItems: 'center' }}
+                      <TouchableOpacity
+                        style={{ flex: 1, backgroundColor: colors.safe, padding: 10, borderRadius: 8, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 }}
                         onPress={handleAccept}
                         disabled={sending}
                       >
-                        <Text style={{ color: 'white', fontWeight: '600' }}>✅ Accept</Text>
+                        <FontAwesome6 name="check" size={16} color="white" />
+                        <Text style={{ color: 'white', fontWeight: '600' }}>Accept</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity 
-                        style={{ flex: 1, backgroundColor: colors.warning, padding: 10, borderRadius: 8, alignItems: 'center' }}
+                      <TouchableOpacity
+                        style={{ flex: 1, backgroundColor: colors.warning, padding: 10, borderRadius: 8, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 }}
                         onPress={() => setShowReasonFor(item.id)}
                         disabled={sending}
                       >
-                        <Text style={{ color: 'white', fontWeight: '600' }}>❌ Reason</Text>
+                        <FontAwesome6 name="xmark" size={16} color="white" />
+                        <Text style={{ color: 'white', fontWeight: '600' }}>Reason</Text>
                       </TouchableOpacity>
                     </View>
                   )}
@@ -405,7 +409,9 @@ export default function ChatScreen({ navigation, route }) {
 
       {/* Input */}
       <View style={ch.inputRow}>
-        <TouchableOpacity style={ch.attachBtn}><Text style={{ fontSize: 18 }}>📎</Text></TouchableOpacity>
+        <TouchableOpacity style={ch.attachBtn}>
+          <FontAwesome6 name="paperclip" size={18} color={colors.primary} />
+        </TouchableOpacity>
         <TextInput
           style={ch.input}
           value={input}
@@ -416,7 +422,7 @@ export default function ChatScreen({ navigation, route }) {
           editable={!!caseId}
         />
         <TouchableOpacity style={ch.sendBtn} onPress={send} disabled={!caseId || sending || !input.trim()}>
-          <Text style={ch.sendIcon}>➤</Text>
+          <FontAwesome6 name="paper-plane" size={16} color="#fff" />
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>

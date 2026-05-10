@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, TouchableOpacity,
   StatusBar, Animated, Dimensions,
 } from 'react-native';
+import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { colors, spacing, radius, shadow } from '../../theme';
 
 const { width, height } = Dimensions.get('window');
@@ -43,12 +44,12 @@ export default function WelcomeScreen({ navigation }) {
       {/* Feature pills */}
       <Animated.View style={[styles.pillsWrap, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
         {[
-          { icon: '', text: 'Anonymous reporting' },
-          { icon: '', text: 'SOS emergency alerts' },
-          { icon: '', text: 'Direct counselor chat' },
+          { icon: 'mask', text: 'Anonymous reporting' },
+          { icon: 'triangle-exclamation', text: 'SOS emergency alerts' },
+          { icon: 'message', text: 'Direct counselor chat' },
         ].map((p, i) => (
           <View key={i} style={styles.featurePill}>
-            <Text style={styles.pillIcon}>{p.icon}</Text>
+            <FontAwesome6 name={p.icon} size={16} color="rgba(255,255,255,0.85)" />
             <Text style={styles.pillText}>{p.text}</Text>
           </View>
         ))}

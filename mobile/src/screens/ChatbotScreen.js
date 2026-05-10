@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, FlatList, TextInput, TouchableOpacity, StatusBar, KeyboardAvoidingView, Platform } from 'react-native';
+import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { ch, s } from './sharedStyles';
 import { colors, spacing } from '../theme';
 
@@ -57,13 +58,14 @@ export default function ChatbotScreen({ navigation }) {
       {/* Header */}
       <View style={s.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
-          <Text style={s.backIcon}>←</Text>
+          <FontAwesome6 name="arrow-left" size={20} color="#fff" />
         </TouchableOpacity>
         <View style={{ flex: 1, alignItems: 'center' }}>
           <Text style={s.headerTitle}>SafeTalk AI Support</Text>
           <View style={s.onlineRow}>
             <View style={[s.onlineDot, { backgroundColor: colors.info }]} />
-            <Text style={s.onlineText}>Online · 🔒 Encrypted</Text>
+            <FontAwesome6 name="lock" size={12} color={colors.textMuted} style={{ marginRight: 4 }} />
+            <Text style={s.onlineText}>Online · Encrypted</Text>
           </View>
         </View>
         <View style={{ width: 36 }} />
@@ -89,7 +91,9 @@ export default function ChatbotScreen({ navigation }) {
       {/* Input */}
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={ch.inputRow}>
-          <TouchableOpacity style={ch.attachBtn}><Text style={{ fontSize: 18 }}>📎</Text></TouchableOpacity>
+          <TouchableOpacity style={ch.attachBtn}>
+            <FontAwesome6 name="paperclip" size={18} color={colors.primary} />
+          </TouchableOpacity>
           <TextInput
             style={ch.input}
             value={input}
@@ -99,7 +103,7 @@ export default function ChatbotScreen({ navigation }) {
             multiline
           />
           <TouchableOpacity style={ch.sendBtn} onPress={send}>
-            <Text style={ch.sendIcon}>➤</Text>
+            <FontAwesome6 name="paper-plane" size={16} color="#fff" />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>

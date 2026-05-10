@@ -4,6 +4,7 @@ import {
   StatusBar, TextInput, KeyboardAvoidingView,
   Platform, ScrollView, Animated,
 } from 'react-native';
+import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { colors, spacing, radius, shadow } from '../../theme';
 
 // 🔥 Firebase
@@ -78,7 +79,7 @@ export default function LoginScreen({ navigation }) {
         <View style={styles.heroCircle2} />
 
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Text style={styles.backIcon}>←</Text>
+          <FontAwesome6 name="arrow-left" size={18} color="#fff" />
         </TouchableOpacity>
 
         <View style={styles.heroContent}>
@@ -96,7 +97,7 @@ export default function LoginScreen({ navigation }) {
           {/* Error message */}
           {!!error && (
             <View style={styles.errorBox}>
-              <Text style={{ marginRight: spacing.xs }}>⚠️</Text>
+              <FontAwesome6 name="exclamation-circle" size={16} color={colors.sos} style={{ marginRight: spacing.xs }} />
               <Text style={styles.errorText}>{error}</Text>
             </View>
           )}
@@ -130,7 +131,7 @@ export default function LoginScreen({ navigation }) {
                 placeholderTextColor={colors.placeholder}
               />
               <TouchableOpacity onPress={() => setShowPw(!showPw)} style={{ paddingHorizontal: spacing.xs }}>
-                <Text>{showPw ? '🙈' : '👁'}</Text>
+                <FontAwesome6 name={showPw ? "eye-slash" : "eye"} size={16} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
           </View>

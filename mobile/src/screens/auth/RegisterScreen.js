@@ -4,6 +4,7 @@ import {
   StatusBar, TextInput, KeyboardAvoidingView,
   Platform, ScrollView, Animated,
 } from 'react-native';
+import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { colors, spacing, radius, shadow } from '../../theme';
 import { auth } from '../../config/firebase';
 import {
@@ -222,7 +223,7 @@ export default function RegisterScreen({ navigation }) {
         <View style={styles.circle1} />
         <View style={styles.circle2} />
         <TouchableOpacity style={styles.backBtn} onPress={() => step > 0 ? setStep(s => s - 1) : navigation.goBack()}>
-          <Text style={styles.backIcon}>←</Text>
+          <FontAwesome6 name="arrow-left" size={18} color="#fff" />
         </TouchableOpacity>
         <View style={styles.heroContent}>
           <Text style={styles.heroTitle}>
@@ -261,7 +262,7 @@ export default function RegisterScreen({ navigation }) {
         {/* Error */}
         {!!error && (
           <View style={styles.errorBox}>
-            <Text style={{ fontSize: 13, marginRight: 6 }}>⚠️</Text>
+            <FontAwesome6 name="exclamation-circle" size={14} color={colors.sos} style={{ marginRight: 6 }} />
             <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
@@ -340,7 +341,7 @@ export default function RegisterScreen({ navigation }) {
                   secureTextEntry={!showPw}
                 />
                 <TouchableOpacity onPress={() => setShowPw(s => !s)} style={{ padding: 4 }}>
-                  <Text style={{ fontSize: 16 }}>{showPw ? '🙈' : '👁'}</Text>
+                  <FontAwesome6 name={showPw ? "eye-slash" : "eye"} size={16} color={colors.textMuted} />
                 </TouchableOpacity>
               </View>
               {/* Strength bar */}
@@ -378,7 +379,7 @@ export default function RegisterScreen({ navigation }) {
         {step === 1 && (
           <>
             <View style={styles.emailVerifyBox}>
-              <Text style={styles.emailVerifyIcon}>📧</Text>
+              <FontAwesome6 name="envelope" size={48} color={colors.primary} style={{ marginBottom: spacing.md }} />
               <Text style={styles.emailVerifyTitle}>Check your email</Text>
               <Text style={styles.emailVerifyText}>
                 We've sent a verification link to{'\n'}<Text style={{ fontWeight: '700' }}>{email}</Text>
@@ -409,10 +410,10 @@ export default function RegisterScreen({ navigation }) {
               <Text style={styles.label}>I am a</Text>
               <View style={styles.roleGrid}>
                 {[
-                  { id: 'woman',   icon: '👩', label: 'Woman / Girl' },
-                  { id: 'youth',   icon: '🎒', label: 'Youth / Student' },
-                  { id: 'witness', icon: '👁', label: 'Witness' },
-                  { id: 'other',   icon: '👤', label: 'Prefer not to say' },
+                  { id: 'woman',   icon: 'user-circle', label: 'Woman / Girl' },
+                  { id: 'youth',   icon: 'backpack', label: 'Youth / Student' },
+                  { id: 'witness', icon: 'eye', label: 'Witness' },
+                  { id: 'other',   icon: 'user', label: 'Prefer not to say' },
                 ].map(r => (
                   <TouchableOpacity
                     key={r.id}
@@ -420,7 +421,7 @@ export default function RegisterScreen({ navigation }) {
                     onPress={() => setRole(r.id)}
                     activeOpacity={0.8}
                   >
-                    <Text style={styles.roleIcon}>{r.icon}</Text>
+                    <FontAwesome6 name={r.icon} size={22} color={role === r.id ? colors.primary : colors.textSecondary} style={{ marginBottom: spacing.xs }} />
                     <Text style={[styles.roleLabel, role === r.id && styles.roleLabelActive]}>
                       {r.label}
                     </Text>
@@ -432,7 +433,7 @@ export default function RegisterScreen({ navigation }) {
             <View style={styles.field}>
               <Text style={styles.label}>Emergency contact</Text>
               <View style={styles.inputRow}>
-                <Text style={styles.inputIcon}>🆘</Text>
+                <FontAwesome6 name="phone" size={16} color={colors.textMuted} style={{ marginRight: spacing.sm }} />
                 <TextInput
                   style={styles.input}
                   placeholder="+63 9XX XXX XXXX"
@@ -448,7 +449,7 @@ export default function RegisterScreen({ navigation }) {
             <View style={styles.field}>
               <Text style={styles.label}>Barangay</Text>
               <View style={styles.inputRow}>
-                <Text style={styles.inputIcon}>📍</Text>
+                <FontAwesome6 name="map-pin" size={16} color={colors.textMuted} style={{ marginRight: spacing.sm }} />
                 <TextInput
                   style={styles.input}
                   placeholder="e.g., Mabayuan"
@@ -462,7 +463,7 @@ export default function RegisterScreen({ navigation }) {
             <View style={styles.field}>
               <Text style={styles.label}>City</Text>
               <View style={styles.inputRow}>
-                <Text style={styles.inputIcon}>🏙️</Text>
+                <FontAwesome6 name="building" size={16} color={colors.textMuted} style={{ marginRight: spacing.sm }} />
                 <TextInput
                   style={styles.input}
                   placeholder="e.g., Olongapo City"

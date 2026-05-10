@@ -172,12 +172,12 @@ export default function HomeScreen({ navigation }) {
           <SectionHeader title="Quick Actions" />
           <View style={styles.quickGrid}>
             <QuickCard
-              icon="" title="Track Case" desc="View case status"
+              icon="briefcase" title="Track Case" desc="View case status"
               onPress={() => navigation.navigate('Track')}
               accent={colors.infoLight}
             />
             <QuickCard
-              icon="" title="Chat Support" desc="Talk to SafeTalk AI"
+              icon="message" title="Chat Support" desc="Talk to SafeTalk AI"
               onPress={() => navigation.navigate('Chatbot')}
               accent={colors.accentLight}
             />

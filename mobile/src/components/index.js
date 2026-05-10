@@ -3,6 +3,7 @@ import {
   View, Text, TouchableOpacity, StyleSheet,
   ActivityIndicator, Animated
 } from 'react-native';
+import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { colors, radius, spacing, shadow } from '../theme';
 
 // ── Card ──────────────────────────────────────────────
@@ -126,7 +127,7 @@ export const Avatar = ({ initials, size = 40, color = colors.primary }) => (
 export const QuickCard = ({ icon, title, desc, onPress, accent = colors.primaryLight }) => (
   <TouchableOpacity style={[styles.quickCard, shadow.sm]} onPress={onPress} activeOpacity={0.85}>
     <View style={[styles.quickIcon, { backgroundColor: accent }]}>
-      <Text style={{ fontSize: 20 }}>{icon}</Text>
+      {icon && <FontAwesome6 name={icon} size={20} color={colors.primary} />}
     </View>
     <Text style={styles.quickTitle}>{title}</Text>
     <Text style={styles.quickDesc}>{desc}</Text>
