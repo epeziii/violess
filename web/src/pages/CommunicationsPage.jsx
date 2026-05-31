@@ -5,10 +5,9 @@ import { DesktopTimePicker } from "@mui/x-date-pickers/DesktopTimePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { format } from "date-fns";
-import { addDoc, collection, serverTimestamp, doc, query, where, onSnapshot, orderBy, getDocs } from "firebase/firestore";
+import { addDoc, collection, serverTimestamp, query, where, onSnapshot, orderBy } from "firebase/firestore";
 import { db } from "../firebase";
 import { useAuth } from "../AuthContext";
-import API_BASE_URL from "../config/api";
 
 export default function CommunicationsPage() {
   const { user } = useAuth();
@@ -24,12 +23,8 @@ export default function CommunicationsPage() {
   const [interviewMode, setInterviewMode] = useState("Barangay Hall (private room)");
   const [scheduling, setScheduling] = useState(false);
   const [scheduleMessage, setScheduleMessage] = useState("");
-  const [resolutionNotes, setResolutionNotes] = useState("");
-  const [completionDate, setCompletionDate] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [pendingResolution, setPendingResolution] = useState(null);
-  const [resolutionError, setResolutionError] = useState("");
-  const [actionCardMode, setActionCardMode] = useState("interview");
+  const [caseFilter, setCaseFilter] = useState("all");
+  const [detailTab, setDetailTab] = useState("messages");
 
   useEffect(() => {
     if (!user) return;
@@ -75,24 +70,6 @@ export default function CommunicationsPage() {
     return () => unsubscribe();
   }, [selectedCase]);
 
-  useEffect(() => {
-    if (!selectedCase) {
-      setPendingResolution(null);
-      return;
-    }
-    const resolutionQuery = query(
-      collection(db, "reports", selectedCase.docId, "resolutions"),
-      where("status", "==", "pending")
-    );
-    const unsubscribe = onSnapshot(resolutionQuery, (snapshot) => {
-      if (snapshot.docs.length > 0) {
-        setPendingResolution(snapshot.docs[0].data());
-      } else {
-        setPendingResolution(null);
-      }
-    });
-    return () => unsubscribe();
-  }, [selectedCase]);
 
   const scheduleInterview = async () => {
     if (!selectedCase || !selectedDate || !selectedTimeValue || scheduling) return;
@@ -157,102 +134,141 @@ export default function CommunicationsPage() {
     }
   };
 
-  const handleSubmitResolution = async () => {
-    if (!selectedCase || !resolutionNotes.trim() || submitting) return;
-    try {
-      setSubmitting(true);
-      setResolutionError("");
-      const res = await fetch(`${API_BASE_URL}/submit-resolution`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          uid: user.uid,
-          caseId: selectedCase.docId,
-          notes: resolutionNotes,
-          completionDate: completionDate
-        })
-      });
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to submit resolution");
-      }
-      setResolutionNotes("");
-      setCompletionDate(null);
-      setResolutionError("✓ Resolution submitted successfully!");
-      setTimeout(() => setResolutionError(""), 3000);
-    } catch (error) {
-      console.error("Error submitting resolution:", error);
-      setResolutionError(error.message || "Error submitting resolution");
-    } finally {
-      setSubmitting(false);
-    }
+  const getFilteredCases = () => {
+    if (caseFilter === "all") return assignedCases;
+    return assignedCases.filter(c => c.status === caseFilter);
+  };
+
+  const getStatusDot = (status) => {
+    const colors = {
+      'reviewing': '#1565c0',
+      'pending': '#e65100',
+      'closed': '#c2185b',
+      'urgent': '#c62828'
+    };
+    return colors[status] || '#888';
   };
 
   return (
-    <div>
-      <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', letterSpacing: -0.5 }}>Communications</h1>
-      </div>
-      <div className="grid-2" style={{ alignItems: 'start' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div className="card">
-            <div className="card-header"><span className="card-title">Assigned Cases</span></div>
-            <div style={{ maxHeight: 300, overflowY: 'auto', padding: '0 16px' }}>
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'stretch',
+        // Offset `.page-content { padding: 24px; }` from App.jsx so this page fills the available area.
+        margin: '-24px -24px 0 -24px',
+        height: 'calc(100% + 24px)',
+        overflow: 'hidden',
+      }}
+    >
+
+
+        {/* MIDDLE: Case List Panel (40%) */}
+        <div style={{ width: '40%', display: 'flex', flexDirection: 'column', minHeight: 0, borderRight: '0.5px solid var(--border)' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            <div className="card-header" style={{ borderBottom: '0.5px solid var(--border)', padding: '14px 18px 12px' }}>
+              <span className="card-title">Assigned Cases</span>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{assignedCases.length} cases</span>
+            </div>
+
+            {/* Filter Tabs */}
+            <div style={{ padding: '12px 16px', borderBottom: '0.5px solid var(--border)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {['all', 'urgent', 'reviewing', 'closed'].map(filter => (
+                <button
+                  key={filter}
+                  onClick={() => setCaseFilter(filter)}
+                  className={`btn ${caseFilter === filter ? 'btn-primary' : 'btn-ghost'}`}
+                  style={{
+                    padding: '6px 12px',
+                    fontSize: 12,
+                    fontWeight: 500,
+                    textTransform: 'capitalize',
+                  }}
+                >
+                  {filter}
+                </button>
+              ))}
+            </div>
+
+            {/* Case List */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
               {loadingCases ? (
                 <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Loading...</div>
-              ) : assignedCases.length === 0 ? (
-                <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>No assigned cases</div>
+              ) : getFilteredCases().length === 0 ? (
+                <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>No cases found</div>
               ) : (
-                assignedCases.map((caseItem) => (
+                getFilteredCases().map(caseItem => (
                   <div
                     key={caseItem.id}
                     onClick={() => setSelectedCase(caseItem)}
+                    title={`${caseItem.id}\n${caseItem.type}\nReporter: ${caseItem.reporter}\nStatus: ${caseItem.status}\nPriority: ${caseItem.priority}`}
+                    onMouseEnter={(e) => {
+                      if (selectedCase?.id !== caseItem.id) {
+                        e.currentTarget.style.backgroundColor = 'rgba(194, 24, 91, 0.06)';
+                        e.currentTarget.style.border = '1px solid rgba(194, 24, 91, 0.22)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (selectedCase?.id !== caseItem.id) {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                        e.currentTarget.style.border = '1px solid transparent';
+                      }
+                    }}
                     style={{
-                      paddingTop: 12,
-                      paddingBottom: 12,
-                      borderBottom: '0.5px solid var(--border)',
-                      display: 'flex',
-                      gap: 12,
-                      alignItems: 'flex-start',
+                      padding: '12px',
+                      marginBottom: 8,
+                      borderRadius: '6px',
                       cursor: 'pointer',
-                      backgroundColor: selectedCase?.id === caseItem.id ? 'rgba(194, 24, 91, 0.08)' : 'transparent',
-                      transition: 'background-color 0.2s',
+                      backgroundColor: selectedCase?.id === caseItem.id ? 'rgba(194, 24, 91, 0.1)' : 'transparent',
+                      border: selectedCase?.id === caseItem.id ? '1px solid rgba(194, 24, 91, 0.3)' : '1px solid transparent',
+                      transition: 'all 0.2s',
                     }}
                   >
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>
-                        {caseItem.id} — {caseItem.type}
-                      </div>
-                      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>
-                        Reporter: {caseItem.reporter}
-                      </div>
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                        <span
-                          style={{
-                            fontSize: 11,
-                            fontWeight: 600,
-                            textTransform: 'capitalize',
-                            padding: '2px 8px',
-                            borderRadius: '4px',
-                            backgroundColor: caseItem.status === 'reviewing' ? '#e3f2fd' : caseItem.status === 'pending' ? '#fff3e0' : '#ffe0e6',
-                            color: caseItem.status === 'reviewing' ? '#1565c0' : caseItem.status === 'pending' ? '#e65100' : '#c2185b',
-                          }}
-                        >
-                          {caseItem.status}
-                        </span>
-                        <span
-                          style={{
-                            fontSize: 11,
-                            fontWeight: 600,
-                            textTransform: 'capitalize',
-                            padding: '2px 8px',
-                            borderRadius: '4px',
-                            backgroundColor: caseItem.priority === 'urgent' ? '#ffebee' : caseItem.priority === 'high' ? '#fff9c4' : '#e8f5e9',
-                            color: caseItem.priority === 'urgent' ? '#c62828' : caseItem.priority === 'high' ? '#f57f17' : '#2e7d32',
-                          }}
-                        >
-                          {caseItem.priority}
-                        </span>
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                      <div
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: '50%',
+                          backgroundColor: getStatusDot(caseItem.status),
+                          marginTop: 6,
+                          flexShrink: 0,
+                        }}
+                      />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>
+                          {caseItem.id} — {caseItem.type}
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>
+                          {caseItem.reporter}
+                        </div>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          <span
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 600,
+                              padding: '2px 8px',
+                              borderRadius: '4px',
+                              backgroundColor: caseItem.status === 'reviewing' ? '#e3f2fd' : caseItem.status === 'pending' ? '#fff3e0' : '#ffe0e6',
+                              color: caseItem.status === 'reviewing' ? '#1565c0' : caseItem.status === 'pending' ? '#e65100' : '#c2185b',
+                              textTransform: 'capitalize',
+                            }}
+                          >
+                            {caseItem.status}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 600,
+                              padding: '2px 8px',
+                              borderRadius: '4px',
+                              backgroundColor: caseItem.priority === 'urgent' ? '#ffebee' : caseItem.priority === 'high' ? '#fff9c4' : '#e8f5e9',
+                              color: caseItem.priority === 'urgent' ? '#c62828' : caseItem.priority === 'high' ? '#f57f17' : '#2e7d32',
+                              textTransform: 'capitalize',
+                            }}
+                          >
+                            {caseItem.priority}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -260,43 +276,273 @@ export default function CommunicationsPage() {
               )}
             </div>
           </div>
+        </div>
 
-          <div className="card">
-            <div className="card-header">
-              <span className="card-title">Case Actions</span>
+        {/* RIGHT: Case Detail Panel (60%) */}
+        <div style={{ width: '60%', display: 'flex', flexDirection: 'column', gap: 0, minHeight: 0 }}>
+
+          {!selectedCase ? (
+            <div className="card" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 14 }}>
+                Select a case to view details
+              </div>
             </div>
-            <div className="card-body">
-              <div className="form-group">
-                <label className="form-label">Select Action</label>
-                <select
-                  className="form-select"
-                  value={actionCardMode}
-                  onChange={(e) => setActionCardMode(e.target.value)}
-                >
-                  <option value="interview">Schedule Interview</option>
-                  <option value="resolution">Submit Resolution</option>
-                </select>
+          ) : (
+            <>
+              {/* Case Header */}
+              <div
+                className="card"
+                style={{
+                  marginBottom: 0,
+                  borderBottomLeftRadius: 0,
+                  borderBottomRightRadius: 0,
+                  borderTopLeftRadius: 0,
+                  borderTopRightRadius: 0,
+                }}
+              >
+                <div style={{ padding: '16px' }}>
+
+                  <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
+                    {selectedCase.id} — {selectedCase.type}
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 4 }}>
+                    Reporter: {selectedCase.reporter} · Assigned to: {user.firstName} {user.lastName}
+                  </div>
+                </div>
               </div>
 
-              {actionCardMode === 'interview' ? (
-                <>
-                  {selectedCase ? (
-                    <>
-                      <div className="form-group">
-                        <label className="form-label">Case</label>
-                        <div
-                          style={{
-                            fontSize: 13,
-                            fontWeight: 600,
-                            padding: '8px 12px',
-                            backgroundColor: 'var(--bg)',
-                            borderRadius: 'var(--radius-md)',
-                            border: '0.5px solid var(--border)',
-                          }}
-                        >
-                          {selectedCase.id} — {selectedCase.type}
+              {/* Tabs */}
+              <div
+                className="card"
+                style={{
+                  margin: 0,
+                  borderTopLeftRadius: 0,
+                  borderTopRightRadius: 0,
+                  borderBottomLeftRadius: 0,
+                  borderBottomRightRadius: 0,
+                  borderTop: 'none',
+                  borderBottom: '0.5px solid var(--border)',
+                  padding: 0,
+                }}
+              >
+                <div style={{ display: 'flex', borderBottom: '0.5px solid var(--border)' }}>
+                  {['messages', 'schedule'].map(tab => (
+                    <button
+                      key={tab}
+                      onClick={() => setDetailTab(tab)}
+                      style={{
+                        flex: 1,
+                        padding: '12px 16px',
+                        border: 'none',
+                        backgroundColor: 'transparent',
+                        cursor: 'pointer',
+                        fontSize: 13,
+                        fontWeight: detailTab === tab ? 600 : 500,
+                        color: detailTab === tab ? 'var(--primary)' : 'var(--text-muted)',
+                        borderBottom: detailTab === tab ? '2px solid var(--primary)' : 'none',
+                        transition: 'all 0.2s',
+                        textTransform: 'capitalize',
+                      }}
+                    >
+                      {tab === 'schedule' ? 'Schedule action' : tab}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Tab Content */}
+                    <div
+                      style={{
+                        flex: 1,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        minHeight: 0,
+                        // Prevent the message area from creating extra vertical space
+                        height: '100%',
+                        overflow: 'hidden',
+                      }}
+                    >
+                {detailTab === 'messages' && (
+
+                  <div
+                    style={{
+                      margin: 0,
+                      flex: 1,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      minHeight: 0,
+                      paddingBottom: 0,
+                      overflow: 'hidden',
+                      background: 'transparent',
+                      // remove any top rounding so the message area is flush with the tabs
+                      borderTopLeftRadius: 0,
+                      borderTopRightRadius: 0,
+                      borderBottomLeftRadius: 0,
+                      borderBottomRightRadius: 0,
+                    }}
+                  >
+                    <div className="chat-messages" style={{ flex: 1, minHeight: 0, borderRadius: 0, maxHeight: 'none', overflowY: 'auto' }}>
+
+
+
+                      {loadingMessages ? (
+                        <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                          Loading messages...
                         </div>
-                      </div>
+                      ) : msgs.length === 0 ? (
+                        <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                          No messages yet. Start the conversation!
+                        </div>
+                      ) : (
+                        msgs.map((m) => (
+                          <div key={m.id} className={`msg-row ${m.from === 'officer' ? 'me' : ''}`}>
+                            <div
+                              className="msg-avatar"
+                              style={{ background: m.from === 'officer' ? 'var(--primary)' : '#888' }}
+                            >
+                              {m.from === 'officer' ? 'OF' : 'RP'}
+                            </div>
+                            <div className={`msg-bubble ${m.from === 'officer' ? 'msg-me' : 'msg-them'}`}>
+                              {m.from !== 'officer' && (
+                                <div className="msg-name">{m.reporterName}</div>
+                              )}
+                              <div className={m.from === 'officer' ? 'msg-text-me' : 'msg-text'}>
+                                {m.text}
+                              </div>
+                              <div className={m.from === 'officer' ? 'msg-time-me' : 'msg-time'}>
+                                {m.timestamp?.toDate
+                                  ? m.timestamp.toDate().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+                                  : new Date(m.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    {/* Quick Actions */}
+                    <div style={{ padding: '12px 16px', borderTop: '0.5px solid var(--border)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+                      <button
+                        className="btn"
+                        style={{
+                          padding: '10px 12px',
+                          fontSize: 12,
+                          backgroundColor: 'rgba(25, 103, 210, 0.08)',
+                          color: '#1967d2',
+                          border: '1px solid rgba(25, 103, 210, 0.2)',
+                          borderRadius: 'var(--radius-md)',
+                          cursor: 'pointer',
+                          fontWeight: 500,
+                          transition: 'all 0.2s',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = 'rgba(25, 103, 210, 0.16)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'rgba(25, 103, 210, 0.08)';
+                        }}
+                      >
+                        📅 Schedule Interview
+                      </button>
+                      <button
+                        className="btn"
+                        style={{
+                          padding: '10px 12px',
+                          fontSize: 12,
+                          backgroundColor: 'rgba(25, 103, 210, 0.08)',
+                          color: '#1967d2',
+                          border: '1px solid rgba(25, 103, 210, 0.2)',
+                          borderRadius: 'var(--radius-md)',
+                          cursor: 'pointer',
+                          fontWeight: 500,
+                          transition: 'all 0.2s',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = 'rgba(25, 103, 210, 0.16)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'rgba(25, 103, 210, 0.08)';
+                        }}
+                      >
+                        📎 Add Evidence
+                      </button>
+                      <button
+                        className="btn"
+                        style={{
+                          padding: '10px 12px',
+                          fontSize: 12,
+                          backgroundColor: 'rgba(25, 103, 210, 0.08)',
+                          color: '#1967d2',
+                          border: '1px solid rgba(25, 103, 210, 0.2)',
+                          borderRadius: 'var(--radius-md)',
+                          cursor: 'pointer',
+                          fontWeight: 500,
+                          transition: 'all 0.2s',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = 'rgba(25, 103, 210, 0.16)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'rgba(25, 103, 210, 0.08)';
+                        }}
+                      >
+                        ↗ Refer Case
+                      </button>
+                      <button
+                        className="btn"
+                        style={{
+                          padding: '10px 12px',
+                          fontSize: 12,
+                          backgroundColor: 'rgba(234, 57, 114, 0.1)',
+                          color: '#ea3972',
+                          border: '1px solid rgba(234, 57, 114, 0.2)',
+                          borderRadius: 'var(--radius-md)',
+                          cursor: 'pointer',
+                          fontWeight: 500,
+                          transition: 'all 0.2s',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = 'rgba(234, 57, 114, 0.16)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'rgba(234, 57, 114, 0.1)';
+                        }}
+                      >
+                        🚨 Escalate
+                      </button>
+                    </div>
+<div className="chat-input-row" style={{ padding: '12px 16px 12px 16px', marginTop: 0 }}>
+                      <input
+                        className="chat-input"
+                        placeholder="Type a message..."
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && !sending && send()}
+                        disabled={sending}
+                      />
+                      <button
+                        className="chat-send"
+                        onClick={send}
+                        disabled={sending || !input.trim()}
+                      >
+                        ➤
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                      {detailTab === 'schedule' && (
+                  <div
+                    style={{
+                      margin: 0,
+                      borderTopLeftRadius: 0,
+                      borderTopRightRadius: 0,
+                      overflowY: 'auto',
+                      flex: 1,
+                    }}
+                  >
+                    <div className="card-body">
+
+                      <h4 style={{ fontSize: 13, fontWeight: 600, marginBottom: 12, color: 'var(--text)' }}>Schedule Interview</h4>
                       <div className="form-group">
                         <label className="form-label">Date</label>
                         <input
@@ -308,7 +554,7 @@ export default function CommunicationsPage() {
                         />
                       </div>
                       <div className="form-group">
-                        <label className="form-label">TIME</label>
+                        <label className="form-label">Time</label>
                         <div style={{ width: '100%' }}>
                           <LocalizationProvider dateAdapter={AdapterDateFns}>
                             <DesktopTimePicker
@@ -335,7 +581,7 @@ export default function CommunicationsPage() {
                         className="btn btn-primary"
                         style={{ width: '100%' }}
                         onClick={scheduleInterview}
-                        disabled={!selectedCase || !selectedDate || !selectedTimeValue || scheduling}
+                        disabled={!selectedDate || !selectedTimeValue || scheduling}
                       >
                         {scheduling ? 'Scheduling...' : 'Schedule Interview'}
                       </button>
@@ -354,191 +600,15 @@ export default function CommunicationsPage() {
                           {scheduleMessage}
                         </div>
                       )}
-                    </>
-                  ) : (
-                    <div style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: '20px' }}>
-                      Select a case to schedule an interview
-                    </div>
-                  )}
-                </>
-              ) : (
-                <>
-                  {selectedCase ? (
-                    <>
-                      <div className="form-group">
-                        <label className="form-label">Case</label>
-                        <div
-                          style={{
-                            fontSize: 13,
-                            fontWeight: 600,
-                            padding: '8px 12px',
-                            backgroundColor: 'var(--bg)',
-                            borderRadius: 'var(--radius-md)',
-                            border: '0.5px solid var(--border)',
-                          }}
-                        >
-                          {selectedCase.id} — {selectedCase.type}
-                        </div>
-                      </div>
-
-                      {pendingResolution ? (
-                        <div
-                          style={{
-                            padding: 12,
-                            backgroundColor: pendingResolution.status === 'pending' ? '#e3f2fd' : '#d4edda',
-                            borderRadius: 'var(--radius-md)',
-                            border: `1px solid ${pendingResolution.status === 'pending' ? '#1565c0' : '#155724'}`,
-                            marginBottom: 12,
-                          }}
-                        >
-                          <div
-                            style={{
-                              fontSize: 12,
-                              fontWeight: 600,
-                              color: pendingResolution.status === 'pending' ? '#1565c0' : '#155724',
-                              marginBottom: 4,
-                            }}
-                          >
-                            Status: {pendingResolution.status === 'pending' ? '⏳ Awaiting Review' : pendingResolution.status === 'approved' ? '✓ Approved' : '✗ Rejected'}
-                          </div>
-                          {pendingResolution.reviewComments && (
-                            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>
-                              Admin: {pendingResolution.reviewComments}
-                            </div>
-                          )}
-                        </div>
-                      ) : null}
-
-                      {!pendingResolution || pendingResolution.status === 'rejected' ? (
-                        <>
-                          <div className="form-group">
-                            <label className="form-label">Date Completed</label>
-                            <input
-                              type="date"
-                              className="form-input"
-                              value={completionDate ? format(completionDate, 'yyyy-MM-dd') : ''}
-                              onChange={(e) => setCompletionDate(e.target.valueAsDate || null)}
-                            />
-                          </div>
-                          <div className="form-group">
-                            <label className="form-label">Summary of Actions *</label>
-                            <textarea
-                              className="form-input"
-                              placeholder="Describe what actions were taken, findings, outcome..."
-                              value={resolutionNotes}
-                              onChange={(e) => setResolutionNotes(e.target.value)}
-                              style={{ minHeight: 100, resize: 'vertical', fontFamily: 'inherit' }}
-                            />
-                          </div>
-                          <button
-                            className="btn btn-primary"
-                            style={{ width: '100%' }}
-                            onClick={handleSubmitResolution}
-                            disabled={!resolutionNotes.trim() || submitting}
-                          >
-                            {submitting ? 'Submitting...' : 'Submit for Admin Review'}
-                          </button>
-                        </>
-                      ) : (
-                        <div style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: '20px' }}>
-                          ✓ Resolution submitted. Awaiting admin review.
-                        </div>
-                      )}
-
-                      {resolutionError && (
-                        <div
-                          style={{
-                            marginTop: 12,
-                            padding: '8px 12px',
-                            borderRadius: 'var(--radius-md)',
-                            fontSize: 13,
-                            textAlign: 'center',
-                            backgroundColor: resolutionError.includes('successfully') ? '#d4edda' : '#f8d7da',
-                            color: resolutionError.includes('successfully') ? '#155724' : '#721c24',
-                          }}
-                        >
-                          {resolutionError}
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <div style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: '20px' }}>
-                      Select a case to submit resolution
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-header">
-            <span className="card-title">Messages {selectedCase && `— ${selectedCase.reporter}`}</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 6, height: 6, borderRadius: 3, background: 'var(--safe)' }} />
-              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}> Encrypted</span>
-            </div>
-          </div>
-          <div className="chat-messages">
-            {loadingMessages ? (
-              <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
-                Loading messages...
-              </div>
-            ) : !selectedCase ? (
-              <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
-                Select a case to view messages
-              </div>
-            ) : msgs.length === 0 ? (
-              <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
-                No messages yet. Start the conversation!
-              </div>
-            ) : (
-              msgs.map((m) => (
-                <div key={m.id} className={`msg-row ${m.from === 'officer' ? 'me' : ''}`}>
-                  <div
-                    className="msg-avatar"
-                    style={{ background: m.from === 'officer' ? 'var(--primary)' : '#888' }}
-                  >
-                    {m.from === 'officer' ? 'OF' : 'RP'}
-                  </div>
-                  <div className={`msg-bubble ${m.from === 'officer' ? 'msg-me' : 'msg-them'}`}>
-                    {m.from !== 'officer' && (
-                      <div className="msg-name">{m.reporterName}</div>
-                    )}
-                    <div className={m.from === 'officer' ? 'msg-text-me' : 'msg-text'}>
-                      {m.text}
-                    </div>
-                    <div className={m.from === 'officer' ? 'msg-time-me' : 'msg-time'}>
-                      {m.timestamp?.toDate
-                        ? m.timestamp.toDate().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-                        : new Date(m.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
                     </div>
                   </div>
-                </div>
-              ))
-            )}
-          </div>
-          <div className="chat-input-row">
-            <input
-              className="chat-input"
-              placeholder={selectedCase ? 'Type a message...' : 'Select a case to message...'}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && !sending && send()}
-              disabled={!selectedCase}
-            />
-            <button
-              className="chat-send"
-              onClick={send}
-              disabled={!selectedCase || sending || !input.trim()}
-            >
-              ➤
-            </button>
-          </div>
+                )}
+              </div>
+
+            </>
+          )}
         </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
