@@ -1,4 +1,5 @@
 // AnalyticsPage.jsx
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 export default function AnalyticsPage() {
   return (
     <div>
@@ -37,22 +38,24 @@ export default function AnalyticsPage() {
       <div className="grid-2">
         <div className="card">
           <div className="card-header"><span className="card-title">Monthly Cases (2025)</span></div>
-          <div className="card-body">
-            <div className="bar-chart">
-              {[
-                ['January', 12, 60],
-                ['February', 18, 90],
-                ['March', 7, 35],
-                ['April', 4, 20]
-              ].map(([month, count, pct]) => (
-                <div key={month} className="bar-row">
-                  <span className="bar-label">{month}</span>
-                  <div className="bar-track">
-                    <div className="bar-fill" style={{ width: `${pct}%`, background: 'var(--primary)' }}>{count}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
+          <div className="card-body" style={{ height: 300 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={[
+                  { month: 'January', cases: 12 },
+                  { month: 'February', cases: 18 },
+                  { month: 'March', cases: 7 },
+                  { month: 'April', cases: 4 }
+                ]}
+                margin={{ top: 20, right: 30, left: 0, bottom: 0 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis dataKey="month" stroke="var(--text-muted)" />
+                <YAxis stroke="var(--text-muted)" />
+                <Tooltip contentStyle={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '4px' }} />
+                <Bar dataKey="cases" fill="var(--primary)" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
