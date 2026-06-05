@@ -137,7 +137,7 @@ app.post("/update-case", async (req, res) => {
         }
       }
 
-      // Increment new officer's case count
+      // Increment new officer's case count and send notification
       if (newAssignedOfficer) {
         const staffSnapshot = await db.collection("staff").where("firstName", "!=", "").get();
         let newOfficerFound = false;
@@ -148,6 +148,20 @@ app.post("/update-case", async (req, res) => {
           if (fullName === newAssignedOfficer) {
             const newCount = (staffData.cases || 0) + 1;
             await db.collection("staff").doc(doc.id).update({ cases: newCount });
+
+            // Create notification for the assigned officer
+            await createNotification(
+              doc.id,
+              "case_assigned",
+              "Case Assigned",
+              `You have been assigned to case #${caseData.caseId}`,
+              caseId,
+              {
+                caseId: caseData.caseId,
+                incidentType: caseData.incidentType,
+                priorityLevel: status || caseData.priorityLevel
+              }
+            );
             newOfficerFound = true;
             break;
           }
@@ -180,6 +194,27 @@ async function createActivityLog(caseId, action, actionBy, actionByName, fromSta
     });
   } catch (error) {
     console.error("Error creating activity log:", error);
+  }
+}
+
+// ─── HELPER: Create notification ─────────────────────────────────
+async function createNotification(recipientUid, type, title, message, caseId = null, caseData = null) {
+  try {
+    const notifId = db.collection("notifications").doc().id;
+    await db.collection("notifications").doc(notifId).set({
+      notifId,
+      recipientUid,
+      type, // "case_assigned", "new_case"
+      title,
+      message,
+      caseId: caseId || null,
+      caseData: caseData || null,
+      read: false,
+      createdAt: new Date(),
+      readAt: null
+    });
+  } catch (error) {
+    console.error("Error creating notification:", error);
   }
 }
 
@@ -727,6 +762,114 @@ app.get("/help-centers", async (req, res) => {
   } catch (err) {
     console.error("Error fetching help centers:", err);
     res.status(500).json({ error: err.message || "Failed to fetch help centers" });
+  }
+});
+
+// ─── GET NOTIFICATIONS FOR USER ──────────────────────────────────────────────
+app.get("/notifications/:uid", async (req, res) => {
+  try {
+    const { uid } = req.params;
+    if (!uid) return res.status(400).json({ error: "UID is required" });
+
+    const snapshot = await db.collection("notifications")
+      .where("recipientUid", "==", uid)
+      .orderBy("createdAt", "desc")
+      .limit(50)
+      .get();
+
+    const notifications = [];
+    snapshot.forEach(doc => {
+      notifications.push({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt
+      });
+    });
+
+    res.json({ success: true, notifications });
+  } catch (err) {
+    console.error("Error fetching notifications:", err);
+    res.status(500).json({ error: err.message || "Failed to fetch notifications" });
+  }
+});
+
+// ─── MARK NOTIFICATION AS READ ──────────────────────────────────────────────
+app.post("/mark-notification-read", async (req, res) => {
+  try {
+    const { notificationId } = req.body;
+    if (!notificationId) return res.status(400).json({ error: "notificationId is required" });
+
+    await db.collection("notifications").doc(notificationId).update({
+      read: true,
+      readAt: new Date()
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Error marking notification as read:", err);
+    res.status(500).json({ error: err.message || "Failed to mark notification" });
+  }
+});
+
+// ─── MARK ALL NOTIFICATIONS AS READ ──────────────────────────────────────────────
+app.post("/mark-all-notifications-read", async (req, res) => {
+  try {
+    const { uid } = req.body;
+    if (!uid) return res.status(400).json({ error: "uid is required" });
+
+    const snapshot = await db.collection("notifications")
+      .where("recipientUid", "==", uid)
+      .where("read", "==", false)
+      .get();
+
+    const batch = db.batch();
+    snapshot.forEach(doc => {
+      batch.update(doc.ref, {
+        read: true,
+        readAt: new Date()
+      });
+    });
+    await batch.commit();
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Error marking notifications as read:", err);
+    res.status(500).json({ error: err.message || "Failed to mark notifications" });
+  }
+});
+
+// ─── NOTIFY ADMINS OF NEW CASE (called when a new case is filed) ──────────────────────────────────────────────
+app.post("/notify-new-case", async (req, res) => {
+  try {
+    const { caseId, incidentType, priorityLevel } = req.body;
+    if (!caseId) return res.status(400).json({ error: "caseId is required" });
+
+    // Get all active admins
+    const adminsSnapshot = await db.collection("staff")
+      .where("role", "==", "admin")
+      .where("status", "==", "active")
+      .get();
+
+    // Create notification for each admin
+    for (const adminDoc of adminsSnapshot.docs) {
+      await createNotification(
+        adminDoc.id,
+        "new_case",
+        "New Case Filed",
+        `A new ${incidentType} case has been filed`,
+        caseId,
+        {
+          caseId,
+          incidentType,
+          priorityLevel
+        }
+      );
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Error notifying admins:", err);
+    res.status(500).json({ error: err.message || "Failed to notify admins" });
   }
 });
 

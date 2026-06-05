@@ -82,6 +82,7 @@ export default function CasesPage() {
   const [approving, setApproving] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [actionMode, setActionMode] = useState("none"); // "none", "update", "resolution"
+  const [notifiedCases, setNotifiedCases] = useState(new Set());
 
   useEffect(() => {
     try {
@@ -92,7 +93,7 @@ export default function CasesPage() {
         limit(10)
       );
 
-      const unsubscribe = onSnapshot(q, (snapshot) => {
+      const unsubscribe = onSnapshot(q, async (snapshot) => {
         const reportsData = snapshot.docs.map((doc) => ({
           id: doc.data().caseId,
           type: doc.data().incidentType,
@@ -108,6 +109,28 @@ export default function CasesPage() {
           docId: doc.id,
         }));
         setReports(reportsData);
+
+        // Notify admins about new cases (only for admins)
+        if (user?.role === "admin") {
+          for (const report of reportsData) {
+            if (!notifiedCases.has(report.docId)) {
+              try {
+                await fetch(`${API_BASE_URL}/notify-new-case`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    caseId: report.docId,
+                    incidentType: report.type,
+                    priorityLevel: report.priority
+                  })
+                });
+                setNotifiedCases(prev => new Set([...prev, report.docId]));
+              } catch (error) {
+                console.error("Error notifying about new case:", error);
+              }
+            }
+          }
+        }
 
         // Update selectedCase if it exists and matches a case in the updated reports
         if (selectedCase) {
@@ -129,7 +152,7 @@ export default function CasesPage() {
       setReports(SAMPLE_CASES);
       setLoading(false);
     }
-  }, []);
+  }, [user?.role, notifiedCases]);
 
   useEffect(() => {
     try {

@@ -11,6 +11,8 @@ import {
   EvidencePage,
 } from "./pages";
 import AccountManagementPage from "./pages/AccountManagementPage";
+import NotificationDropdown from "./components/NotificationDropdown";
+import { useNotifications } from "./hooks/useNotifications";
 import "./styles/global.css";
 
 const NAV = [
@@ -39,6 +41,8 @@ function Shell() {
   const [page, setPage] = useState("analytics");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
+  const { notifications, unreadCount } = useNotifications(user?.uid);
+  const [notifKey, setNotifKey] = useState(0);
 
   // ⚡ Wait for Firebase auth to finish initializing
   if (loading) return (
@@ -176,17 +180,18 @@ function Shell() {
             <button className="toggle-btn" onClick={() => setSidebarOpen(o => !o)}>☰</button>
           </div>
           <div className="topbar-right">
-            <div className="alert-indicator">
-              <span className="alert-bell">🔔</span>
-              <span className="alert-count">3</span>
-            </div>
+            <NotificationDropdown
+              notifications={notifications}
+              unreadCount={unreadCount}
+              onMarkAsRead={() => setNotifKey(k => k + 1)}
+            />
           </div>
         </header>
 
         <div className="alert-banner">
           <span className="alert-dot" />
-          <span className="alert-text">Case #002 — Domestic Abuse requires immediate attention</span>
-          <span className="alert-count-pill">3 alerts</span>
+          <span className="alert-text">{notifications.length > 0 && notifications[0].message ? notifications[0].message : "No new alerts"}</span>
+          <span className="alert-count-pill">{unreadCount} {unreadCount === 1 ? "alert" : "alerts"}</span>
         </div>
 
         <main className="page-content">
