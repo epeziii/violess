@@ -107,6 +107,23 @@ service cloud.firestore {
       }
     }
 
+    // ─── NOTIFICATIONS COLLECTION ──────────────────────────────
+    // Staff can read their own notifications
+    // Only backend with Admin SDK can create notifications
+    match /notifications/{notificationId} {
+      // Staff can read their own notifications
+      allow read: if request.auth.uid == resource.data.recipientUid &&
+                     exists(/databases/$(database)/documents/staff/$(request.auth.uid));
+      // Staff can update notifications (mark as read)
+      allow update: if request.auth.uid == resource.data.recipientUid &&
+                       exists(/databases/$(database)/documents/staff/$(request.auth.uid)) &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt']);
+      // Only backend can create notifications
+      allow create: if false;
+      // Cannot delete notifications
+      allow delete: if false;
+    }
+
     // ─── DEFAULT DENY ──────────────────────────────────
     match /{document=**} {
       allow read, write: if false;
