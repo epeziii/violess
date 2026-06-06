@@ -14,12 +14,12 @@ export default function CaseTrackingScreen({ navigation }) {
 
   const fetchWithRetry = async (url, maxRetries = 2) => {
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      let timeoutId = null;
       try {
         const controller = new AbortController();
-        let timeoutId = null;
         timeoutId = setTimeout(() => controller.abort(), 10000);
 
-        const response = await fetch(url, { 
+        const response = await fetch(url, {
           signal: controller.signal,
           headers: { 'Content-Type': 'application/json' }
         });

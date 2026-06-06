@@ -46,12 +46,12 @@ export default function HomeScreen({ navigation }) {
   useEffect(() => {
     const fetchWithRetry = async (url, maxRetries = 2) => {
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        let timeoutId = null;
         try {
           const controller = new AbortController();
-          let timeoutId = null;
           timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
 
-          const response = await fetch(url, { 
+          const response = await fetch(url, {
             signal: controller.signal,
             headers: { 'Content-Type': 'application/json' }
           });

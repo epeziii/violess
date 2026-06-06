@@ -23,12 +23,8 @@ const getApiBaseUrl = () => {
   return 'https://your-app.onrender.com';
 };
 
-// For physical device development:
-// Replace with your host IP (from `ip addr show` -> wlan0)
-export const PHYSICAL_DEVICE_URL = 'http://172.18.49.47:5000'; 
-
-// Use this in screens for now (override emulator URL on physical device)
-export const API_BASE_URL = PHYSICAL_DEVICE_URL;
+// Production backend on Vercel
+export const API_BASE_URL = 'https://violess-backend-19u20nh9e-202310785-1931s-projects.vercel.app';
 
 console.warn('🔗 API_BASE_URL:', API_BASE_URL);
 
