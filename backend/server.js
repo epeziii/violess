@@ -874,7 +874,7 @@ app.post("/notify-new-case", async (req, res) => {
 });
 
 // ─── CHECK AND NOTIFY ADMINS ABOUT ALL NEW CASES ──────────────────────────────────────────────
-// This endpoint checks for all cases and ensures admins are notified
+// This endpoint checks for recently created cases and ensures admins are notified
 app.post("/check-and-notify-new-cases", async (req, res) => {
   try {
     const { uid } = req.body;
@@ -898,9 +898,13 @@ app.post("/check-and-notify-new-cases", async (req, res) => {
       return res.status(403).json({ error: "Only admins can check notifications" });
     }
 
-    // Get all cases
-    const casesSnapshot = await db.collection("reports").get();
-    console.log("[check-and-notify-new-cases] Total cases:", casesSnapshot.size);
+    // Get cases created in the last 24 hours (only notify about recent cases)
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const casesSnapshot = await db.collection("reports")
+      .where("createdAt", ">=", oneDayAgo)
+      .get();
+
+    console.log("[check-and-notify-new-cases] Cases created in last 24h:", casesSnapshot.size);
 
     const allCaseIds = new Set();
     casesSnapshot.forEach(doc => {
