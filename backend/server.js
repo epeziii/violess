@@ -873,6 +873,71 @@ app.post("/notify-new-case", async (req, res) => {
   }
 });
 
+// ─── CHECK AND NOTIFY ADMINS ABOUT ALL NEW CASES ──────────────────────────────────────────────
+// This endpoint checks for all cases and ensures admins are notified
+app.post("/check-and-notify-new-cases", async (req, res) => {
+  try {
+    const { uid } = req.body;
+    if (!uid) return res.status(400).json({ error: "uid is required" });
+
+    // Verify user is admin
+    const staffSnap = await db.collection("staff").doc(uid).get();
+    if (!staffSnap.exists || staffSnap.data().role !== "admin") {
+      return res.status(403).json({ error: "Only admins can check notifications" });
+    }
+
+    // Get all cases
+    const casesSnapshot = await db.collection("reports").get();
+    const allCaseIds = new Set();
+
+    casesSnapshot.forEach(doc => {
+      allCaseIds.add(doc.id);
+    });
+
+    // Get all existing notifications for new cases
+    const existingNotifs = await db.collection("notifications")
+      .where("type", "==", "new_case")
+      .where("recipientUid", "==", uid)
+      .get();
+
+    const notifiedCaseIds = new Set();
+    existingNotifs.forEach(doc => {
+      notifiedCaseIds.add(doc.data().caseId);
+    });
+
+    // Find cases that haven't been notified yet
+    const unnotifiedCases = Array.from(allCaseIds).filter(caseId => !notifiedCaseIds.has(caseId));
+
+    // Create notifications for unnotified cases
+    for (const caseId of unnotifiedCases) {
+      const caseSnap = await db.collection("reports").doc(caseId).get();
+      if (caseSnap.exists) {
+        const caseData = caseSnap.data();
+        await createNotification(
+          uid,
+          "new_case",
+          "New Case Filed",
+          `A new ${caseData.incidentType} case has been filed`,
+          caseId,
+          {
+            caseId: caseData.caseId,
+            incidentType: caseData.incidentType,
+            priorityLevel: caseData.priorityLevel
+          }
+        );
+      }
+    }
+
+    res.json({
+      success: true,
+      notifiedCount: unnotifiedCases.length
+    });
+  } catch (err) {
+    console.error("Error checking and notifying cases:", err);
+    res.status(500).json({ error: err.message || "Failed to check notifications" });
+  }
+});
+
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => console.log(`Server running on http://0.0.0.0:${PORT}`));
