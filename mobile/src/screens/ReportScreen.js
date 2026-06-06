@@ -127,9 +127,14 @@ const [showTimePicker, setShowTimePicker] = useState(false);
         />
 
         <Button
-          label="Back to Home"
+          label="Report Another Case"
           variant="ghost"
-          onPress={() => navigation.navigate('Home')}
+          onPress={() => {
+            // Go back to the Report screen (first page) instead of staying on the success view
+            setSubmitted(false);
+            navigation.navigate('Report');
+            setStep(1);
+          }}
           style={{ marginTop: spacing.sm, width: '100%' }}
         />
       </View>

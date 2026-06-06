@@ -878,18 +878,31 @@ app.post("/notify-new-case", async (req, res) => {
 app.post("/check-and-notify-new-cases", async (req, res) => {
   try {
     const { uid } = req.body;
+    console.log("[check-and-notify-new-cases] Called with uid:", uid);
+
     if (!uid) return res.status(400).json({ error: "uid is required" });
 
     // Verify user is admin
     const staffSnap = await db.collection("staff").doc(uid).get();
-    if (!staffSnap.exists || staffSnap.data().role !== "admin") {
+    console.log("[check-and-notify-new-cases] Staff exists:", staffSnap.exists);
+    if (!staffSnap.exists) {
+      console.log("[check-and-notify-new-cases] Staff not found");
+      return res.status(403).json({ error: "Staff not found" });
+    }
+
+    const staffData = staffSnap.data();
+    console.log("[check-and-notify-new-cases] Staff role:", staffData.role);
+
+    if (staffData.role !== "admin") {
+      console.log("[check-and-notify-new-cases] User is not admin, role:", staffData.role);
       return res.status(403).json({ error: "Only admins can check notifications" });
     }
 
     // Get all cases
     const casesSnapshot = await db.collection("reports").get();
-    const allCaseIds = new Set();
+    console.log("[check-and-notify-new-cases] Total cases:", casesSnapshot.size);
 
+    const allCaseIds = new Set();
     casesSnapshot.forEach(doc => {
       allCaseIds.add(doc.id);
     });
@@ -900,6 +913,8 @@ app.post("/check-and-notify-new-cases", async (req, res) => {
       .where("recipientUid", "==", uid)
       .get();
 
+    console.log("[check-and-notify-new-cases] Existing new_case notifications:", existingNotifs.size);
+
     const notifiedCaseIds = new Set();
     existingNotifs.forEach(doc => {
       notifiedCaseIds.add(doc.data().caseId);
@@ -907,12 +922,15 @@ app.post("/check-and-notify-new-cases", async (req, res) => {
 
     // Find cases that haven't been notified yet
     const unnotifiedCases = Array.from(allCaseIds).filter(caseId => !notifiedCaseIds.has(caseId));
+    console.log('[check-and-notify-new-cases] Unnotified cases:', unnotifiedCases.length, unnotifiedCases);
 
     // Create notifications for unnotified cases
     for (const caseId of unnotifiedCases) {
       const caseSnap = await db.collection("reports").doc(caseId).get();
       if (caseSnap.exists) {
         const caseData = caseSnap.data();
+        console.log('[check-and-notify-new-cases] Creating notification for case:', caseId, 'type:', caseData.incidentType);
+
         await createNotification(
           uid,
           "new_case",
@@ -928,12 +946,13 @@ app.post("/check-and-notify-new-cases", async (req, res) => {
       }
     }
 
+    console.log('[check-and-notify-new-cases] Success, notified:', unnotifiedCases.length);
     res.json({
       success: true,
       notifiedCount: unnotifiedCases.length
     });
   } catch (err) {
-    console.error("Error checking and notifying cases:", err);
+    console.error("[check-and-notify-new-cases] Error:", err);
     res.status(500).json({ error: err.message || "Failed to check notifications" });
   }
 });

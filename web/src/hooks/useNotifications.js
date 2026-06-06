@@ -7,7 +7,12 @@ export function useNotifications(userId) {
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) {
+      console.log("[useNotifications] No userId provided");
+      return;
+    }
+
+    console.log("[useNotifications] Setting up listener for userId:", userId);
 
     try {
       const q = query(
@@ -23,13 +28,14 @@ export function useNotifications(userId) {
           createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt
         }));
 
+        console.log("[useNotifications] Received notifications:", notifs.length, notifs);
         setNotifications(notifs);
         setUnreadCount(notifs.filter(n => !n.read).length);
       });
 
       return () => unsubscribe();
     } catch (error) {
-      console.error("Error fetching notifications:", error);
+      console.error("[useNotifications] Error setting up listener:", error);
     }
   }, [userId]);
 

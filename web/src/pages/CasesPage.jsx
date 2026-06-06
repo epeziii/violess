@@ -86,11 +86,15 @@ export default function CasesPage() {
   useEffect(() => {
     // Check and notify admin about any new cases on page load
     if (user?.role === "admin" && user?.uid) {
+      console.log("[CasesPage] Admin detected, checking for new cases. UID:", user.uid);
       fetch(`${API_BASE_URL}/check-and-notify-new-cases`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ uid: user.uid })
-      }).catch(error => console.error("Error checking new cases:", error));
+      })
+        .then(res => res.json())
+        .then(data => console.log("[CasesPage] Check-and-notify response:", data))
+        .catch(error => console.error("[CasesPage] Error checking new cases:", error));
     }
   }, [user?.uid, user?.role]);
 
