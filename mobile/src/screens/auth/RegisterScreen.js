@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   StatusBar, TextInput, KeyboardAvoidingView,
-  Platform, ScrollView, Animated,
+  Platform, ScrollView, Animated, Modal, FlatList,
 } from 'react-native';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { colors, spacing, radius, shadow } from '../../theme';
@@ -18,25 +18,30 @@ import { getFirestore, doc, setDoc, Timestamp } from 'firebase/firestore';
 
 const STEPS = ['Account', 'Check Email', 'Profile'];
 
+const BARANGAYS = [
+  'Barangay Asinan',
+  'Barangay Banicain',
+  'Barangay Barretto',
+  'Barangay East Bajac-Bajac',
+  'Barangay East Tapinac',
+  'Barangay Gordon Heights',
+  'Barangay Kalaklan',
+  'Barangay Mabayuan',
+  'Barangay New Asinan',
+  'Barangay New Cabalan',
+  'Barangay New Ilalim',
+  'Barangay New Kababae',
+  'Barangay New Kalalake',
+  'Barangay Old Cabalan',
+  'Barangay Pag-asa',
+  'Barangay Santa Rita',
+  'Barangay West Bajac-Bajac',
+  'Barangay West Tapinac',
+];
+
 const capitalize = (str) => {
   if (!str) return '';
   return str.trim().charAt(0).toUpperCase() + str.trim().slice(1);
-};
-
-// Format barangay and city: combine and capitalize
-const formatBarangayCity = (barangay, city) => {
-  const b = barangay.trim();
-  const c = city.trim();
-
-  if (!b || !c) {
-    return { error: 'Please fill in both barangay and city' };
-  }
-
-  // Capitalize each word in barangay and city
-  const formattedBarangay = b.split(/\s+/).map(w => capitalize(w)).join(' ');
-  const formattedCity = c.split(/\s+/).map(w => capitalize(w)).join(' ');
-
-  return { formatted: `${formattedBarangay}, ${formattedCity}` };
 };
 
 export default function RegisterScreen({ navigation }) {
@@ -50,11 +55,12 @@ export default function RegisterScreen({ navigation }) {
   const [showPw,       setShowPw]       = useState(false);
   const [role,         setRole]         = useState('woman');
   const [barangay,     setBarangay]     = useState('');
-  const [city,         setCity]         = useState('');
   const [emergency,    setEmergency]    = useState('');
+  const [contactNum,   setContactNum]   = useState('');
   const [loading,      setLoading]      = useState(false);
   const [error,        setError]        = useState('');
   const [currentUser, setCurrentUser]   = useState(null);
+  const [showBarangayModal, setShowBarangayModal] = useState(false);
   const slideAnim = useRef(new Animated.Value(0)).current;
 
   // Listen to auth state changes to reliably get current user
@@ -149,17 +155,19 @@ export default function RegisterScreen({ navigation }) {
     } else {
       setLoading(true);
       setError('');
+      if (!contactNum.trim()) {
+        setLoading(false);
+        setError('Please fill in contact number.');
+        return;
+      }
       if (!emergency.trim()) {
         setLoading(false);
         setError('Please fill in emergency contact.');
         return;
       }
-
-      // Validate and format barangay and city
-      const barangayResult = formatBarangayCity(barangay, city);
-      if (barangayResult.error) {
+      if (!barangay.trim()) {
         setLoading(false);
-        setError(barangayResult.error);
+        setError('Please select a barangay.');
         return;
       }
 
@@ -175,8 +183,10 @@ export default function RegisterScreen({ navigation }) {
           firstName: capitalize(firstName),
           lastName: capitalize(lastName),
           email: email.trim(),
-          barangay: barangayResult.formatted,
+          barangay: barangay.trim(),
+          city: 'Olongapo City',
           emergency: emergency.trim(),
+          contactNumber: contactNum.trim(),
           status: 'active',
           registrationComplete: false,
           lastLogin: Timestamp.now(),
@@ -410,10 +420,10 @@ export default function RegisterScreen({ navigation }) {
               <Text style={styles.label}>I am a</Text>
               <View style={styles.roleGrid}>
                 {[
-                  { id: 'woman',   icon: 'user-circle', label: 'Woman / Girl' },
-                  { id: 'youth',   icon: 'backpack', label: 'Youth / Student' },
-                  { id: 'witness', icon: 'eye', label: 'Witness' },
-                  { id: 'other',   icon: 'user', label: 'Prefer not to say' },
+                  { id: 'woman',   icon: 'user-circle', label: 'Woman / Girl', age: 'age 18-35' },
+                  { id: 'youth',   icon: 'graduation-cap', label: 'Youth', age: 'age 13-17' },
+                  { id: 'children', icon: 'child', label: 'Children', age: 'age below 13' },
+                  { id: 'other',   icon: 'user', label: 'Prefer not to say', age: '' },
                 ].map(r => (
                   <TouchableOpacity
                     key={r.id}
@@ -425,8 +435,28 @@ export default function RegisterScreen({ navigation }) {
                     <Text style={[styles.roleLabel, role === r.id && styles.roleLabelActive]}>
                       {r.label}
                     </Text>
+                    {r.age && (
+                      <Text style={[styles.roleAge, role === r.id && styles.roleAgeActive]}>
+                        {r.age}
+                      </Text>
+                    )}
                   </TouchableOpacity>
                 ))}
+              </View>
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Contact number</Text>
+              <View style={styles.inputRow}>
+                <FontAwesome6 name="phone" size={16} color={colors.textMuted} style={{ marginRight: spacing.sm }} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="+63 9XX XXX XXXX"
+                  placeholderTextColor={colors.placeholder}
+                  value={contactNum}
+                  onChangeText={setContactNum}
+                  keyboardType="phone-pad"
+                />
               </View>
             </View>
 
@@ -447,31 +477,25 @@ export default function RegisterScreen({ navigation }) {
             </View>
 
             <View style={styles.field}>
-              <Text style={styles.label}>Barangay</Text>
-              <View style={styles.inputRow}>
-                <FontAwesome6 name="map-pin" size={16} color={colors.textMuted} style={{ marginRight: spacing.sm }} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g., Mabayuan"
-                  placeholderTextColor={colors.placeholder}
-                  value={barangay}
-                  onChangeText={setBarangay}
-                />
+              <Text style={styles.label}>City</Text>
+              <View style={[styles.inputRow, { backgroundColor: colors.surfaceAlt }]}>
+                <Text style={[styles.input, { color: colors.text, flex: 1, lineHeight: 50 }]}>Olongapo</Text>
+                <FontAwesome6 name="lock" size={16} color={colors.textMuted} style={{ marginLeft: spacing.sm }} />
               </View>
+              <Text style={styles.fieldHint}>This field is fixed to Olongapo City.</Text>
             </View>
 
             <View style={styles.field}>
-              <Text style={styles.label}>City</Text>
-              <View style={styles.inputRow}>
-                <FontAwesome6 name="building" size={16} color={colors.textMuted} style={{ marginRight: spacing.sm }} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g., Olongapo City"
-                  placeholderTextColor={colors.placeholder}
-                  value={city}
-                  onChangeText={setCity}
-                />
-              </View>
+              <Text style={styles.label}>Barangay</Text>
+              <TouchableOpacity
+                style={[styles.inputRow, styles.dropdownTrigger]}
+                onPress={() => setShowBarangayModal(true)}
+              >
+                <Text style={[styles.input, { color: barangay ? colors.text : colors.placeholder, flex: 1, lineHeight: 50 }]}>
+                  {barangay || 'Select a barangay'}
+                </Text>
+                <FontAwesome6 name="chevron-down" size={14} color={colors.textMuted} />
+              </TouchableOpacity>
             </View>
           </>
         )}
@@ -500,6 +524,49 @@ export default function RegisterScreen({ navigation }) {
           </TouchableOpacity>
         )}
       </ScrollView>
+
+      {/* Barangay Dropdown Modal */}
+      <Modal
+        visible={showBarangayModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowBarangayModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowBarangayModal(false)}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Barangay</Text>
+              <TouchableOpacity onPress={() => setShowBarangayModal(false)}>
+                <FontAwesome6 name="times" size={20} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={BARANGAYS}
+              keyExtractor={(item, index) => index.toString()}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[styles.barangayOption, barangay === item && styles.barangayOptionActive]}
+                  onPress={() => {
+                    setBarangay(item);
+                    setShowBarangayModal(false);
+                  }}
+                >
+                  <Text style={[styles.barangayOptionText, barangay === item && styles.barangayOptionTextActive]}>
+                    {item}
+                  </Text>
+                  {barangay === item && (
+                    <FontAwesome6 name="check" size={16} color={colors.primary} />
+                  )}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -588,6 +655,8 @@ const styles = StyleSheet.create({
   roleIcon:        { fontSize: 22, marginBottom: spacing.xs },
   roleLabel:       { fontSize: 11, fontWeight: '600', color: colors.textSecondary, textAlign: 'center' },
   roleLabelActive: { color: colors.primary },
+  roleAge:         { fontSize: 9, fontWeight: '400', color: colors.textMuted, textAlign: 'center', marginTop: spacing.xs },
+  roleAgeActive:   { color: colors.primary },
 
   btnPrimary: {
     backgroundColor: colors.primary, borderRadius: radius.lg,
@@ -606,4 +675,57 @@ const styles = StyleSheet.create({
   },
   safetyDot:  { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.safe, marginTop: 3, flexShrink: 0 },
   safetyText: { fontSize: 11, color: colors.safe, fontWeight: '500', lineHeight: 16, flex: 1 },
+
+  dropdownTrigger: { paddingRight: spacing.sm, justifyContent: 'space-between' },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    maxHeight: '80%',
+    paddingTop: 0,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 0.5,
+    borderBottomColor: colors.borderLight,
+    backgroundColor: colors.white,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  barangayOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 0.5,
+    borderBottomColor: colors.borderLight,
+  },
+  barangayOptionActive: {
+    backgroundColor: colors.primaryLight,
+  },
+  barangayOptionText: {
+    fontSize: 13,
+    color: colors.text,
+    flex: 1,
+  },
+  barangayOptionTextActive: {
+    color: colors.primary,
+    fontWeight: '600',
+  },
 });
