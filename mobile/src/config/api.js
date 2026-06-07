@@ -24,7 +24,7 @@ const getApiBaseUrl = () => {
 };
 
 // Production backend on Vercel
-export const API_BASE_URL = 'https://violess-backend-19u20nh9e-202310785-1931s-projects.vercel.app';
+export const API_BASE_URL = 'https://violess-backend-j33t5zheb-202310785-1931s-projects.vercel.app';
 
 console.warn('🔗 API_BASE_URL:', API_BASE_URL);
 

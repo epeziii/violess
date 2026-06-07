@@ -129,9 +129,12 @@ export default function CasesPage() {
           const updatedCase = reportsData.find(c => c.docId === selectedCase.docId);
           if (updatedCase) {
             setSelectedCase(updatedCase);
-            setStatus(updatedCase.status);
-            setAssignedOfficer(updatedCase.assignedOfficer || "");
-            setPriorityLevel(updatedCase.priority || "normal");
+            // Don't overwrite user's current dropdown selections while editing.
+            if (actionMode !== "update") {
+              setStatus(updatedCase.status);
+              setAssignedOfficer(updatedCase.assignedOfficer || "");
+              setPriorityLevel(updatedCase.priority || "normal");
+            }
           }
         }
 
@@ -307,7 +310,8 @@ export default function CasesPage() {
     }
   }, [selectedCase]);
 
-
+  // Keep dropdown values from being overwritten while the user is editing.
+  const isEditingUpdate = actionMode === "update";
 
   const handleApproveResolution = async () => {
     if (!selectedCase || !pendingResolution || approving) return;
@@ -445,9 +449,9 @@ export default function CasesPage() {
                 <>
                   <div className="form-group">
                     <label className="form-label">Select Action</label>
-                    <select 
-                      className="form-select" 
-                      value={actionMode} 
+<select
+                      className="form-select"
+                      value={actionMode}
                       onChange={(e) => setActionMode(e.target.value)}
                     >
                       <option value="none">-- Select Action --</option>
@@ -468,9 +472,9 @@ export default function CasesPage() {
                           <option value="closed">Case Closed</option>
                         </select>
                       </div>
-                      <div className="form-group">
+<div className="form-group">
                         <label className="form-label">Assign Officer</label>
-                        <select className="form-select" value={assignedOfficer} onChange={e => setAssignedOfficer(e.target.value)} disabled={status === "pending"} style={status === "pending" ? { opacity: 0.5, cursor: "not-allowed", backgroundColor: "var(--bg-muted)" } : {}}>
+                        <select className="form-select" value={assignedOfficer} onChange={e => setAssignedOfficer(e.target.value)} disabled={status === "pending"} style={status === "pending" ? { opacity: 0.5, cursor: "not-allowed", backgroundColor: "var(--bg)" } : {}}>
                           <option value="">-- Unassigned --</option>
                           {officers.map((officer) => (
                             <option key={officer.id} value={officer.name}>{officer.name}</option>
