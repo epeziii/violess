@@ -1,4 +1,5 @@
 import { useState } from "react";
+import "@fortawesome/fontawesome-free/css/all.min.css";
 import { AuthProvider, useAuth, PERMISSIONS } from "./AuthContext";
 import { ProtectedRoute } from "./ProtectedRoute";
 import LoginPage from "./pages/auth/LoginPage";
@@ -13,6 +14,7 @@ import {
 import AccountManagementPage from "./pages/AccountManagementPage";
 import NotificationDropdown from "./components/NotificationDropdown";
 import { useNotifications } from "./hooks/useNotifications";
+import Icon from "./components/Icon";
 import "./styles/global.css";
 
 const NAV = [
@@ -94,7 +96,8 @@ function Shell() {
                   textTransform:"uppercase"
                 }}
               >
-                {user.role === "admin" ? "🛡️ Admin" : "👮 Officer"}
+                <Icon icon={user.role === "admin" ? "shield" : "user-tie"} style={{ marginRight: "4px" }} size="11px" />
+                {user.role === "admin" ? "Admin" : "Officer"}
               </span>
             </div>
           )}
@@ -140,7 +143,8 @@ function Shell() {
               <div className="officer-info">
                 <span className="officer-name">{user.firstName} {user.lastName}</span>
                 <span className="officer-role">
-                  {user.role === "admin" ? "🛡️ Admin" : "👮 Officer"}
+                  <Icon icon={user.role === "admin" ? "shield" : "user-tie"} style={{ marginRight: "4px" }} size="11px" />
+                  {user.role === "admin" ? "Admin" : "Officer"}
                 </span>
               </div>
             )}
@@ -177,7 +181,9 @@ function Shell() {
       <div className="main-area">
 <header className="topbar">
           <div className="topbar-left">
-            <button className="toggle-btn" onClick={() => setSidebarOpen(o => !o)}>☰</button>
+            <button className="toggle-btn" onClick={() => setSidebarOpen(o => !o)}>
+              <Icon icon="bars" size="18px" />
+            </button>
           </div>
           <div className="topbar-right">
             <NotificationDropdown
@@ -219,7 +225,8 @@ function Shell() {
             color: "#1A0A12"
           }}>
             <h2 style={{ marginTop: 0, marginBottom: 16, fontSize: 18, fontWeight: 700 }}>
-              ⚠️ Sign Out?
+              <Icon icon="triangle-exclamation" style={{ marginRight: "8px", color: "#C62828" }} size="18px" />
+              Sign Out?
             </h2>
             <p style={{ marginBottom: 24, color: "#A08898", fontSize: 14, lineHeight: 1.5 }}>
               Are you sure you want to sign out? You'll need to log in again to access the system.

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import API_BASE_URL from "../config/api";
+import Icon from "./Icon";
 
 export default function NotificationDropdown({ notifications, unreadCount, onMarkAsRead }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -52,7 +53,7 @@ export default function NotificationDropdown({ notifications, unreadCount, onMar
           fontSize: "20px"
         }}
       >
-        🔔
+        <Icon icon="bell" size="20px" />
         {unreadCount > 0 && (
           <span
             style={{
@@ -153,7 +154,16 @@ export default function NotificationDropdown({ notifications, unreadCount, onMar
                   >
                     <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
                       <div style={{ fontSize: "16px", marginTop: "2px" }}>
-                        {notif.type === "case_assigned" ? "📋" : "🆕"}
+                        {(
+                          notif.type === "case_assigned" ||
+                          notif.type === "case_filed" ||
+                          notif.type === "new_case_filed" ||
+                          notif.type === "case_created"
+                        ) ? (
+                          <Icon icon="gavel" size="16px" />
+                        ) : (
+                          <Icon icon="file" size="16px" />
+                        )}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: "12px", fontWeight: "600", color: "var(--text)", marginBottom: "2px" }}>

@@ -5,6 +5,7 @@ import { db } from "../firebase";
 import { collection, query, orderBy, limit, onSnapshot, where } from "firebase/firestore";
 import { useAuth } from "../AuthContext";
 import API_BASE_URL from "../config/api";
+import Icon from "../components/Icon";
 
 const SAMPLE_CASES = [
   { id: "#VIO-001", type: "Harassment", reporter: "Anonymous", location: "Brgy. 123", status: "reviewing", date: "Feb 12" },
@@ -526,7 +527,8 @@ export default function CasesPage() {
                           onClick={handleApproveResolution}
                           disabled={approving || !pendingResolution}
                         >
-                          {approving ? 'Approving...' : '✓ Approve & Close'}
+                          <Icon icon="check" style={{ marginRight: "6px" }} size="14px" />
+                          {approving ? 'Approving...' : 'Approve & Close'}
                         </button>
                         <button
                           className="btn btn-ghost"
@@ -534,7 +536,8 @@ export default function CasesPage() {
                           onClick={handleRejectResolution}
                           disabled={rejecting || !pendingResolution}
                         >
-                          {rejecting ? 'Rejecting...' : '✗ Reject'}
+                          <Icon icon="xmark" style={{ marginRight: "6px" }} size="14px" />
+                          {rejecting ? 'Rejecting...' : 'Reject'}
                         </button>
                       </div>
                     </>
