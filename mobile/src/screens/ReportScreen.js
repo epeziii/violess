@@ -33,6 +33,9 @@ const [showTimePicker, setShowTimePicker] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [caseId, setCaseId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [suspectDescription, setSuspectDescription] = useState('');
+  const [evidenceFile, setEvidenceFile] = useState(null);
+  const [evidenceFileName, setEvidenceFileName] = useState('');
 
   // ✅ VALIDATION FUNCTIONS
   const validateStep1 = () => {
@@ -46,6 +49,10 @@ const [showTimePicker, setShowTimePicker] = useState(false);
   const validateStep2 = () => {
     if (!description.trim()) {
       Alert.alert('Missing Information', 'Please describe the incident.');
+      return false;
+    }
+    if (!suspectDescription.trim()) {
+      Alert.alert('Missing Information', 'Please describe the suspect.');
       return false;
     }
     return true;
@@ -72,6 +79,8 @@ const [showTimePicker, setShowTimePicker] = useState(false);
           incidentType: selectedType,
           description,
           location,
+          suspectDescription,
+          evidenceNote: evidenceFileName,
           datetime: `${date.toDateString()} ${time.toLocaleTimeString([], {
   hour: '2-digit',
   minute: '2-digit'
@@ -255,6 +264,25 @@ const [showTimePicker, setShowTimePicker] = useState(false);
               onChangeText={setLocation}
             />
 
+            <Text style={styles.fieldLabel}>Suspect Description</Text>
+            <TextInput
+              style={styles.textArea}
+              multiline
+              placeholder="Describe the suspect (appearance, clothing, behavior, etc.)..."
+              placeholderTextColor={colors.placeholder}
+              value={suspectDescription}
+              onChangeText={setSuspectDescription}
+            />
+
+            <Text style={styles.fieldLabel}>Evidence Upload <Text style={styles.optional}>(optional)</Text></Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Notes about evidence (e.g., photos, documents)..."
+              placeholderTextColor={colors.placeholder}
+              value={evidenceFileName}
+              onChangeText={setEvidenceFileName}
+            />
+
             <Text style={styles.fieldLabel}>Date</Text>
 <TouchableOpacity
   style={styles.input}
@@ -357,6 +385,20 @@ const [showTimePicker, setShowTimePicker] = useState(false);
                 <Text style={styles.reviewLabel}>Description:</Text>
                 <Text style={styles.reviewValue}>{description}</Text>
               </View>
+
+              {suspectDescription && (
+                <View style={styles.reviewRow}>
+                  <Text style={styles.reviewLabel}>Suspect Description:</Text>
+                  <Text style={styles.reviewValue}>{suspectDescription}</Text>
+                </View>
+              )}
+
+              {evidenceFileName && (
+                <View style={styles.reviewRow}>
+                  <Text style={styles.reviewLabel}>Evidence:</Text>
+                  <Text style={styles.reviewValue}>{evidenceFileName}</Text>
+                </View>
+              )}
             </Card>
 
             <View style={styles.navRow}>
@@ -464,6 +506,8 @@ infoBox: {
 },
 
   fieldLabel: { marginTop: spacing.md, fontWeight: '600' },
+
+  optional: { fontSize: 12, fontWeight: '400', color: colors.textMuted },
 
   textArea: {
     borderWidth: 1,
