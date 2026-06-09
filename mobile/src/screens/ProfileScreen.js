@@ -82,6 +82,11 @@ export default function ProfileScreen({ navigation }) {
           </View>
 
           <View style={[styles.infoSection, styles.infoDivider]}>
+            <Text style={styles.infoLabel}>Contact Number</Text>
+            <Text style={styles.infoValue}>{userData?.contactNumber || 'Not provided'}</Text>
+          </View>
+
+          <View style={[styles.infoSection, styles.infoDivider]}>
             <Text style={styles.infoLabel}>Emergency Contact</Text>
             <Text style={styles.infoValue}>{userData?.emergency || 'Not provided'}</Text>
           </View>

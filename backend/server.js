@@ -1,7 +1,10 @@
+require("dotenv").config();
 const express = require("express");
 const admin = require("firebase-admin");
 const cors = require("cors");
 const nodemailer = require("nodemailer");
+const multer = require("multer");
+const { v2: cloudinary } = require("cloudinary");
 
 // 🔑 Firebase Admin SDK service account
 const serviceAccount = JSON.parse(process.env.FIREBASE_CREDENTIALS || "{}");
@@ -23,6 +26,46 @@ const transporter = nodemailer.createTransport({
     user: process.env.EMAIL_USER || "noreply.violess@gmail.com",
     pass: process.env.EMAIL_PASSWORD || "qgft xplp ytct yimj", // Gmail app password
   },
+});
+
+if (process.env.CLOUDINARY_URL) {
+  cloudinary.config();
+} else {
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+    secure: true,
+  });
+}
+
+const upload = multer({ storage: multer.memoryStorage() });
+
+app.post("/upload-evidence", upload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "Evidence file is required" });
+
+    const fileBuffer = req.file.buffer;
+    const fileBase64 = fileBuffer.toString("base64");
+    const dataUri = `data:${req.file.mimetype};base64,${fileBase64}`;
+
+    const uploadResult = await cloudinary.uploader.upload(dataUri, {
+      folder: "violess/reports",
+      resource_type: "auto",
+      use_filename: true,
+      unique_filename: true,
+    });
+
+    res.json({
+      success: true,
+      url: uploadResult.secure_url,
+      publicId: uploadResult.public_id,
+      originalName: req.file.originalname,
+    });
+  } catch (err) {
+    console.error("Evidence upload failed:", err);
+    res.status(500).json({ error: err.message || "Failed to upload evidence" });
+  }
 });
 
 // ─── CREATE STAFF ACCOUNT ──────────────────────────────────────────────
@@ -554,7 +597,7 @@ app.post("/send-verification-email", async (req, res) => {
 // ─── SUBMIT INCIDENT REPORT ──────────────────────────────────────────────
 app.post("/submit-report", async (req, res) => {
   try {
-    const { uid, incidentType, description, location, datetime, isAnonymous, suspectDescription, evidenceNote } = req.body;
+    const { uid, incidentType, description, location, datetime, isAnonymous, suspectDescription, evidenceNote, evidenceUrl, evidenceOriginalName } = req.body;
     if (!uid || !incidentType || !description)
       return res.status(400).json({ error: "uid, incidentType, and description are required" });
 
@@ -602,6 +645,8 @@ app.post("/submit-report", async (req, res) => {
       location: location || "",
       suspectDescription: suspectDescription || "",
       evidenceNote: evidenceNote || "",
+      evidenceUrl: evidenceUrl || "",
+      evidenceOriginalName: evidenceOriginalName || "",
       datetime: datetime || "",
       isAnonymous,
       reporterName,

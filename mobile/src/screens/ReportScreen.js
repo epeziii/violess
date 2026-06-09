@@ -9,6 +9,7 @@ import { Card, Button } from '../components';
 import { auth } from '../config/firebase';
 import { API_BASE_URL } from '../config/api';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import * as DocumentPicker from 'expo-document-picker';
 
 const INCIDENT_TYPES = [
   { id: 'domestic', label: 'Domestic Violence', icon: 'heart-crack' },
@@ -36,6 +37,9 @@ const [showTimePicker, setShowTimePicker] = useState(false);
   const [suspectDescription, setSuspectDescription] = useState('');
   const [evidenceFile, setEvidenceFile] = useState(null);
   const [evidenceFileName, setEvidenceFileName] = useState('');
+  const [evidenceUrl, setEvidenceUrl] = useState('');
+  const [evidenceUploadStatus, setEvidenceUploadStatus] = useState('idle');
+  const [evidenceError, setEvidenceError] = useState('');
 
   // ✅ VALIDATION FUNCTIONS
   const validateStep1 = () => {
@@ -80,7 +84,8 @@ const [showTimePicker, setShowTimePicker] = useState(false);
           description,
           location,
           suspectDescription,
-          evidenceNote: evidenceFileName,
+          evidenceUrl,
+          evidenceOriginalName: evidenceFileName,
           datetime: `${date.toDateString()} ${time.toLocaleTimeString([], {
   hour: '2-digit',
   minute: '2-digit'
@@ -274,15 +279,6 @@ const [showTimePicker, setShowTimePicker] = useState(false);
               onChangeText={setSuspectDescription}
             />
 
-            <Text style={styles.fieldLabel}>Evidence Upload <Text style={styles.optional}>(optional)</Text></Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Notes about evidence (e.g., photos, documents)..."
-              placeholderTextColor={colors.placeholder}
-              value={evidenceFileName}
-              onChangeText={setEvidenceFileName}
-            />
-
             <Text style={styles.fieldLabel}>Date</Text>
 <TouchableOpacity
   style={styles.input}
@@ -326,6 +322,67 @@ const [showTimePicker, setShowTimePicker] = useState(false);
     }}
   />
 )}
+
+            <Text style={styles.fieldLabel}>Evidence Upload <Text style={styles.optional}>(optional)</Text></Text>
+            <TouchableOpacity
+              style={styles.uploadField}
+              onPress={async () => {
+                try {
+                  setEvidenceError('');
+                  setEvidenceUploadStatus('uploading');
+                  const result = await DocumentPicker.getDocumentAsync({
+                    type: '*/*',
+                    copyToCacheDirectory: false,
+                  });
+
+                  if (result.type === 'cancel') {
+                    setEvidenceUploadStatus(evidenceUrl ? 'done' : 'idle');
+                    return;
+                  }
+
+                  const file = result;
+                  setEvidenceFile(file);
+
+                  const formData = new FormData();
+                  formData.append('file', {
+                    uri: file.uri,
+                    name: file.name || 'evidence',
+                    type: file.mimeType || 'application/octet-stream',
+                  });
+
+                  const uploadResponse = await fetch(`${API_BASE_URL}/upload-evidence`, {
+                    method: 'POST',
+                    body: formData,
+                  });
+
+                  const json = await uploadResponse.json();
+                  if (!uploadResponse.ok) throw new Error(json.error || 'Upload failed');
+
+                  setEvidenceUrl(json.url);
+                  setEvidenceFileName(json.originalName || file.name || 'Evidence file');
+                  setEvidenceUploadStatus('done');
+                } catch (err) {
+                  console.error('Evidence upload error:', err);
+                  setEvidenceError(err.message || 'Evidence upload failed');
+                  setEvidenceUploadStatus('failed');
+                }
+              }}
+            >
+              <Text style={styles.uploadFieldText}>
+                {evidenceUploadStatus === 'uploading'
+                  ? 'Uploading evidence…'
+                  : evidenceFileName
+                  ? `Change evidence file`
+                  : 'Choose evidence file'}
+              </Text>
+            </TouchableOpacity>
+
+            <Text style={styles.uploadMeta}>
+              {evidenceFileName ? `Selected file: ${evidenceFileName}` : 'No file selected yet.'}
+            </Text>
+            {evidenceUploadStatus === 'failed' ? (
+              <Text style={styles.errorText}>{evidenceError || 'Upload failed. Please try again.'}</Text>
+            ) : null}
 
             <View style={styles.navRow}>
               <Button label="← Back" variant="ghost" onPress={() => setStep(1)} style={{ flex: 1 }} />
@@ -395,7 +452,7 @@ const [showTimePicker, setShowTimePicker] = useState(false);
 
               {evidenceFileName && (
                 <View style={styles.reviewRow}>
-                  <Text style={styles.reviewLabel}>Evidence:</Text>
+                  <Text style={styles.reviewLabel}>Evidence file:</Text>
                   <Text style={styles.reviewValue}>{evidenceFileName}</Text>
                 </View>
               )}
@@ -524,6 +581,33 @@ infoBox: {
     borderRadius: radius.md,
     padding: spacing.md,
     marginTop: spacing.sm,
+  },
+
+  uploadField: {
+    borderWidth: 1,
+    borderColor: '#bbb',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginTop: spacing.sm,
+    backgroundColor: '#fafafa',
+  },
+
+  uploadFieldText: {
+    color: colors.primary,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+
+  uploadMeta: {
+    marginTop: spacing.sm,
+    color: '#555',
+    fontSize: 12,
+  },
+
+  errorText: {
+    marginTop: spacing.xs,
+    color: '#d32f2f',
+    fontSize: 12,
   },
 
   navRow: {

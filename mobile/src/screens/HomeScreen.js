@@ -142,7 +142,6 @@ export default function HomeScreen({ navigation }) {
           <View style={styles.statsRow}>
             {[
               { value: activeCasesCount.toString(), label: 'Active case' },
-              { value: '3', label: 'Contacts' },
               { value: 'Safe', label: 'Status' },
             ].map((s, i) => (
               <View key={i} style={styles.statItem}>

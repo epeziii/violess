@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, TouchableOpacity,
   StatusBar, TextInput, ScrollView,
 } from 'react-native';
+import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { colors, spacing, radius, shadow } from '../../theme';
 import { auth } from '../../config/firebase';
 import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
@@ -157,7 +158,7 @@ export function RegisterSuccessScreen({ navigation }) {
           <Text style={[styles.cardTitle, { color: colors.primary }]}>Your account</Text>
           <View style={styles.profileRow}>
             <View style={styles.profileAvatar}>
-              <Text style={{ fontSize: 20 }}>👩</Text>
+              <FontAwesome6 name="user" size={20} color="#fff" />
             </View>
             <View>
               <Text style={styles.profileName}>

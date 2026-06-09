@@ -1,1 +1,7 @@
-1. [x] Add CSS to web/src/styles/global.css to style react-datepicker time picker and suppress 'Selected time' text
+# TODO
+
+- [ ] Update mobile ProfileScreen to display CONTACT NUMBER above Emergency Contact.
+  - [ ] Fetch `contactNumber` from `users/{uid}` document.
+  - [ ] Add UI row with label "Contact Number".
+  - [ ] Ensure fallback value if missing (e.g., 'Not provided').
+
