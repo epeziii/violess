@@ -374,9 +374,23 @@ const [showTimePicker, setShowTimePicker] = useState(false);
                     }
                   );
 
-                  const json = JSON.parse(uploadResult.body || '{}');
+                  console.log('Upload response status:', uploadResult.status);
+                  console.log('Upload response body:', uploadResult.body);
+
+                  let json = {};
+                  try {
+                    json = JSON.parse(uploadResult.body || '{}');
+                  } catch (parseErr) {
+                    console.error('JSON parse error. Raw response:', uploadResult.body);
+                    throw new Error(`Server error: ${uploadResult.body?.substring(0, 100) || 'Unknown'}`);
+                  }
+
                   if (uploadResult.status !== 200) {
-                    throw new Error(json.error || 'Upload failed');
+                    let errorMsg = json.error || 'Upload failed';
+                    if (errorMsg.includes('entity too large') || errorMsg.includes('413')) {
+                      errorMsg = 'File is too large (max 10MB)';
+                    }
+                    throw new Error(errorMsg);
                   }
 
                   setEvidenceFiles([...evidenceFiles, {
@@ -414,12 +428,20 @@ const [showTimePicker, setShowTimePicker] = useState(false);
                     <TouchableOpacity
                       onPress={async () => {
                         try {
+                          console.log('Deleting file:', file.name, 'publicId:', file.publicId);
                           if (file.publicId) {
-                            await fetch(`${API_BASE_URL}/delete-evidence`, {
+                            const deleteRes = await fetch(`${API_BASE_URL}/delete-evidence`, {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({ publicId: file.publicId }),
                             });
+                            const deleteData = await deleteRes.json();
+                            console.log('Delete response:', deleteRes.status, deleteData);
+                            if (!deleteRes.ok) {
+                              Alert.alert('Warning', 'Failed to delete from cloud: ' + (deleteData.error || 'Unknown error'));
+                            }
+                          } else {
+                            console.warn('No publicId for file:', file.name);
                           }
                           setEvidenceFiles(evidenceFiles.filter((_, i) => i !== idx));
                         } catch (err) {
@@ -704,6 +726,8 @@ infoBox: {
     color: '#999',
     marginTop: 2,
   },
+
+  removeBtn: {
     padding: spacing.sm,
   },
 

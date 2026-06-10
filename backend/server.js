@@ -67,10 +67,19 @@ app.post("/upload-evidence", upload.single("file"), async (req, res) => {
 app.post("/delete-evidence", async (req, res) => {
   try {
     const { publicId } = req.body;
+    console.log('Delete request received. publicId:', publicId);
+
     if (!publicId) return res.status(400).json({ error: "publicId is required" });
 
-    await cloudinary.uploader.destroy(publicId);
-    res.json({ success: true, message: "Evidence deleted" });
+    const result = await cloudinary.uploader.destroy(publicId);
+    console.log('Cloudinary destroy result:', result);
+
+    if (result.result === 'ok') {
+      res.json({ success: true, message: "Evidence deleted" });
+    } else {
+      console.warn('Cloudinary delete returned non-ok result:', result);
+      res.json({ success: true, message: "Evidence deleted", cloudinaryResult: result });
+    }
   } catch (err) {
     console.error("Evidence deletion failed:", err);
     res.status(500).json({ error: err.message || "Failed to delete evidence" });
