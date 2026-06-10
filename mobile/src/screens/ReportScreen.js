@@ -397,6 +397,7 @@ const [showTimePicker, setShowTimePicker] = useState(false);
                     url: json.url,
                     name: json.originalName || file.name || 'Evidence file',
                     publicId: json.publicId,
+                    resourceType: json.resourceType,
                     sizeMB: fileSizeMB,
                   }]);
                   setEvidenceUploadStatus('done');
@@ -428,12 +429,12 @@ const [showTimePicker, setShowTimePicker] = useState(false);
                     <TouchableOpacity
                       onPress={async () => {
                         try {
-                          console.log('Deleting file:', file.name, 'publicId:', file.publicId);
+                          console.log('Deleting file:', file.name, 'publicId:', file.publicId, 'resourceType:', file.resourceType);
                           if (file.publicId) {
                             const deleteRes = await fetch(`${API_BASE_URL}/delete-evidence`, {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ publicId: file.publicId }),
+                              body: JSON.stringify({ publicId: file.publicId, resourceType: file.resourceType }),
                             });
                             const deleteData = await deleteRes.json();
                             console.log('Delete response:', deleteRes.status, deleteData);

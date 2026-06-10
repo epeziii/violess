@@ -56,6 +56,7 @@ app.post("/upload-evidence", upload.single("file"), async (req, res) => {
       success: true,
       url: uploadResult.secure_url,
       publicId: uploadResult.public_id,
+      resourceType: uploadResult.resource_type,
       originalName: req.file.originalname,
     });
   } catch (err) {
@@ -66,12 +67,14 @@ app.post("/upload-evidence", upload.single("file"), async (req, res) => {
 
 app.post("/delete-evidence", async (req, res) => {
   try {
-    const { publicId } = req.body;
-    console.log('Delete request received. publicId:', publicId);
+    const { publicId, resourceType } = req.body;
+    console.log('Delete request received. publicId:', publicId, 'resourceType:', resourceType);
 
     if (!publicId) return res.status(400).json({ error: "publicId is required" });
 
-    const result = await cloudinary.uploader.destroy(publicId);
+    const result = await cloudinary.uploader.destroy(publicId, {
+      resource_type: resourceType || 'auto',
+    });
     console.log('Cloudinary destroy result:', result);
 
     if (result.result === 'ok') {
