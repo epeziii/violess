@@ -343,6 +343,26 @@ const [showTimePicker, setShowTimePicker] = useState(false);
                     throw new Error('No file selected');
                   }
 
+                  // Get file size
+                  const fileInfo = await FileSystem.getInfoAsync(file.uri);
+                  const fileSizeMB = (fileInfo.size || 0) / (1024 * 1024);
+
+                  // Validate individual file size (10MB max)
+                  if (fileSizeMB > 10) {
+                    throw new Error(`File exceeds 10MB limit (${fileSizeMB.toFixed(2)}MB)`);
+                  }
+
+                  // Calculate total size with existing files
+                  const totalSizeMB = evidenceFiles.reduce((sum, f) => sum + (f.sizeMB || 0), 0) + fileSizeMB;
+                  if (totalSizeMB > 50) {
+                    throw new Error(`Total evidence size exceeds 50MB limit (${totalSizeMB.toFixed(2)}MB)`);
+                  }
+
+                  // Check for duplicate files (by name)
+                  if (evidenceFiles.some(f => f.name === (file.name || 'Evidence file'))) {
+                    throw new Error(`File "${file.name}" is already added`);
+                  }
+
                   const uploadResult = await FileSystem.uploadAsync(
                     `${API_BASE_URL}/upload-evidence`,
                     file.uri,
@@ -362,6 +382,8 @@ const [showTimePicker, setShowTimePicker] = useState(false);
                   setEvidenceFiles([...evidenceFiles, {
                     url: json.url,
                     name: json.originalName || file.name || 'Evidence file',
+                    publicId: json.publicId,
+                    sizeMB: fileSizeMB,
                   }]);
                   setEvidenceUploadStatus('done');
                 } catch (err) {
@@ -384,11 +406,27 @@ const [showTimePicker, setShowTimePicker] = useState(false);
                   <View key={idx} style={styles.evidenceItem}>
                     <View style={styles.evidenceInfo}>
                       <FontAwesome6 name="file" size={16} color={colors.primary} />
-                      <Text style={styles.evidenceItemName}>{file.name}</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.evidenceItemName}>{file.name}</Text>
+                        <Text style={styles.evidenceItemSize}>{(file.sizeMB || 0).toFixed(2)}MB</Text>
+                      </View>
                     </View>
                     <TouchableOpacity
-                      onPress={() => {
-                        setEvidenceFiles(evidenceFiles.filter((_, i) => i !== idx));
+                      onPress={async () => {
+                        try {
+                          if (file.publicId) {
+                            await fetch(`${API_BASE_URL}/delete-evidence`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ publicId: file.publicId }),
+                            });
+                          }
+                          setEvidenceFiles(evidenceFiles.filter((_, i) => i !== idx));
+                        } catch (err) {
+                          console.error('Error deleting evidence:', err);
+                          Alert.alert('Warning', 'File removed from list but may still be in cloud storage');
+                          setEvidenceFiles(evidenceFiles.filter((_, i) => i !== idx));
+                        }
                       }}
                       style={styles.removeBtn}
                     >
@@ -401,8 +439,8 @@ const [showTimePicker, setShowTimePicker] = useState(false);
 
             <Text style={styles.uploadMeta}>
               {evidenceFiles.length > 0
-                ? `${evidenceFiles.length} file${evidenceFiles.length !== 1 ? 's' : ''} added`
-                : 'No files added yet.'}
+                ? `${evidenceFiles.length} file${evidenceFiles.length !== 1 ? 's' : ''} added (${evidenceFiles.reduce((sum, f) => sum + (f.sizeMB || 0), 0).toFixed(2)}MB / 50MB)`
+                : 'No files added yet. Max 10MB per file, 50MB total.'}
             </Text>
             {evidenceUploadStatus === 'failed' ? (
               <Text style={styles.errorText}>{evidenceError || 'Upload failed. Please try again.'}</Text>
@@ -661,9 +699,15 @@ infoBox: {
     fontSize: 13,
   },
 
-  removeBtn: {
+  evidenceItemSize: {
+    fontSize: 11,
+    color: '#999',
+    marginTop: 2,
+  },
     padding: spacing.sm,
   },
+
+  errorText: {
     marginTop: spacing.xs,
     color: '#d32f2f',
     fontSize: 12,

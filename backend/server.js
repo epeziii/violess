@@ -64,6 +64,19 @@ app.post("/upload-evidence", upload.single("file"), async (req, res) => {
   }
 });
 
+app.post("/delete-evidence", async (req, res) => {
+  try {
+    const { publicId } = req.body;
+    if (!publicId) return res.status(400).json({ error: "publicId is required" });
+
+    await cloudinary.uploader.destroy(publicId);
+    res.json({ success: true, message: "Evidence deleted" });
+  } catch (err) {
+    console.error("Evidence deletion failed:", err);
+    res.status(500).json({ error: err.message || "Failed to delete evidence" });
+  }
+});
+
 // ─── CREATE STAFF ACCOUNT ──────────────────────────────────────────────
 app.post("/create-staff", async (req, res) => {
   try {
