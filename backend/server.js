@@ -593,7 +593,7 @@ app.post("/send-verification-email", async (req, res) => {
 // ─── SUBMIT INCIDENT REPORT ──────────────────────────────────────────────
 app.post("/submit-report", async (req, res) => {
   try {
-    const { uid, incidentType, description, location, datetime, isAnonymous, suspectDescription, evidenceNote, evidenceUrl, evidenceOriginalName } = req.body;
+    const { uid, incidentType, description, location, datetime, isAnonymous, suspectDescription, evidence } = req.body;
     if (!uid || !incidentType || !description)
       return res.status(400).json({ error: "uid, incidentType, and description are required" });
 
@@ -640,9 +640,7 @@ app.post("/submit-report", async (req, res) => {
       description,
       location: location || "",
       suspectDescription: suspectDescription || "",
-      evidenceNote: evidenceNote || "",
-      evidenceUrl: evidenceUrl || "",
-      evidenceOriginalName: evidenceOriginalName || "",
+      evidence: evidence || [],
       datetime: datetime || "",
       isAnonymous,
       reporterName,

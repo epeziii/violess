@@ -36,9 +36,7 @@ const [showTimePicker, setShowTimePicker] = useState(false);
   const [caseId, setCaseId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [suspectDescription, setSuspectDescription] = useState('');
-  const [evidenceFile, setEvidenceFile] = useState(null);
-  const [evidenceFileName, setEvidenceFileName] = useState('');
-  const [evidenceUrl, setEvidenceUrl] = useState('');
+  const [evidenceFiles, setEvidenceFiles] = useState([]);
   const [evidenceUploadStatus, setEvidenceUploadStatus] = useState('idle');
   const [evidenceError, setEvidenceError] = useState('');
 
@@ -85,8 +83,7 @@ const [showTimePicker, setShowTimePicker] = useState(false);
           description,
           location,
           suspectDescription,
-          evidenceUrl,
-          evidenceOriginalName: evidenceFileName,
+          evidence: evidenceFiles,
           datetime: `${date.toDateString()} ${time.toLocaleTimeString([], {
   hour: '2-digit',
   minute: '2-digit'
@@ -337,7 +334,7 @@ const [showTimePicker, setShowTimePicker] = useState(false);
                   });
 
                   if (result?.type === 'cancel' || result?.canceled === true) {
-                    setEvidenceUploadStatus(evidenceUrl ? 'done' : 'idle');
+                    setEvidenceUploadStatus(evidenceFiles.length > 0 ? 'done' : 'idle');
                     return;
                   }
 
@@ -345,8 +342,6 @@ const [showTimePicker, setShowTimePicker] = useState(false);
                   if (!file?.uri) {
                     throw new Error('No file selected');
                   }
-
-                  setEvidenceFile(file);
 
                   const uploadResult = await FileSystem.uploadAsync(
                     `${API_BASE_URL}/upload-evidence`,
@@ -364,8 +359,10 @@ const [showTimePicker, setShowTimePicker] = useState(false);
                     throw new Error(json.error || 'Upload failed');
                   }
 
-                  setEvidenceUrl(json.url);
-                  setEvidenceFileName(json.originalName || file.name || 'Evidence file');
+                  setEvidenceFiles([...evidenceFiles, {
+                    url: json.url,
+                    name: json.originalName || file.name || 'Evidence file',
+                  }]);
                   setEvidenceUploadStatus('done');
                 } catch (err) {
                   console.error('Evidence upload error:', err);
@@ -377,14 +374,35 @@ const [showTimePicker, setShowTimePicker] = useState(false);
               <Text style={styles.uploadFieldText}>
                 {evidenceUploadStatus === 'uploading'
                   ? 'Uploading evidence…'
-                  : evidenceFileName
-                  ? `Change evidence file`
-                  : 'Choose evidence file'}
+                  : '+ Add Evidence File'}
               </Text>
             </TouchableOpacity>
 
+            {evidenceFiles.length > 0 && (
+              <View style={styles.evidenceList}>
+                {evidenceFiles.map((file, idx) => (
+                  <View key={idx} style={styles.evidenceItem}>
+                    <View style={styles.evidenceInfo}>
+                      <FontAwesome6 name="file" size={16} color={colors.primary} />
+                      <Text style={styles.evidenceItemName}>{file.name}</Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => {
+                        setEvidenceFiles(evidenceFiles.filter((_, i) => i !== idx));
+                      }}
+                      style={styles.removeBtn}
+                    >
+                      <FontAwesome6 name="trash" size={16} color="#d32f2f" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
+
             <Text style={styles.uploadMeta}>
-              {evidenceFileName ? `Selected file: ${evidenceFileName}` : 'No file selected yet.'}
+              {evidenceFiles.length > 0
+                ? `${evidenceFiles.length} file${evidenceFiles.length !== 1 ? 's' : ''} added`
+                : 'No files added yet.'}
             </Text>
             {evidenceUploadStatus === 'failed' ? (
               <Text style={styles.errorText}>{evidenceError || 'Upload failed. Please try again.'}</Text>
@@ -456,10 +474,14 @@ const [showTimePicker, setShowTimePicker] = useState(false);
                 </View>
               )}
 
-              {evidenceFileName && (
+              {evidenceFiles.length > 0 && (
                 <View style={styles.reviewRow}>
-                  <Text style={styles.reviewLabel}>Evidence file:</Text>
-                  <Text style={styles.reviewValue}>{evidenceFileName}</Text>
+                  <Text style={styles.reviewLabel}>Evidence files:</Text>
+                  <View>
+                    {evidenceFiles.map((file, idx) => (
+                      <Text key={idx} style={styles.reviewValue}>• {file.name}</Text>
+                    ))}
+                  </View>
                 </View>
               )}
             </Card>
@@ -610,7 +632,38 @@ infoBox: {
     fontSize: 12,
   },
 
-  errorText: {
+  evidenceList: {
+    marginTop: spacing.md,
+    backgroundColor: '#f5f5f5',
+    borderRadius: radius.md,
+    padding: spacing.md,
+  },
+
+  evidenceItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+
+  evidenceInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: spacing.sm,
+  },
+
+  evidenceItemName: {
+    flex: 1,
+    color: '#333',
+    fontSize: 13,
+  },
+
+  removeBtn: {
+    padding: spacing.sm,
+  },
     marginTop: spacing.xs,
     color: '#d32f2f',
     fontSize: 12,
