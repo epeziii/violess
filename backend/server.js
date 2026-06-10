@@ -28,16 +28,12 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-if (process.env.CLOUDINARY_URL) {
-  cloudinary.config();
-} else {
-  cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET,
-    secure: true,
-  });
-}
+cloudinary.config({
+  cloud_name: "dgxznfcgr",
+  api_key: "445697225715821",
+  api_secret: "eE-vMLo6pBoBRNZvn9mO0CHoi6c",
+  secure: true,
+});
 
 const upload = multer({ storage: multer.memoryStorage() });
 

@@ -10,6 +10,7 @@ import { auth } from '../config/firebase';
 import { API_BASE_URL } from '../config/api';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 
 const INCIDENT_TYPES = [
   { id: 'domestic', label: 'Domestic Violence', icon: 'heart-crack' },
@@ -332,31 +333,36 @@ const [showTimePicker, setShowTimePicker] = useState(false);
                   setEvidenceUploadStatus('uploading');
                   const result = await DocumentPicker.getDocumentAsync({
                     type: '*/*',
-                    copyToCacheDirectory: false,
+                    copyToCacheDirectory: true,
                   });
 
-                  if (result.type === 'cancel') {
+                  if (result?.type === 'cancel' || result?.canceled === true) {
                     setEvidenceUploadStatus(evidenceUrl ? 'done' : 'idle');
                     return;
                   }
 
-                  const file = result;
+                  const file = result?.assets?.[0] || result;
+                  if (!file?.uri) {
+                    throw new Error('No file selected');
+                  }
+
                   setEvidenceFile(file);
 
-                  const formData = new FormData();
-                  formData.append('file', {
-                    uri: file.uri,
-                    name: file.name || 'evidence',
-                    type: file.mimeType || 'application/octet-stream',
-                  });
+                  const uploadResult = await FileSystem.uploadAsync(
+                    `${API_BASE_URL}/upload-evidence`,
+                    file.uri,
+                    {
+                      httpMethod: 'POST',
+                      uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+                      fieldName: 'file',
+                      mimeType: file.mimeType || 'application/octet-stream',
+                    }
+                  );
 
-                  const uploadResponse = await fetch(`${API_BASE_URL}/upload-evidence`, {
-                    method: 'POST',
-                    body: formData,
-                  });
-
-                  const json = await uploadResponse.json();
-                  if (!uploadResponse.ok) throw new Error(json.error || 'Upload failed');
+                  const json = JSON.parse(uploadResult.body || '{}');
+                  if (uploadResult.status !== 200) {
+                    throw new Error(json.error || 'Upload failed');
+                  }
 
                   setEvidenceUrl(json.url);
                   setEvidenceFileName(json.originalName || file.name || 'Evidence file');
