@@ -9,8 +9,8 @@ import {
   ReferralPage,
   CommunicationsPage,
   AnalyticsPage,
-  EvidencePage,
 } from "./pages";
+import EvidenceStoragePage from "./pages/EvidenceStoragePage";
 import AccountManagementPage from "./pages/AccountManagementPage";
 import NotificationDropdown from "./components/NotificationDropdown";
 import { useNotifications } from "./hooks/useNotifications";
@@ -63,7 +63,7 @@ function Shell() {
     referrals: <ReferralPage />,
     comms:     <CommunicationsPage />,
     analytics: <AnalyticsPage />,
-    evidence:  <EvidencePage />,
+    evidence:  <EvidenceStoragePage />,
     accounts:  <ProtectedRoute permission="accountManagement"><AccountManagementPage /></ProtectedRoute>,
     settings:  <ProtectedRoute permission="systemSettings"><SettingsPlaceholder /></ProtectedRoute>,
   };

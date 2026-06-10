@@ -120,6 +120,7 @@ export default function CasesPage() {
           priority: doc.data().priorityLevel || "normal",
           assignedOfficer: doc.data().assignedOfficer || "",
           description: doc.data().description || "",
+          suspectDescription: doc.data().suspectDescription || "",
           createdAt: doc.data().createdAt,
           docId: doc.id,
         }));
@@ -420,9 +421,15 @@ export default function CasesPage() {
                     <div><div className="form-label">Date & Time of Incident</div><div style={{ fontSize: 13, fontWeight: 600 }}>{selectedCase.incidentDateTime || "Not recorded"}</div></div>
                   </div>
                   <div>
-                    <div className="form-label">Description</div>
+                    <div className="form-label">Incident Description</div>
                     <div style={{ background: 'var(--bg)', borderRadius: 'var(--radius-md)', padding: '10px 12px', fontSize: 12, color: 'var(--text)', lineHeight: 1.6, border: '0.5px solid var(--border)' }}>
                       {selectedCase.description}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="form-label">Suspect Description</div>
+                    <div style={{ background: 'var(--bg)', borderRadius: 'var(--radius-md)', padding: '10px 12px', fontSize: 12, color: 'var(--text)', lineHeight: 1.6, border: '0.5px solid var(--border)' }}>
+                      {selectedCase.suspectDescription || "Not recorded"}
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

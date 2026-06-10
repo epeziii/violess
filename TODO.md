@@ -1,7 +1,9 @@
 # TODO
 
-- [ ] Update mobile ProfileScreen to display CONTACT NUMBER above Emergency Contact.
-  - [ ] Fetch `contactNumber` from `users/{uid}` document.
-  - [ ] Add UI row with label "Contact Number".
-  - [ ] Ensure fallback value if missing (e.g., 'Not provided').
+- [ ] Update web case detail card in `web/src/pages/CasesPage.jsx`:
+  - [ ] Rename field label `Description` -> `Incident Description`
+  - [ ] Add `Suspect Description` block under incident description (left-side card)
+- [ ] Fetch suspect description from Firebase by extending Firestore mapping in `web/src/pages/CasesPage.jsx`:
+  - [ ] Map `doc.data().suspectDescription` -> `suspectDescription` in `reports` state
+- [ ] Run web app and sanity check rendering.
 
