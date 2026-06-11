@@ -35,6 +35,8 @@ export default function CommunicationsPage() {
   const [caseFilter, setCaseFilter] = useState("all");
   const [detailTab, setDetailTab] = useState("messages");
   const [quickActionOpen, setQuickActionOpen] = useState(false);
+  const [caseDetailsModalOpen, setCaseDetailsModalOpen] = useState(false);
+  const [selectedCaseDetails, setSelectedCaseDetails] = useState(null);
 
   useEffect(() => {
     if (!user) return;
@@ -50,6 +52,12 @@ export default function CommunicationsPage() {
         priority: doc.data().priorityLevel || "normal",
         docId: doc.id,
         uid: doc.data().uid,
+        location: doc.data().location || "N/A",
+        datetime: doc.data().datetime || "",
+        description: doc.data().description || "",
+        suspectDescription: doc.data().suspectDescription || "",
+        assignedOfficer: doc.data().assignedOfficer || "",
+        createdAt: doc.data().createdAt || "",
       }));
       setAssignedCases(cases);
       setLoadingCases(false);
@@ -202,6 +210,16 @@ export default function CommunicationsPage() {
     return colors[status] || "#888";
   };
 
+  const openCaseDetailsModal = (caseItem) => {
+    setSelectedCaseDetails(caseItem);
+    setCaseDetailsModalOpen(true);
+  };
+
+  const closeCaseDetailsModal = () => {
+    setCaseDetailsModalOpen(false);
+    setSelectedCaseDetails(null);
+  };
+
   return (
     <div
       style={{
@@ -213,6 +231,203 @@ export default function CommunicationsPage() {
         overflow: "hidden",
       }}
     >
+      {/* Case Details Modal */}
+      {caseDetailsModalOpen && selectedCaseDetails && (
+        <div
+          className="modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) closeCaseDetailsModal();
+          }}
+        >
+          <div className="modal" style={{ width: 540, maxHeight: "90vh", overflowY: "auto" }}>
+            <div className="modal-header">
+<div style={{ flex: 1 }}>
+                <div className="modal-title">{selectedCaseDetails.id} — {(selectedCaseDetails.type || "").replace(/^[-\s]+/, "")}</div>
+
+                <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
+                  Filed{" "}
+                  {selectedCaseDetails.createdAt
+                    ? (() => {
+                        const date = selectedCaseDetails.createdAt.toDate
+                          ? selectedCaseDetails.createdAt.toDate()
+                          : new Date(selectedCaseDetails.createdAt);
+                        return date.toLocaleString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                          hour: "numeric",
+                          minute: "2-digit",
+                          hour12: true,
+                        });
+                      })()
+                    : ""}
+                </div>
+              </div>
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  padding: "4px 12px",
+                  borderRadius: "20px",
+                  backgroundColor:
+                    selectedCaseDetails.status === "reviewing"
+                      ? "#e3f2fd"
+                      : selectedCaseDetails.status === "pending"
+                        ? "#fff3e0"
+                        : "#ffe0e6",
+                  color:
+                    selectedCaseDetails.status === "reviewing"
+                      ? "#1565c0"
+                      : selectedCaseDetails.status === "pending"
+                        ? "#e65100"
+                        : "#c2185b",
+                  textTransform: "capitalize",
+                  marginRight: 8,
+                }}
+              >
+                {selectedCaseDetails.status}
+              </span>
+              <button type="button" className="modal-close" onClick={closeCaseDetailsModal} aria-label="Close">
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              {/* People Section */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 12 }}>
+                  <i className="fas fa-users" style={{ marginRight: 6 }}></i> People
+                </div>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 12,
+                  }}
+                >
+                  <div
+                    style={{
+                      background: "var(--bg)",
+                      border: "0.5px solid var(--border)",
+                      borderRadius: "var(--radius-md)",
+                      padding: "12px",
+                    }}
+                  >
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8 }}>Reporter</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{selectedCaseDetails.reporter}</div>
+                  </div>
+                  <div
+                    style={{
+                      background: "var(--bg)",
+                      border: "0.5px solid var(--border)",
+                      borderRadius: "var(--radius-md)",
+                      padding: "12px",
+                    }}
+                  >
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8 }}>Assigned to</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
+                      {selectedCaseDetails.assignedOfficer || "Unassigned"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Location & Time Section */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 12 }}>
+                  <i className="fas fa-map-marker-alt" style={{ marginRight: 6 }}></i> Location & Time
+                </div>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 12,
+                  }}
+                >
+                  <div
+                    style={{
+                      background: "var(--bg)",
+                      border: "0.5px solid var(--border)",
+                      borderRadius: "var(--radius-md)",
+                      padding: "12px",
+                    }}
+                  >
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8 }}>Location</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{selectedCaseDetails.location}</div>
+                  </div>
+                  <div
+                    style={{
+                      background: "var(--bg)",
+                      border: "0.5px solid var(--border)",
+                      borderRadius: "var(--radius-md)",
+                      padding: "12px",
+                    }}
+                  >
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8 }}>Date & time of incident</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
+                      {selectedCaseDetails.datetime
+                        ? new Date(selectedCaseDetails.datetime).toLocaleString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                          hour: "numeric",
+                          minute: "2-digit",
+                          hour12: true,
+                        })
+                        : "Not recorded"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Incident Description Section */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 12 }}>
+                  <i className="fas fa-file-alt" style={{ marginRight: 6 }}></i> Incident Description
+                </div>
+                <div
+                  style={{
+                    background: "var(--bg)",
+                    borderRadius: "var(--radius-md)",
+                    padding: "12px",
+                    fontSize: 12,
+                    color: "var(--text)",
+                    lineHeight: 1.6,
+                    border: "0.5px solid var(--border)",
+                  }}
+                >
+                  {selectedCaseDetails.description || "Not recorded"}
+                </div>
+              </div>
+
+              {/* Suspect Description Section */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 12 }}>
+                  <i className="fas fa-search" style={{ marginRight: 6 }}></i> Suspect Description
+                </div>
+                <div
+                  style={{
+                    background: "var(--bg)",
+                    borderRadius: "var(--radius-md)",
+                    padding: "12px",
+                    fontSize: 12,
+                    color: "var(--text)",
+                    lineHeight: 1.6,
+                    border: "0.5px solid var(--border)",
+                  }}
+                >
+                  {selectedCaseDetails.suspectDescription || "Not recorded"}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* MIDDLE: Case List Panel (40%) */}
       <div
         style={{
@@ -301,9 +516,13 @@ export default function CommunicationsPage() {
                         ? "1px solid rgba(194, 24, 91, 0.3)"
                         : "1px solid transparent",
                     transition: "all 0.2s",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    gap: 10,
                   }}
                 >
-                  <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                  <div style={{ display: "flex", gap: 10, alignItems: "flex-start", flex: 1, minWidth: 0 }}>
                     <div
                       style={{
                         width: 8,
@@ -371,6 +590,33 @@ export default function CommunicationsPage() {
                       </div>
                     </div>
                   </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openCaseDetailsModal(caseItem);
+                    }}
+                    style={{
+                      padding: "6px 12px",
+                      borderRadius: "6px",
+                      background: "var(--primary)",
+                      color: "#fff",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      border: "none",
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                      flexShrink: 0,
+                      transition: "all 0.15s",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "var(--primary-dark)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "var(--primary)";
+                    }}
+                  >
+                    View Details
+                  </button>
                 </div>
               ))
             )}

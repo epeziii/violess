@@ -121,9 +121,21 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ─── ACCESS LOGS COLLECTION ─────────────────────────────
+    // Let staff/officers create access logs for audit trail.
+    match /access_logs/{logId} {
+      allow read: if exists(/databases/$(database)/documents/staff/$(request.auth.uid)) &&
+                    get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.role in ['admin', 'officer'];
+      allow create: if exists(/databases/$(database)/documents/staff/$(request.auth.uid)) &&
+                      get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.role in ['admin', 'officer'];
+      allow update: if false;
+      allow delete: if false;
+    }
+
     // ─── DEFAULT DENY ──────────────────────────────────
     match /{document=**} {
       allow read, write: if false;
     }
+
   }
 }

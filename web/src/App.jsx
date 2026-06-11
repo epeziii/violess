@@ -24,19 +24,8 @@ const NAV = [
   { id: "evidence",   icon: "", label: "Evidence",        permission: "evidence" },
   { id: "referrals",  icon: "",  label: "Referrals",       permission: "referrals" },
   { id: "accounts",   icon: "", label: "Accounts",        permission: "accountManagement", adminOnly: true },
-  { id: "settings",   icon: "", label: "Settings",        permission: "systemSettings",   adminOnly: true },
 ];
 
-function SettingsPlaceholder() {
-  return (
-    <div style={{ padding: 32 }}>
-      <h1 style={{ fontSize: 22, fontWeight: 800, color: "var(--text)", marginBottom: 8 }}>System Settings</h1>
-      <p style={{ color: "var(--text-muted)", fontSize: 13 }}>
-        Admin-only — Configure barangay details and preferences. Coming next!
-      </p>
-    </div>
-  );
-}
 
 function Shell() {
   const { user, logout, can, loading } = useAuth(); // ✅ include loading
@@ -65,8 +54,8 @@ function Shell() {
     analytics: <AnalyticsPage />,
     evidence:  <EvidenceStoragePage />,
     accounts:  <ProtectedRoute permission="accountManagement"><AccountManagementPage /></ProtectedRoute>,
-    settings:  <ProtectedRoute permission="systemSettings"><SettingsPlaceholder /></ProtectedRoute>,
   };
+
 
   return (
     <div className="app-shell">

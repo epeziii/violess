@@ -28,6 +28,10 @@
   overflow: hidden;
 }
 
+.evidence-card {
+  min-height: 700px;
+}
+
 /* Left Panel - Cases */
 .card-cases-panel {
   width: 300px;
@@ -35,7 +39,7 @@
   padding: 16px;
   overflow-y: auto;
   background: var(--bg);
-  max-height: 600px;
+  max-height: 800px;
 }
 
 /* Right Panel - Content */
@@ -136,6 +140,13 @@
   border-color: var(--primary);
 }
 
+.case-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
 .case-id {
   font-size: 12px;
   font-weight: 600;
@@ -146,7 +157,25 @@
 .case-type {
   font-size: 11px;
   color: var(--text-muted);
-  margin-bottom: 8px;
+}
+
+.case-meta {
+  display: flex;
+  gap: 6px;
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+
+.meta-label {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.meta-value {
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .file-badge {
@@ -373,4 +402,38 @@
 /* Access Logs Table */
 .logs-table {
   width: 100%;
+  /* Keep only the Access Logs section from getting too tall */
+  max-height: 250px;
+  overflow-y: auto;
 }
+
+/* Ensure table cells don't force the container taller */
+.logs-table table {
+  table-layout: fixed;
+}
+.logs-table td, .logs-table th {
+  white-space: nowrap;
+}
+
+/* Only truncate where needed (Action column) so zoom doesn't hide long action IDs */
+.logs-table td.action-cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 280px;
+  white-space: nowrap;
+}
+
+/* Only show formatted/compact action (ellipsis) when user zoom makes the cell too small.
+   If you want full value always, set max-width higher instead. */
+
+
+
+
+/* Access Logs - make the table header stay visible */
+.logs-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #FDFAFC;
+}
+

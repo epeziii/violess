@@ -410,12 +410,13 @@ export default function CasesPage() {
               <span className="card-title">{selectedCase ? `${selectedCase.id} — ${selectedCase.type}` : "Case Details"}</span>
               {selectedCase && <Badge status={selectedCase.status} />}
             </div>
-            <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {selectedCase ? (
                 <>
                   <div className="grid-2">
                     <div><div className="form-label">Reporter</div><div style={{ fontSize: 13, fontWeight: 600 }}>{selectedCase.reporter}</div></div>
                     <div><div className="form-label">Date Filed</div><div style={{ fontSize: 13, fontWeight: 600 }}>{selectedCase.date}</div></div>
+
                     <div><div className="form-label">Location</div><div style={{ fontSize: 13, fontWeight: 600 }}>{selectedCase.location}</div></div>
                     <div><div className="form-label">Assigned To</div><div style={{ fontSize: 13, fontWeight: 600 }}>{assignedOfficer || "Unassigned"}</div></div>
                     <div><div className="form-label">Date & Time of Incident</div><div style={{ fontSize: 13, fontWeight: 600 }}>{selectedCase.incidentDateTime || "Not recorded"}</div></div>
@@ -575,9 +576,10 @@ export default function CasesPage() {
           <div className="card-header">
             <span className="card-title">Reports</span>
           </div>
-          <div style={{ padding: '10px 16px 0', display: 'flex', gap: 8 }}>
-            <input className="form-input" placeholder="Search cases..." style={{ maxWidth: 260 }} value={searchInput} onChange={(e) => setSearchInput(e.target.value)} />
-            <select className="form-select" style={{ width: 140 }} value={filterType} onChange={(e) => setFilterType(e.target.value)}>
+          <div style={{ padding: '6px 16px 0', display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input className="form-input" placeholder="Search cases..." style={{ maxWidth: 220, height: 34 }} value={searchInput} onChange={(e) => setSearchInput(e.target.value)} />
+            <select className="form-select" style={{ width: 128, height: 34 }} value={filterType} onChange={(e) => setFilterType(e.target.value)}>
+
               <option value="all">All</option>
               <option value="pending">Pending</option>
               <option value="reviewing">Reviewing</option>

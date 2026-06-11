@@ -184,7 +184,7 @@ app.post("/update-case", async (req, res) => {
 
     // Handle officer assignment changes
     if (oldAssignedOfficer !== newAssignedOfficer) {
-      // Decrement old officer's case count
+      // Decrement old officer's case count and send reassignment notification
       if (oldAssignedOfficer) {
         const staffSnapshot = await db.collection("staff").where("firstName", "!=", "").get();
         let oldOfficerFound = false;
@@ -195,6 +195,20 @@ app.post("/update-case", async (req, res) => {
           if (fullName === oldAssignedOfficer) {
             const newCount = Math.max(0, (staffData.cases || 0) - 1);
             await db.collection("staff").doc(doc.id).update({ cases: newCount });
+
+            // Send reassignment notification to old officer
+            await createNotification(
+              doc.id,
+              "case_reassigned",
+              "Case Reassigned",
+              `Case #${caseData.caseId} has been reassigned to another officer`,
+              caseId,
+              {
+                caseId: caseData.caseId,
+                incidentType: caseData.incidentType,
+                priorityLevel: caseData.priorityLevel
+              }
+            );
             oldOfficerFound = true;
             break;
           }

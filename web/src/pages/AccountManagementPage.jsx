@@ -375,9 +375,21 @@ export default function AccountManagementPage() {
         </div>
 
         {/* Search + filter */}
-        <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderBottom: "0.5px solid var(--border)" }}>
-          <input className="form-input" placeholder="Search by name or email..." value={search} onChange={e => setSearch(e.target.value)} style={{ maxWidth: 280 }} />
-          <select className="form-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ width: 140 }}>
+        <div style={{ display: "flex", gap: 8, padding: "6px 16px", borderBottom: "0.5px solid var(--border)", alignItems: "center" }}>
+          <input
+            className="form-input"
+            placeholder="Search by name or email..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{ maxWidth: 280, height: 34, paddingTop: 7, paddingBottom: 7 }}
+          />
+          <select
+            className="form-select"
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
+            style={{ width: 140, height: 34 }}
+          >
+
             <option value="">All status</option>
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
