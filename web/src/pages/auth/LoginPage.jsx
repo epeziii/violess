@@ -162,7 +162,7 @@ export default function LoginPage() {
                 id="identifier"
                 className="form-input"
                 type="text"
-                placeholder="juan01"
+                placeholder="Enter your Username"
                 value={identifier}
                 onChange={e => { setIdentifier(e.target.value); setError(""); setInfo(""); }}
                 autoComplete="username"

@@ -461,6 +461,9 @@ input[type="date"].form-input::-webkit-datetime-edit-fields-wrapper {
 }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
+/* Make a 1-column field span full width inside .form-row (2-col grid) */
+.form-group.span-2 { grid-column: 1 / -1; }
+
 .btn-danger { background: transparent; color: var(--sos); border: 1.5px solid var(--sos); }
 .btn-danger:hover { background: var(--sos-light); }
 

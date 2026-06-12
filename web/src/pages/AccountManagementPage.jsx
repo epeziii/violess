@@ -56,12 +56,10 @@ function StatCards({ accounts }) {
 function AccountRow({ account, onEdit, onSuspend, onActivate }) {
   const isDisabled = account.status !== "active";
   const fullName = account.fullName || `${account.firstName || ""} ${account.lastName || ""}`.trim();
-  const initials = fullName
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map(name => name.charAt(0).toUpperCase())
-    .join("");
+  const parts = fullName.split(" ").filter(Boolean);
+  const initials = parts.length > 0
+    ? (parts[0].charAt(0) + (parts.length > 1 ? parts[parts.length - 1].charAt(0) : "")).toUpperCase()
+    : "";
 
   return (
     <tr>
@@ -145,14 +143,20 @@ function CreateModal({ onClose, refreshAccounts }) {
             <label>Full name</label>
             <input
               className="form-input"
-              placeholder="Juan Dela Cruz"
+              placeholder="Enter full name"
               value={form.fullName}
               onChange={e => set("fullName", e.target.value)}
             />
           </div>
           <div className="form-group">
             <label>Username</label>
-            <input className="form-input" type="text" placeholder="juan01" value={form.username} onChange={e => set("username", e.target.value)} />
+            <input
+              className="form-input"
+              type="text"
+              placeholder="Enter Username"
+              value={form.username}
+              onChange={e => set("username", e.target.value)}
+            />
           </div>
           <div className="form-group">
             <label>Role</label>
@@ -229,11 +233,11 @@ function EditModal({ account, onClose, refreshAccounts }) {
         </div>
         <div className="modal-body">
           <div className="form-row">
-            <div className="form-group">
+            <div className="form-group span-2">
               <label>Full name</label>
               <input
                 className="form-input"
-                placeholder="Juan Dela Cruz"
+                placeholder="Enter full name"
                 value={form.fullName}
                 onChange={e => set("fullName", e.target.value)}
               />
