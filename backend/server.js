@@ -138,17 +138,19 @@ app.post("/create-staff", async (req, res) => {
     const userRecord = await admin.auth().createUser({ email: firebaseEmail, password });
     if (!userRecord?.uid) return res.status(500).json({ error: "UID missing" });
 
+    const staffColor = role === "admin" ? "blue" : "pink";
+
     await db.collection("staff").doc(userRecord.uid).set({
       firstName: resolvedFirstName,
       lastName: resolvedLastName,
       fullName: resolvedFullName,
       username: staffUsername,
-      email: firebaseEmail,
+      email: looksLikeEmail ? staffUsername : null,
       role,
       status: "active",
       lastLogin: null,
       cases: 0,
-      color: "pink",
+      color: staffColor,
     });
 
     res.json({ success: true, uid: userRecord.uid });

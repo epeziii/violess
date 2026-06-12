@@ -44,7 +44,7 @@ export default function LoginPage() {
     setInfo("");
 
     if (!identifier.trim()) {
-      setError("Please enter your username or email.");
+      setError("Please enter your username.");
       identifierRef.current?.focus();
       return;
     }
@@ -69,22 +69,25 @@ export default function LoginPage() {
     setInfo("");
 
     if (!identifier.trim()) {
-      setError("Please enter your username or email to reset your password.");
+      setError("Please enter your username to reset your password.");
       identifierRef.current?.focus();
       return;
     }
 
     try {
-      // Resolve username to email if needed
-      let emailToSend = identifier;
-      if (!identifier.includes("@")) {
-        const db = getFirestore(app);
-        const q = query(collection(db, "staff"), where("username", "==", identifier));
-        const snap = await getDocs(q);
-        if (snap.empty) throw new Error("No account found for that username.");
-        const profile = snap.docs[0].data();
-        emailToSend = profile.email;
+      // Username-only: resolve username to email
+      if (identifier.includes("@")) {
+        throw new Error("Please enter your username only (not email)." );
       }
+
+      const db = getFirestore(app);
+      const q = query(collection(db, "staff"), where("username", "==", identifier));
+      const snap = await getDocs(q);
+      if (snap.empty) throw new Error("No account found for that username.");
+
+      const profile = snap.docs[0].data();
+      const emailToSend = profile.email;
+
 
       await sendPasswordResetEmail(auth, emailToSend);
       setInfo("Password reset email sent. Check your inbox.");
@@ -153,13 +156,13 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} noValidate>
             <div className="form-group">
-              <label className="form-label" htmlFor="identifier">Username or email</label>
+              <label className="form-label" htmlFor="identifier">Username</label>
               <input
                 ref={identifierRef}
                 id="identifier"
                 className="form-input"
                 type="text"
-                placeholder="juan01 or example@email.com"
+                placeholder="juan01"
                 value={identifier}
                 onChange={e => { setIdentifier(e.target.value); setError(""); setInfo(""); }}
                 autoComplete="username"
