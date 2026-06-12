@@ -105,31 +105,29 @@ function splitName(fullName) {
 // ─── CREATE STAFF ACCOUNT ──────────────────────────────────────────────
 app.post("/create-staff", async (req, res) => {
   try {
-    // Web UI sends a username and fullName.
-    // Keep backward compatibility with firstName/lastName too.
-    let { firstName, lastName, fullName, email, username, password, role } = req.body;
-
+    const { firstName, lastName, fullName, email, username, password, role } = req.body;
     const staffUsername = username || email;
     const nameFromFull = splitName(fullName || "");
-    if (!firstName && !lastName) {
-      firstName = nameFromFull.firstName;
-      lastName = nameFromFull.lastName;
+
+    let resolvedFirstName = firstName || nameFromFull.firstName;
+    let resolvedLastName = lastName || nameFromFull.lastName;
+    let resolvedFullName = (fullName || "").trim();
+
+    if (!resolvedFirstName && staffUsername) {
+      resolvedFirstName = String(staffUsername).replace(/\d+$/, "");
+    }
+    if (!resolvedFullName) {
+      resolvedFullName = `${resolvedFirstName || ""} ${resolvedLastName || ""}`.trim();
     }
 
-    if (!firstName) {
-      if (staffUsername) {
-        firstName = String(staffUsername).replace(/\d+$/, "");
-      } else {
-        firstName = "";
-      }
-    }
-    if (!lastName) {
-      lastName = "";
-    }
+    const missing = [];
+    if (!staffUsername) missing.push("username or email");
+    if (!password) missing.push("password");
+    if (!role) missing.push("role");
+    if (!resolvedFullName) missing.push("fullName");
 
-    const finalFullName = fullName?.trim() || `${firstName} ${lastName}`.trim();
-    if (!staffUsername || !password || !role || !finalFullName) {
-      return res.status(400).json({ error: "All fields are required" });
+    if (missing.length > 0) {
+      return res.status(400).json({ error: `Missing required fields: ${missing.join(", ")}` });
     }
 
     const looksLikeEmail = typeof staffUsername === "string" && staffUsername.includes("@");
@@ -141,9 +139,9 @@ app.post("/create-staff", async (req, res) => {
     if (!userRecord?.uid) return res.status(500).json({ error: "UID missing" });
 
     await db.collection("staff").doc(userRecord.uid).set({
-      firstName,
-      lastName,
-      fullName: finalFullName,
+      firstName: resolvedFirstName,
+      lastName: resolvedLastName,
+      fullName: resolvedFullName,
       username: staffUsername,
       email: firebaseEmail,
       role,
