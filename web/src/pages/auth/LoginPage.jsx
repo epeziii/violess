@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../AuthContext";
 import { getAuth, sendPasswordResetEmail } from "firebase/auth";
 import app from "../../firebase";
+import { getFirestore, collection, query, where, getDocs } from "firebase/firestore";
 import "./../../styles/auth.css";
 
 export default function LoginPage() {
@@ -10,14 +11,14 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const auth = getAuth(app);
 
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [loadingForm, setLoadingForm] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState(""); // For messages like reset email sent
 
-  const emailRef = useRef();
+  const identifierRef = useRef();
 
   // ─── Redirect if already logged in ──────────────────────────────
   useEffect(() => {
@@ -42,9 +43,9 @@ export default function LoginPage() {
     setError("");
     setInfo("");
 
-    if (!email.trim()) {
-      setError("Please enter your email address.");
-      emailRef.current?.focus();
+    if (!identifier.trim()) {
+      setError("Please enter your username or email.");
+      identifierRef.current?.focus();
       return;
     }
     if (!password) {
@@ -54,7 +55,7 @@ export default function LoginPage() {
 
     setLoadingForm(true);
     try {
-      await login(email, password);
+      await login(identifier, password);
       navigate("/dashboard", { replace: true }); // ensure no back to login
     } catch (err) {
       setError(err.message || "Invalid email or password. Please try again.");
@@ -67,14 +68,25 @@ export default function LoginPage() {
     setError("");
     setInfo("");
 
-    if (!email.trim()) {
-      setError("Please enter your email to reset your password.");
-      emailRef.current?.focus();
+    if (!identifier.trim()) {
+      setError("Please enter your username or email to reset your password.");
+      identifierRef.current?.focus();
       return;
     }
 
     try {
-      await sendPasswordResetEmail(auth, email);
+      // Resolve username to email if needed
+      let emailToSend = identifier;
+      if (!identifier.includes("@")) {
+        const db = getFirestore(app);
+        const q = query(collection(db, "staff"), where("username", "==", identifier));
+        const snap = await getDocs(q);
+        if (snap.empty) throw new Error("No account found for that username.");
+        const profile = snap.docs[0].data();
+        emailToSend = profile.email;
+      }
+
+      await sendPasswordResetEmail(auth, emailToSend);
       setInfo("Password reset email sent. Check your inbox.");
     } catch (err) {
       setError(err.message || "Failed to send reset email. Try again.");
@@ -141,16 +153,16 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} noValidate>
             <div className="form-group">
-              <label className="form-label" htmlFor="email">Email address</label>
+              <label className="form-label" htmlFor="identifier">Username or email</label>
               <input
-                ref={emailRef}
-                id="email"
+                ref={identifierRef}
+                id="identifier"
                 className="form-input"
-                type="email"
-                placeholder="example@email.com"
-                value={email}
-                onChange={e => { setEmail(e.target.value); setError(""); setInfo(""); }}
-                autoComplete="email"
+                type="text"
+                placeholder="juan01 or example@email.com"
+                value={identifier}
+                onChange={e => { setIdentifier(e.target.value); setError(""); setInfo(""); }}
+                autoComplete="username"
                 autoFocus
               />
             </div>

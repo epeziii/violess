@@ -518,7 +518,7 @@ export default function CommunicationsPage() {
                     transition: "all 0.2s",
                     display: "flex",
                     justifyContent: "space-between",
-                    alignItems: "flex-start",
+                    alignItems: "center",
                     gap: 10,
                   }}
                 >
@@ -625,7 +625,16 @@ export default function CommunicationsPage() {
       </div>
 
       {/* RIGHT: Case Detail Panel (60%) */}
-      <div style={{ width: "60%", display: "flex", flexDirection: "column", gap: 0, minHeight: 0 }}>
+      <div
+        style={{
+          width: "60%",
+          display: "flex",
+          flexDirection: "column",
+          gap: 0,
+          minHeight: 0,
+        }}
+      >
+
         {scheduleModalOpen && (
           <div
             className="modal-backdrop"
@@ -718,6 +727,7 @@ export default function CommunicationsPage() {
             </div>
           </div>
         ) : (
+
           <>
             {/* Case Header */}
             <div
@@ -751,6 +761,7 @@ export default function CommunicationsPage() {
                 overflow: "hidden",
               }}
             >
+
                 <div
                   style={{
                     margin: 0,
@@ -765,6 +776,7 @@ export default function CommunicationsPage() {
                     borderTopRightRadius: 0,
                     borderBottomLeftRadius: 0,
                     borderBottomRightRadius: 0,
+                    justifyContent: "center",
                   }}
                 >
                   <div

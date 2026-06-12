@@ -1,8 +1,8 @@
-- [ ] Update EvidenceStoragePage Access Logs table: change first column from “Admin” to “Staff member”
-- [ ] Add “Role” column in EvidenceStoragePage Access Logs
-- [ ] Fetch staff details from Firestore `staff` using `adminId` as document id
-- [ ] Render Staff member cell using same avatar/name/email layout as AccountManagementPage
-- [ ] Render Role badge using same ROLE_LABELS/ROLE_CLASSES mapping as AccountManagementPage
-- [ ] Verify UI works for cases with missing staff doc (fallback)
-- [ ] Run web app / manual check in browser
+# TODO
+- [x] Adjust vertical centering of the “View Details” details view in Web Communications/Assigned Cases.
+
+- [x] Implement change in `web/src/pages/CommunicationsPage.jsx` to center the right-side details panel vertically.
+
+
+- [ ] Run web lint/build or start dev server to verify layout (no runtime errors).
 

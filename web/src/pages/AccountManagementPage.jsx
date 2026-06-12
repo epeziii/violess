@@ -11,7 +11,24 @@ const ROLE_LABELS  = { admin: "Admin", officer: "Officer" };
 const ROLE_CLASSES = { admin: "badge-admin", officer: "badge-officer" };
 const STATUS_CLASS = { active: "badge-active", inactive: "badge-inactive", suspended: "badge-suspended" };
 const AVATAR_COLOR = { pink: "av-pink", blue: "av-blue", green: "av-green", purple: "av-purple", amber: "av-amber" };
-const EMPTY_FORM = { firstName: "", lastName: "", email: "", role: "", password: "", confirmPassword: "" };
+const EMPTY_FORM = { fullName: "", firstName: "", lastName: "", username: "", role: "", password: "", confirmPassword: "" };
+
+function splitFullName(fullName) {
+  const parts = (fullName || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .split(" ")
+    .filter(Boolean);
+
+  if (parts.length === 0) return { firstName: "", lastName: "" };
+  if (parts.length === 1) return { firstName: parts[0], lastName: "" };
+
+  // Middle names are included in firstName.
+  const lastName = parts[parts.length - 1];
+  const firstName = parts.slice(0, -1).join(" ");
+  return { firstName, lastName };
+}
+
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 function StatCards({ accounts }) {
@@ -59,7 +76,7 @@ function AccountRow({ account, onEdit, onSuspend, onActivate }) {
               {account.firstName} {account.lastName}
             </div>
             <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 1 }}>
-              {account.email}
+              {account.username || account.email}
             </div>
           </div>
         </div>
@@ -89,13 +106,14 @@ function CreateModal({ onClose, refreshAccounts }) {
     }
 
     try {
+      const { firstName, lastName } = splitFullName(form.fullName);
       const res = await fetch(`${API_BASE_URL}/create-staff`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          firstName: form.firstName,
-          lastName: form.lastName,
-          email: form.email,
+          firstName,
+          lastName,
+          username: form.username,
           password: form.password,
           role: form.role,
         }),
@@ -121,19 +139,18 @@ function CreateModal({ onClose, refreshAccounts }) {
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
         <div className="modal-body">
-          <div className="form-row">
-            <div className="form-group">
-              <label>First name</label>
-              <input className="form-input" placeholder="Juan" value={form.firstName} onChange={e => set("firstName", e.target.value)} />
-            </div>
-            <div className="form-group">
-              <label>Last name</label>
-              <input className="form-input" placeholder="dela Cruz" value={form.lastName} onChange={e => set("lastName", e.target.value)} />
-            </div>
+          <div className="form-group">
+            <label>Full name</label>
+            <input
+              className="form-input"
+              placeholder="Juan Dela Cruz"
+              value={form.fullName}
+              onChange={e => set("fullName", e.target.value)}
+            />
           </div>
           <div className="form-group">
-            <label>Email address</label>
-            <input className="form-input" type="email" placeholder="name@brgy123.gov.ph" value={form.email} onChange={e => set("email", e.target.value)} />
+            <label>Username</label>
+            <input className="form-input" type="text" placeholder="juan01" value={form.username} onChange={e => set("username", e.target.value)} />
           </div>
           <div className="form-group">
             <label>Role</label>
@@ -168,11 +185,10 @@ function CreateModal({ onClose, refreshAccounts }) {
 
 // ─── EditModal ───────────────────────────────────────────────────────────────
 function EditModal({ account, onClose, refreshAccounts }) {
-  const [form, setForm] = useState({ 
-    firstName: account.firstName, 
-    lastName: account.lastName, 
-    role: account.role, 
-    status: account.status 
+  const [form, setForm] = useState({
+    fullName: `${account.firstName || ""} ${account.lastName || ""}`.trim(),
+    role: account.role,
+    status: account.status,
   });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -183,8 +199,7 @@ function EditModal({ account, onClose, refreshAccounts }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           uid: account.id,
-          firstName: form.firstName,
-          lastName: form.lastName,
+          ...splitFullName(form.fullName),
           role: form.role,
           status: form.status,
         }),
@@ -211,12 +226,13 @@ function EditModal({ account, onClose, refreshAccounts }) {
         <div className="modal-body">
           <div className="form-row">
             <div className="form-group">
-              <label>First name</label>
-              <input className="form-input" placeholder="Juan" value={form.firstName} onChange={e => set("firstName", e.target.value)} />
-            </div>
-            <div className="form-group">
-              <label>Last name</label>
-              <input className="form-input" placeholder="dela Cruz" value={form.lastName} onChange={e => set("lastName", e.target.value)} />
+              <label>Full name</label>
+              <input
+                className="form-input"
+                placeholder="Juan Dela Cruz"
+                value={form.fullName}
+                onChange={e => set("fullName", e.target.value)}
+              />
             </div>
           </div>
           <div className="form-row">
@@ -327,7 +343,7 @@ export default function AccountManagementPage() {
 
   const filtered = accounts.filter(a => {
     const fullName = `${a.firstName} ${a.lastName}`.toLowerCase();
-    const matchSearch = !search || fullName.includes(search.toLowerCase()) || a.email.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = !search || fullName.includes(search.toLowerCase()) || (a.username || a.email || "").toLowerCase().includes(search.toLowerCase());
     const matchTab = tabFilter === "all" ? true : tabFilter === "inactive" ? a.status === "inactive" : a.role === tabFilter;
     const matchStatus = !statusFilter || a.status === statusFilter;
     return matchSearch && matchTab && matchStatus;

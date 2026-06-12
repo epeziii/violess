@@ -92,17 +92,34 @@ app.post("/delete-evidence", async (req, res) => {
 // ─── CREATE STAFF ACCOUNT ──────────────────────────────────────────────
 app.post("/create-staff", async (req, res) => {
   try {
-    const { firstName, lastName, email, password, role } = req.body;
-    if (!firstName || !lastName || !email || !password || !role)
-      return res.status(400).json({ error: "All fields are required" });
+    // Web UI now sends a username in the existing `email` field.
+    // To keep backward compatibility, support both:
+    // - `email` (email-based flow)
+    // - `username` (username-based flow)
+    const { firstName, lastName, email, username, password, role } = req.body;
 
-    const userRecord = await admin.auth().createUser({ email, password });
+    const staffUsername = username || email;
+
+    if (!firstName || !lastName || !staffUsername || !password || !role) {
+      return res.status(400).json({ error: "All fields are required" });
+    }
+
+    // Firebase Auth currently requires an email for createUser with this flow.
+    // If the provided value isn't an email, mint a deterministic placeholder email.
+    const looksLikeEmail = typeof staffUsername === "string" && staffUsername.includes("@");
+    const firebaseEmail = looksLikeEmail
+      ? staffUsername
+      : `${staffUsername}@username.violess.local`;
+
+    const userRecord = await admin.auth().createUser({ email: firebaseEmail, password });
     if (!userRecord?.uid) return res.status(500).json({ error: "UID missing" });
 
     await db.collection("staff").doc(userRecord.uid).set({
       firstName,
       lastName,
-      email,
+      // Persist both values for future flexibility
+      username: staffUsername,
+      email: firebaseEmail,
       role,
       status: "active",
       lastLogin: null,

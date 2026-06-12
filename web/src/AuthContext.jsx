@@ -1,7 +1,7 @@
 // src/AuthContext.jsx
 import { createContext, useContext, useState, useEffect } from "react";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, getDocs, getFirestore } from "firebase/firestore";
 import app from "./firebase"; // your firebase config
 import { getFirestore } from "firebase/firestore";
 
@@ -68,8 +68,19 @@ export function AuthProvider({ children }) {
   }, [auth, db]);
 
   // Firebase login
-  const login = async (email, password) => {
-    const cred = await signInWithEmailAndPassword(auth, email, password);
+  const login = async (identifier, password) => {
+    // Identifier may be an email or a username. Resolve to Firebase email when needed.
+    let emailToUse = identifier;
+    if (typeof identifier === "string" && !identifier.includes("@")) {
+      // lookup staff by username
+      const q = query(collection(db, "staff"), where("username", "==", identifier));
+      const snap = await getDocs(q);
+      if (snap.empty) throw new Error("No user found for that username");
+      const profile = snap.docs[0].data();
+      emailToUse = profile.email || `${identifier}@username.violess.local`;
+    }
+
+    const cred = await signInWithEmailAndPassword(auth, emailToUse, password);
     const snap = await getDoc(doc(db, "staff", cred.user.uid));
     if (!snap.exists()) throw new Error("No user profile found");
     const profile = snap.data();
