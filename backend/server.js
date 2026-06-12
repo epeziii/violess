@@ -96,9 +96,21 @@ app.post("/create-staff", async (req, res) => {
     // To keep backward compatibility, support both:
     // - `email` (email-based flow)
     // - `username` (username-based flow)
-    const { firstName, lastName, email, username, password, role } = req.body;
+    let { firstName, lastName, email, username, password, role } = req.body;
 
     const staffUsername = username || email;
+
+    // If names are missing, attempt to derive from the username (e.g. juan01 -> Juan)
+    if ((!firstName || !lastName) && staffUsername) {
+      try {
+        const stripped = String(staffUsername).replace(/\d+$/, ""); // remove trailing digits
+        const parts = stripped.split(/[_\.\-\s]+/).filter(Boolean);
+        if (!firstName && parts.length >= 1) firstName = parts[0];
+        if (!lastName && parts.length >= 2) lastName = parts.slice(1).join(" ");
+      } catch (e) {
+        // ignore and continue - we'll enforce required fields below
+      }
+    }
 
     if (!firstName || !lastName || !staffUsername || !password || !role) {
       return res.status(400).json({ error: "All fields are required" });

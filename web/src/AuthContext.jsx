@@ -3,7 +3,6 @@ import { createContext, useContext, useState, useEffect } from "react";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, collection, query, where, getDocs, getFirestore } from "firebase/firestore";
 import app from "./firebase"; // your firebase config
-import { getFirestore } from "firebase/firestore";
 
 // ─── Role permissions map ────────────────────────────────────────────────────
 export const PERMISSIONS = {
