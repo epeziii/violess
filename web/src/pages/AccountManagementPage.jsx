@@ -11,22 +11,18 @@ const ROLE_LABELS  = { admin: "Admin", officer: "Officer" };
 const ROLE_CLASSES = { admin: "badge-admin", officer: "badge-officer" };
 const STATUS_CLASS = { active: "badge-active", inactive: "badge-inactive", suspended: "badge-suspended" };
 const AVATAR_COLOR = { pink: "av-pink", blue: "av-blue", green: "av-green", purple: "av-purple", amber: "av-amber" };
-const EMPTY_FORM = { fullName: "", firstName: "", lastName: "", username: "", role: "", password: "", confirmPassword: "" };
+const EMPTY_FORM = { fullName: "", username: "", role: "", password: "", confirmPassword: "" };
 
 function splitFullName(fullName) {
-  const parts = (fullName || "")
-    .trim()
-    .replace(/\s+/g, " ")
-    .split(" ")
-    .filter(Boolean);
+  const normalized = (fullName || "").trim().replace(/\s+/g, " ");
+  const parts = normalized.split(" ").filter(Boolean);
 
-  if (parts.length === 0) return { firstName: "", lastName: "" };
-  if (parts.length === 1) return { firstName: parts[0], lastName: "" };
+  if (parts.length === 0) return { firstName: "", lastName: "", fullName: "" };
+  if (parts.length === 1) return { firstName: parts[0], lastName: "", fullName: normalized };
 
-  // Middle names are included in firstName.
   const lastName = parts[parts.length - 1];
   const firstName = parts.slice(0, -1).join(" ");
-  return { firstName, lastName };
+  return { firstName, lastName, fullName: normalized };
 }
 
 
@@ -59,7 +55,13 @@ function StatCards({ accounts }) {
 
 function AccountRow({ account, onEdit, onSuspend, onActivate }) {
   const isDisabled = account.status !== "active";
-  const initials = `${account.firstName[0]}${account.lastName[0]}`.toUpperCase();
+  const fullName = account.fullName || `${account.firstName || ""} ${account.lastName || ""}`.trim();
+  const initials = fullName
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(name => name.charAt(0).toUpperCase())
+    .join("");
 
   return (
     <tr>
@@ -73,7 +75,7 @@ function AccountRow({ account, onEdit, onSuspend, onActivate }) {
           </div>
           <div>
             <div style={{ fontSize: 12, fontWeight: 600, color: isDisabled ? "var(--text-muted)" : "var(--text)" }}>
-              {account.firstName} {account.lastName}
+              {fullName}
             </div>
             <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 1 }}>
               {account.username || account.email}
@@ -106,13 +108,13 @@ function CreateModal({ onClose, refreshAccounts }) {
     }
 
     try {
-      const { firstName, lastName } = splitFullName(form.fullName);
+      const nameData = splitFullName(form.fullName);
       const res = await fetch(`${API_BASE_URL}/create-staff`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          firstName,
-          lastName,
+          ...nameData,
+          fullName: nameData.fullName,
           username: form.username,
           password: form.password,
           role: form.role,
@@ -186,7 +188,7 @@ function CreateModal({ onClose, refreshAccounts }) {
 // ─── EditModal ───────────────────────────────────────────────────────────────
 function EditModal({ account, onClose, refreshAccounts }) {
   const [form, setForm] = useState({
-    fullName: `${account.firstName || ""} ${account.lastName || ""}`.trim(),
+    fullName: account.fullName || `${account.firstName || ""} ${account.lastName || ""}`.trim(),
     role: account.role,
     status: account.status,
   });
@@ -194,12 +196,14 @@ function EditModal({ account, onClose, refreshAccounts }) {
 
   const handleSave = async () => {
     try {
+      const nameData = splitFullName(form.fullName);
       const res = await fetch(`${API_BASE_URL}/update-staff`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           uid: account.id,
-          ...splitFullName(form.fullName),
+          ...nameData,
+          fullName: nameData.fullName,
           role: form.role,
           status: form.status,
         }),
@@ -342,7 +346,7 @@ export default function AccountManagementPage() {
   useEffect(() => { fetchAccounts(); }, []);
 
   const filtered = accounts.filter(a => {
-    const fullName = `${a.firstName} ${a.lastName}`.toLowerCase();
+    const fullName = (a.fullName || `${a.firstName || ""} ${a.lastName || ""}`).toLowerCase();
     const matchSearch = !search || fullName.includes(search.toLowerCase()) || (a.username || a.email || "").toLowerCase().includes(search.toLowerCase());
     const matchTab = tabFilter === "all" ? true : tabFilter === "inactive" ? a.status === "inactive" : a.role === tabFilter;
     const matchStatus = !statusFilter || a.status === statusFilter;

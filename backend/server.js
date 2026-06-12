@@ -89,35 +89,49 @@ app.post("/delete-evidence", async (req, res) => {
   }
 });
 
+function splitName(fullName) {
+  if (typeof fullName !== "string") return { firstName: "", lastName: "", fullName: "" };
+  const normalized = fullName.trim().replace(/\s+/g, " ");
+  const parts = normalized.split(" ").filter(Boolean);
+  if (parts.length === 0) return { firstName: "", lastName: "", fullName: "" };
+  if (parts.length === 1) return { firstName: parts[0], lastName: "", fullName: parts[0] };
+  return {
+    firstName: parts.slice(0, -1).join(" "),
+    lastName: parts[parts.length - 1],
+    fullName: normalized,
+  };
+}
+
 // ─── CREATE STAFF ACCOUNT ──────────────────────────────────────────────
 app.post("/create-staff", async (req, res) => {
   try {
-    // Web UI now sends a username in the existing `email` field.
-    // To keep backward compatibility, support both:
-    // - `email` (email-based flow)
-    // - `username` (username-based flow)
-    let { firstName, lastName, email, username, password, role } = req.body;
+    // Web UI sends a username and fullName.
+    // Keep backward compatibility with firstName/lastName too.
+    let { firstName, lastName, fullName, email, username, password, role } = req.body;
 
     const staffUsername = username || email;
-
-    // If names are missing, attempt to derive from the username (e.g. juan01 -> Juan)
-    if ((!firstName || !lastName) && staffUsername) {
-      try {
-        const stripped = String(staffUsername).replace(/\d+$/, ""); // remove trailing digits
-        const parts = stripped.split(/[_\.\-\s]+/).filter(Boolean);
-        if (!firstName && parts.length >= 1) firstName = parts[0];
-        if (!lastName && parts.length >= 2) lastName = parts.slice(1).join(" ");
-      } catch (e) {
-        // ignore and continue - we'll enforce required fields below
-      }
+    const nameFromFull = splitName(fullName || "");
+    if (!firstName && !lastName) {
+      firstName = nameFromFull.firstName;
+      lastName = nameFromFull.lastName;
     }
 
-    if (!firstName || !lastName || !staffUsername || !password || !role) {
+    if (!firstName) {
+      if (staffUsername) {
+        firstName = String(staffUsername).replace(/\d+$/, "");
+      } else {
+        firstName = "";
+      }
+    }
+    if (!lastName) {
+      lastName = "";
+    }
+
+    const finalFullName = fullName?.trim() || `${firstName} ${lastName}`.trim();
+    if (!staffUsername || !password || !role || !finalFullName) {
       return res.status(400).json({ error: "All fields are required" });
     }
 
-    // Firebase Auth currently requires an email for createUser with this flow.
-    // If the provided value isn't an email, mint a deterministic placeholder email.
     const looksLikeEmail = typeof staffUsername === "string" && staffUsername.includes("@");
     const firebaseEmail = looksLikeEmail
       ? staffUsername
@@ -129,7 +143,7 @@ app.post("/create-staff", async (req, res) => {
     await db.collection("staff").doc(userRecord.uid).set({
       firstName,
       lastName,
-      // Persist both values for future flexibility
+      fullName: finalFullName,
       username: staffUsername,
       email: firebaseEmail,
       role,
@@ -149,11 +163,15 @@ app.post("/create-staff", async (req, res) => {
 // ─── UPDATE STAFF INFO ──────────────────────────────────────────────
 app.post("/update-staff", async (req, res) => {
   try {
-    const { uid, firstName, lastName, role, status } = req.body;
-    if (!uid || !firstName || !lastName || !role || !status)
-      return res.status(400).json({ error: "All fields are required" });
+    const { uid, firstName, lastName, fullName, role, status } = req.body;
+    if (!uid || !role || !status) return res.status(400).json({ error: "All fields are required" });
 
-    await db.collection("staff").doc(uid).update({ firstName, lastName, role, status });
+    const nameFromFull = splitName(fullName || "");
+    const updateData = { role, status, fullName: fullName?.trim() || `${firstName || nameFromFull.firstName} ${lastName || nameFromFull.lastName}`.trim() };
+    if (firstName || nameFromFull.firstName) updateData.firstName = firstName || nameFromFull.firstName;
+    if (lastName || nameFromFull.lastName) updateData.lastName = lastName || nameFromFull.lastName;
+
+    await db.collection("staff").doc(uid).update(updateData);
     res.json({ success: true });
   } catch (err) {
     console.error("Error updating staff:", err);
