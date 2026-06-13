@@ -65,7 +65,11 @@ export default function ChatbotScreen({ navigation }) {
   };
 
   return (
-    <View style={[s.root, { backgroundColor: colors.surface }]}>
+    <KeyboardAvoidingView
+      style={[s.root, { backgroundColor: colors.surface }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+    >
       <StatusBar barStyle="light-content" backgroundColor={colors.primaryDark} />
 
       {/* Header */}
@@ -102,29 +106,27 @@ export default function ChatbotScreen({ navigation }) {
       />
 
       {/* Input */}
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={ch.inputRow}>
-          <TouchableOpacity style={ch.attachBtn} disabled={sending}>
-            <FontAwesome6 name="paperclip" size={18} color={colors.primary} />
-          </TouchableOpacity>
-          <TextInput
-            style={ch.input}
-            value={input}
-            onChangeText={setInput}
-            placeholder="Tell me what happened..."
-            placeholderTextColor={colors.placeholder}
-            multiline
-            editable={!sending}
-          />
-          <TouchableOpacity style={ch.sendBtn} onPress={send} disabled={sending || !input.trim()}>
-            {sending ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <FontAwesome6 name="paper-plane" size={16} color="#fff" />
-            )}
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    </View>
+      <View style={ch.inputRow}>
+        <TouchableOpacity style={ch.attachBtn} disabled={sending}>
+          <FontAwesome6 name="paperclip" size={18} color={colors.primary} />
+        </TouchableOpacity>
+        <TextInput
+          style={ch.input}
+          value={input}
+          onChangeText={setInput}
+          placeholder="Tell me what happened..."
+          placeholderTextColor={colors.placeholder}
+          multiline
+          editable={!sending}
+        />
+        <TouchableOpacity style={ch.sendBtn} onPress={send} disabled={sending || !input.trim()}>
+          {sending ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <FontAwesome6 name="paper-plane" size={16} color="#fff" />
+          )}
+        </TouchableOpacity>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
