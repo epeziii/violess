@@ -1099,18 +1099,11 @@ app.post("/ai-chat", async (req, res) => {
       return res.status(400).json({ error: "Message is required" });
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const chat = model.startChat({
-      history: [],
-      generationConfig: {
-        maxOutputTokens: 200,
-        temperature: 0.7,
-      },
-    });
+    const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
 
-    const result = await chat.sendMessage(
+    const result = await model.generateContent([
       `You are SafeTalk AI, a compassionate and supportive assistant designed to listen and help people who have experienced trauma or violence. You provide emotional support, safety resources, and guidance. You are confidential and non-judgmental. Keep responses warm, empathetic, and concise (2-3 sentences).\n\nUser message: ${message}`
-    );
+    ]);
 
     const botMessage = result.response.text() || "I'm here to support you. How can I help?";
 
