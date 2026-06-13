@@ -1091,6 +1091,28 @@ app.post("/check-and-notify-new-cases", async (req, res) => {
   }
 });
 
+// ─── LIST AVAILABLE GEMINI MODELS ────────────────────────────────────────
+app.get("/available-models", async (req, res) => {
+  try {
+    const models = await genAI.listModels();
+    const modelList = [];
+    for (const model of models.models) {
+      modelList.push({
+        name: model.name,
+        displayName: model.displayName,
+        supportedGenerationMethods: model.supportedGenerationMethods,
+      });
+    }
+    res.json({
+      success: true,
+      models: modelList
+    });
+  } catch (err) {
+    console.error("[list-models] Error:", err);
+    res.status(500).json({ error: err.message || "Failed to list models" });
+  }
+});
+
 // ─── AI CHAT ENDPOINT ─────────────────────────────────────────────────────
 app.post("/ai-chat", async (req, res) => {
   try {
