@@ -1,52 +1,65 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, FlatList, TextInput, TouchableOpacity, StatusBar, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, FlatList, TextInput, TouchableOpacity, StatusBar, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { ch, s } from './sharedStyles';
 import { colors, spacing } from '../theme';
+import { API_BASE_URL } from '../config/api';
 
 const INITIAL_MSGS = [
   { id: '1', from: 'bot', name: 'SafeTalk AI', text: 'Hello, I\'m SafeTalk AI, here to listen and support you. You can share what happened to you in your own words, and I\'ll help you process it. Everything you say is confidential and safe. What would you like to talk about today?', time: '9:12 AM' },
 ];
 
-const BOT_RESPONSES = [
-  "I'm here to listen. Can you tell me more about what happened?",
-  "That sounds really difficult. How are you feeling about it?",
-  "Thank you for sharing that with me. You're doing great by seeking support.",
-  "It's okay to feel this way. Many people who experience trauma feel similarly.",
-  "Have you shared this with anyone else? Support systems are important.",
-  "Your safety is important. Are you in a safe place right now?",
-  "Would it help to talk about what happened step by step?",
-  "I'm here to support you through this. What else would you like to share?",
-  "You're being very brave in discussing this. That takes courage.",
-  "How can I best support you today?",
-];
-
 export default function ChatbotScreen({ navigation }) {
   const [messages, setMessages] = useState(INITIAL_MSGS);
   const [input, setInput] = useState('');
+  const [sending, setSending] = useState(false);
   const listRef = useRef();
 
-  const send = () => {
-    if (!input.trim()) return;
-    
-    // Add user message
+  const send = async () => {
+    if (!input.trim() || sending) return;
+
     const userMsg = { id: Date.now().toString(), from: 'me', text: input.trim(), time: 'Now' };
     setMessages(m => [...m, userMsg]);
     setInput('');
+    setSending(true);
 
-    // Simulate bot response after a short delay
-    setTimeout(() => {
-      const randomResponse = BOT_RESPONSES[Math.floor(Math.random() * BOT_RESPONSES.length)];
+    try {
+      const response = await fetch(`${API_BASE_URL}/ai-chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message: input.trim() }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to get response');
+      }
+
       const botMsg = {
         id: (Date.now() + 1).toString(),
         from: 'bot',
         name: 'SafeTalk AI',
-        text: randomResponse,
+        text: data.message,
         time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages(m => [...m, botMsg]);
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
-    }, 500);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      const errorMsg = {
+        id: (Date.now() + 1).toString(),
+        from: 'bot',
+        name: 'SafeTalk AI',
+        text: "I'm sorry, I encountered an error. Please try again.",
+        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages(m => [...m, errorMsg]);
+    } finally {
+      setSending(false);
+    }
 
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
   };
@@ -91,7 +104,7 @@ export default function ChatbotScreen({ navigation }) {
       {/* Input */}
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={ch.inputRow}>
-          <TouchableOpacity style={ch.attachBtn}>
+          <TouchableOpacity style={ch.attachBtn} disabled={sending}>
             <FontAwesome6 name="paperclip" size={18} color={colors.primary} />
           </TouchableOpacity>
           <TextInput
@@ -101,9 +114,14 @@ export default function ChatbotScreen({ navigation }) {
             placeholder="Tell me what happened..."
             placeholderTextColor={colors.placeholder}
             multiline
+            editable={!sending}
           />
-          <TouchableOpacity style={ch.sendBtn} onPress={send}>
-            <FontAwesome6 name="paper-plane" size={16} color="#fff" />
+          <TouchableOpacity style={ch.sendBtn} onPress={send} disabled={sending || !input.trim()}>
+            {sending ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <FontAwesome6 name="paper-plane" size={16} color="#fff" />
+            )}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>

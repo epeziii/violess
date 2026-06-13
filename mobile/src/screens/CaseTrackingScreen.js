@@ -91,7 +91,22 @@ export default function CaseTrackingScreen({ navigation }) {
           status: c.status,
           date: new Date(c.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }),
           officer: c.assignedOfficer || "Unassigned",
-          initials: c.assignedOfficer ? c.assignedOfficer.split(' ').map(n => n.charAt(0)).join('') : '?',
+          // Use first letter of first and last names only (e.g., Juan Dela Cruz -> JDC should be JC)
+          initials: c.assignedOfficer
+            ? (() => {
+                const parts = String(c.assignedOfficer)
+                  .trim()
+                  .split(/\s+/)
+                  .filter(Boolean);
+
+                if (parts.length === 0) return '?';
+                if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+
+                const first = parts[0];
+                const last = parts[parts.length - 1];
+                return `${first.charAt(0).toUpperCase()}${last.charAt(0).toUpperCase()}`;
+              })()
+            : '?',
           isAnonymous: c.isAnonymous,
         }));
 
@@ -185,9 +200,11 @@ export default function CaseTrackingScreen({ navigation }) {
                   <Text style={s.officerName}>{selected.officer}</Text>
                   <Text style={s.officerRole}>VAWC Desk · Brgy. 123</Text>
                 </View>
-                <TouchableOpacity style={s.msgBtn} onPress={() => navigation.navigate('Chat', { caseId: selected.id })}>
-                  <Text style={s.msgBtnText}>Message</Text>
-                </TouchableOpacity>
+                {selected.officer && selected.officer !== 'Unassigned' ? (
+                  <TouchableOpacity style={s.msgBtn} onPress={() => navigation.navigate('Chat', { caseId: selected.id })}>
+                    <Text style={s.msgBtnText}>Message</Text>
+                  </TouchableOpacity>
+                ) : null}
               </View>
             </Card>
           </>

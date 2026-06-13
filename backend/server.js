@@ -5,6 +5,7 @@ const cors = require("cors");
 const nodemailer = require("nodemailer");
 const multer = require("multer");
 const { v2: cloudinary } = require("cloudinary");
+const { OpenAI } = require("openai");
 
 // 🔑 Firebase Admin SDK service account
 const serviceAccount = JSON.parse(process.env.FIREBASE_CREDENTIALS || "{}");
@@ -33,6 +34,10 @@ cloudinary.config({
   api_key: "445697225715821",
   api_secret: "eE-vMLo6pBoBRNZvn9mO0CHoi6c",
   secure: true,
+});
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 const upload = multer({ storage: multer.memoryStorage() });
@@ -1088,6 +1093,41 @@ app.post("/check-and-notify-new-cases", async (req, res) => {
   }
 });
 
+// ─── AI CHAT ENDPOINT ─────────────────────────────────────────────────────
+app.post("/ai-chat", async (req, res) => {
+  try {
+    const { message } = req.body;
+    if (!message || typeof message !== "string") {
+      return res.status(400).json({ error: "Message is required" });
+    }
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        {
+          role: "system",
+          content: "You are SafeTalk AI, a compassionate and supportive assistant designed to listen and help people who have experienced trauma or violence. You provide emotional support, safety resources, and guidance. You are confidential and non-judgmental. Keep responses warm, empathetic, and concise (2-3 sentences)."
+        },
+        {
+          role: "user",
+          content: message
+        }
+      ],
+      temperature: 0.7,
+      max_tokens: 200,
+    });
+
+    const botMessage = response.choices[0]?.message?.content || "I'm here to support you. How can I help?";
+
+    res.json({
+      success: true,
+      message: botMessage
+    });
+  } catch (err) {
+    console.error("[ai-chat] Error:", err);
+    res.status(500).json({ error: err.message || "Failed to process AI chat" });
+  }
+});
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => console.log(`Server running on http://0.0.0.0:${PORT}`));
