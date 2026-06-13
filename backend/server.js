@@ -1094,15 +1094,22 @@ app.post("/check-and-notify-new-cases", async (req, res) => {
 // ─── LIST AVAILABLE GEMINI MODELS ────────────────────────────────────────
 app.get("/available-models", async (req, res) => {
   try {
-    const models = await genAI.listModels();
-    const modelList = [];
-    for (const model of models.models) {
-      modelList.push({
-        name: model.name,
-        displayName: model.displayName,
-        supportedGenerationMethods: model.supportedGenerationMethods,
-      });
+    const apiKey = process.env.GEMINI_API_KEY;
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
+    );
+    const data = await response.json();
+
+    if (!response.ok) {
+      return res.status(response.status).json({ error: data.error?.message || "Failed to fetch models" });
     }
+
+    const modelList = data.models.map(model => ({
+      name: model.name,
+      displayName: model.displayName,
+      supportedGenerationMethods: model.supportedGenerationMethods,
+    }));
+
     res.json({
       success: true,
       models: modelList
