@@ -5,7 +5,7 @@ const cors = require("cors");
 const nodemailer = require("nodemailer");
 const multer = require("multer");
 const { v2: cloudinary } = require("cloudinary");
-const { OpenAI } = require("openai");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 // 🔑 Firebase Admin SDK service account
 const serviceAccount = JSON.parse(process.env.FIREBASE_CREDENTIALS || "{}");
@@ -36,9 +36,7 @@ cloudinary.config({
   secure: true,
 });
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -1101,23 +1099,20 @@ app.post("/ai-chat", async (req, res) => {
       return res.status(400).json({ error: "Message is required" });
     }
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [
-        {
-          role: "system",
-          content: "You are SafeTalk AI, a compassionate and supportive assistant designed to listen and help people who have experienced trauma or violence. You provide emotional support, safety resources, and guidance. You are confidential and non-judgmental. Keep responses warm, empathetic, and concise (2-3 sentences)."
-        },
-        {
-          role: "user",
-          content: message
-        }
-      ],
-      temperature: 0.7,
-      max_tokens: 200,
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const chat = model.startChat({
+      history: [],
+      generationConfig: {
+        maxOutputTokens: 200,
+        temperature: 0.7,
+      },
     });
 
-    const botMessage = response.choices[0]?.message?.content || "I'm here to support you. How can I help?";
+    const result = await chat.sendMessage(
+      `You are SafeTalk AI, a compassionate and supportive assistant designed to listen and help people who have experienced trauma or violence. You provide emotional support, safety resources, and guidance. You are confidential and non-judgmental. Keep responses warm, empathetic, and concise (2-3 sentences).\n\nUser message: ${message}`
+    );
+
+    const botMessage = result.response.text() || "I'm here to support you. How can I help?";
 
     res.json({
       success: true,
