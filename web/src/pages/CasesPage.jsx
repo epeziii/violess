@@ -83,6 +83,8 @@ export default function CasesPage() {
   const [approving, setApproving] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [actionMode, setActionMode] = useState("none"); // "none", "update", "resolution"
+  const [evidence, setEvidence] = useState([]);
+  const [messages, setMessages] = useState([]);
 
   useEffect(() => {
     // Check and notify admin about any new cases on page load
@@ -312,6 +314,55 @@ export default function CasesPage() {
     }
   }, [selectedCase]);
 
+  // Fetch evidence files and messages from chat
+  useEffect(() => {
+    if (!selectedCase || !selectedCase.docId) {
+      setEvidence([]);
+      setMessages([]);
+      return;
+    }
+
+    try {
+      const unsubscribe = onSnapshot(
+        collection(db, "messages", selectedCase.docId, "messages"),
+        (snapshot) => {
+          const evidenceItems = [];
+          const messageItems = [];
+          snapshot.forEach((doc) => {
+            const msg = doc.data();
+            messageItems.push({
+              id: doc.id,
+              from: msg.from,
+              text: msg.text,
+              reporterName: msg.reporterName,
+              fileUrl: msg.fileUrl,
+              fileName: msg.fileName,
+              timestamp: msg.timestamp
+            });
+            if (msg.fileUrl && msg.fileName) {
+              evidenceItems.push({
+                id: doc.id,
+                fileName: msg.fileName,
+                fileUrl: msg.fileUrl,
+                uploadedBy: msg.reporterName,
+                timestamp: msg.timestamp
+              });
+            }
+          });
+          setMessages(messageItems.sort((a, b) => {
+            const timeA = a.timestamp?.toDate?.() || new Date(a.timestamp);
+            const timeB = b.timestamp?.toDate?.() || new Date(b.timestamp);
+            return timeA - timeB;
+          }));
+          setEvidence(evidenceItems);
+        }
+      );
+      return () => unsubscribe();
+    } catch (error) {
+      console.error("Error fetching evidence and messages:", error);
+    }
+  }, [selectedCase]);
+
   // Keep dropdown values from being overwritten while the user is editing.
   const isEditingUpdate = actionMode === "update";
 
@@ -433,6 +484,77 @@ export default function CasesPage() {
                       {selectedCase.suspectDescription || "Not recorded"}
                     </div>
                   </div>
+                  {evidence.length > 0 && (
+                    <div>
+                      <div className="form-label">Evidence Files</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {evidence.map((file) => (
+                          <div key={file.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', backgroundColor: 'var(--bg)', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--border)' }}>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>📎 {file.fileName}</div>
+                              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Uploaded by {file.uploadedBy}</div>
+                            </div>
+                            <a
+                              href={file.fileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                padding: '6px 12px',
+                                backgroundColor: 'var(--primary)',
+                                color: 'white',
+                                borderRadius: '4px',
+                                textDecoration: 'none',
+                                fontSize: 12,
+                                fontWeight: 600
+                              }}
+                            >
+                              View
+                            </a>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {messages.length > 0 && (
+                    <div>
+                      <div className="form-label">Chat Messages</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 300, overflowY: 'auto', backgroundColor: 'var(--bg)', borderRadius: 'var(--radius-md)', padding: 12, border: '0.5px solid var(--border)' }}>
+                        {messages.map((msg) => {
+                          const isFileMsg = msg.fileUrl && msg.text.includes('📎');
+                          return (
+                            <div key={msg.id} style={{ paddingBottom: 8, borderBottom: '0.5px solid var(--border)' }}>
+                              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
+                                {msg.reporterName}
+                              </div>
+                              <div style={{ fontSize: 12, color: 'var(--text)' }}>
+                                {msg.text}
+                              </div>
+                              {isFileMsg && msg.fileUrl && (
+                                <a
+                                  href={msg.fileUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{
+                                    display: 'inline-block',
+                                    marginTop: 6,
+                                    padding: '4px 10px',
+                                    backgroundColor: 'var(--primary)',
+                                    color: 'white',
+                                    borderRadius: '4px',
+                                    textDecoration: 'none',
+                                    fontSize: 11,
+                                    fontWeight: 600
+                                  }}
+                                >
+                                  [View Evidence]
+                                </a>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     <button className="btn btn-ghost btn-sm">Refer Case</button>
                   </div>

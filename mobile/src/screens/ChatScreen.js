@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, FlatList, TextInput, TouchableOpacity, StatusBar, KeyboardAvoidingView, Platform, ActivityIndicator, Keyboard } from 'react-native';
+import { View, Text, FlatList, TextInput, TouchableOpacity, StatusBar, KeyboardAvoidingView, Platform, ActivityIndicator, Keyboard, Alert } from 'react-native';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
+import * as DocumentPicker from 'expo-document-picker';
 import { ch, s } from './sharedStyles';
 import { colors, spacing } from '../theme';
 import { auth } from '../config/firebase';
@@ -53,6 +54,7 @@ export default function ChatScreen({ navigation, route }) {
   const [showReasonFor, setShowReasonFor] = useState(null);
   const [reasonInput, setReasonInput] = useState('');
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [uploading, setUploading] = useState(false);
   const listRef = useRef();
   const isInitialLoadRef = useRef(true);
 
@@ -151,12 +153,14 @@ export default function ChatScreen({ navigation, route }) {
           return;
         }
 
-          const fetchedMessages = data.messages.map((msg) => ({
+        const fetchedMessages = data.messages.map((msg) => ({
           id: msg.id,
           from: msg.from === 'officer' ? 'officer' : 'reporter',
           name: msg.from === 'officer' ? msg.officerName : undefined,
           text: msg.text,
           time: formatMessageTime(msg.timestamp),
+          fileUrl: msg.fileUrl,
+          fileName: msg.fileName,
         }));
 
         setMessages(fetchedMessages);
@@ -283,6 +287,120 @@ export default function ChatScreen({ navigation, route }) {
     setInput('');
   };
 
+  const handlePickFile = async () => {
+    if (!caseId) {
+      Alert.alert('Error', 'No case selected');
+      return;
+    }
+
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: '*/*',
+      });
+
+      if (result.canceled) return;
+
+      const file = result.assets[0];
+      if (!file) return;
+
+      Alert.alert('Uploading', `Uploading ${file.name}...`);
+      setUploading(true);
+
+      const formData = new FormData();
+      formData.append('file', {
+        uri: file.uri,
+        name: file.name,
+        type: file.mimeType || 'application/octet-stream',
+      });
+
+      const uploadResponse = await fetch(`${API_BASE_URL}/upload-evidence`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      const uploadResult = await uploadResponse.json();
+
+      if (!uploadResult.success) {
+        Alert.alert('Error', 'Failed to upload file');
+        setUploading(false);
+        return;
+      }
+
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        setUploading(false);
+        return;
+      }
+
+      const userDocRef = doc(db, "users", currentUser.uid);
+      const userSnap = await getDoc(userDocRef);
+      if (!userSnap.exists()) {
+        console.error("User profile not found");
+        setUploading(false);
+        return;
+      }
+
+      const userData = userSnap.data();
+      const reporterName = `${userData.firstName} ${userData.lastName}`.trim();
+
+      const casesQuery = query(
+        collection(db, "reports"),
+        where("caseId", "==", caseId),
+        where("uid", "==", currentUser.uid)
+      );
+
+      let officerUid = "";
+      let assignedOfficerName = "";
+
+      try {
+        const caseSnapshot = await getDocs(casesQuery);
+        if (!caseSnapshot.empty) {
+          const caseData = caseSnapshot.docs[0].data();
+          assignedOfficerName = caseData.assignedOfficer || "";
+
+          if (assignedOfficerName) {
+            const staffQuery = query(
+              collection(db, "staff"),
+              where("firstName", "!=", "")
+            );
+            const staffSnapshot = await getDocs(staffQuery);
+            for (const staffDoc of staffSnapshot.docs) {
+              const staffData = staffDoc.data();
+              const fullName = `${staffData.firstName} ${staffData.lastName}`.trim();
+              if (fullName === assignedOfficerName) {
+                officerUid = staffDoc.id;
+                break;
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Could not look up officer UID:', error.message);
+      }
+
+      const fileMessage = `📎 ${uploadResult.originalName}`;
+
+      await addDoc(collection(db, "messages", caseId, "messages"), {
+        from: 'reporter',
+        reporterUid: currentUser.uid,
+        reporterName: reporterName,
+        officerUid: officerUid || "",
+        text: fileMessage,
+        fileUrl: uploadResult.url,
+        fileName: uploadResult.originalName,
+        isEvidence: true,
+        timestamp: new Date(),
+      });
+
+      Alert.alert('Success', 'File uploaded and sent!');
+      setUploading(false);
+    } catch (error) {
+      console.error('Error picking/uploading file:', error);
+      Alert.alert('Error', error.message || 'Failed to upload file');
+      setUploading(false);
+    }
+  };
+
   return (
     <KeyboardAvoidingView
       style={[s.root, { backgroundColor: colors.surface }]}
@@ -328,8 +446,14 @@ export default function ChatScreen({ navigation, route }) {
             data={messages}
             keyExtractor={m => m.id}
             contentContainerStyle={{ padding: spacing.lg }}
+            ListEmptyComponent={
+              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.lg }}>
+                <Text style={{ color: colors.textMuted, textAlign: 'center' }}>No messages yet. Start the conversation!</Text>
+              </View>
+            }
             renderItem={({ item }) => {
               const isInterviewMsg = item.text.match(/📅 Interview scheduled.*Reply ACCEPT/i);
+              const isFileMsg = item.fileUrl && item.text.includes('📎');
               const isMyReason = showReasonFor === item.id;
 
               const handleAccept = () => {
@@ -346,11 +470,33 @@ export default function ChatScreen({ navigation, route }) {
                 setShowReasonFor(null);
               };
 
+              const handleViewEvidence = () => {
+                if (item.fileUrl) {
+                  Alert.alert('Evidence File', item.fileName, [
+                    {
+                      text: 'Open',
+                      onPress: () => {
+                        // In a real app, you'd open the URL
+                        console.log('Opening:', item.fileUrl);
+                      }
+                    },
+                    { text: 'Cancel', style: 'cancel' }
+                  ]);
+                }
+              };
+
               return (
                 <View style={[ch.msgWrap, item.from === 'reporter' && ch.msgWrapMe]}>
                   {item.from !== 'reporter' && <Text style={ch.senderName}>{item.name}</Text>}
                   <View style={[ch.bubble, item.from === 'reporter' ? ch.bubbleMe : ch.bubbleThem]}>
                     <Text style={[ch.bubbleText, item.from === 'reporter' && { color: '#fff' }]}>{item.text}</Text>
+                    {isFileMsg && item.fileUrl && (
+                      <TouchableOpacity onPress={handleViewEvidence} style={{ marginTop: 6 }}>
+                        <Text style={{ color: item.from === 'reporter' ? '#fff' : colors.primary, fontWeight: '600', textDecorationLine: 'underline', fontSize: 12 }}>
+                          [View Evidence]
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                     <Text style={[ch.timeText, item.from === 'reporter' && { color: 'rgba(255,255,255,0.65)' }]}>{item.time}</Text>
                   </View>
                   {isInterviewMsg && item.from === 'officer' && !isMyReason && (
@@ -409,8 +555,12 @@ export default function ChatScreen({ navigation, route }) {
 
       {/* Input */}
       <View style={ch.inputRow}>
-        <TouchableOpacity style={ch.attachBtn}>
-          <FontAwesome6 name="paperclip" size={18} color={colors.primary} />
+        <TouchableOpacity
+          style={ch.attachBtn}
+          onPress={handlePickFile}
+          disabled={!caseId || uploading || sending}
+        >
+          <FontAwesome6 name={uploading ? "hourglass" : "paperclip"} size={18} color={colors.primary} />
         </TouchableOpacity>
         <TextInput
           style={ch.input}
@@ -419,9 +569,9 @@ export default function ChatScreen({ navigation, route }) {
           placeholder="Type a message..."
           placeholderTextColor={colors.placeholder}
           multiline
-          editable={!!caseId}
+          editable={!!caseId && !uploading}
         />
-        <TouchableOpacity style={ch.sendBtn} onPress={send} disabled={!caseId || sending || !input.trim()}>
+        <TouchableOpacity style={ch.sendBtn} onPress={send} disabled={!caseId || sending || !input.trim() || uploading}>
           <FontAwesome6 name="paper-plane" size={16} color="#fff" />
         </TouchableOpacity>
       </View>

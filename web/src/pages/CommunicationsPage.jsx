@@ -806,6 +806,26 @@ export default function CommunicationsPage() {
                           <div className={`msg-bubble ${m.from === 'officer' ? 'msg-me' : 'msg-them'}`}>
                             {m.from !== 'officer' && <div className="msg-name">{m.reporterName}</div>}
                             <div className={m.from === 'officer' ? 'msg-text-me' : 'msg-text'}>{m.text}</div>
+                            {m.fileUrl && m.text.includes('📎') && (
+                              <a
+                                href={m.fileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                  display: 'inline-block',
+                                  marginTop: '6px',
+                                  padding: '4px 8px',
+                                  backgroundColor: m.from === 'officer' ? 'rgba(255,255,255,0.2)' : 'var(--primary)',
+                                  color: m.from === 'officer' ? '#fff' : 'white',
+                                  borderRadius: '4px',
+                                  textDecoration: 'none',
+                                  fontSize: '12px',
+                                  fontWeight: '600'
+                                }}
+                              >
+                                [View Evidence]
+                              </a>
+                            )}
                             <div className={m.from === 'officer' ? 'msg-time-me' : 'msg-time'}>
                               {m.timestamp?.toDate
                                 ? m.timestamp.toDate().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })

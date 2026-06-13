@@ -84,7 +84,7 @@ export default function EvidenceStoragePage() {
     };
   }, [user?.uid, isAdmin, selectedCaseId]);
 
-  // Fetch evidence for selected case
+  // Fetch evidence for selected case (including chat files)
   useEffect(() => {
     if (!selectedCaseId) {
       setEvidence([]);
@@ -93,9 +93,35 @@ export default function EvidenceStoragePage() {
 
     setSelectedFilter('all');
     const caseDoc = cases.find(c => c.id === selectedCaseId);
-    if (caseDoc?.evidence) {
-      setEvidence(caseDoc.evidence);
-    }
+    let allEvidence = caseDoc?.evidence || [];
+
+    // Also fetch files from chat messages using caseId field (not document ID)
+    const messagesUnsubscribe = onSnapshot(
+      collection(db, 'messages', caseDoc?.caseId, 'messages'),
+      (snapshot) => {
+        const chatFiles = [];
+        snapshot.forEach((doc) => {
+          const msg = doc.data();
+          if (msg.fileUrl && msg.fileName) {
+            chatFiles.push({
+              url: msg.fileUrl,
+              name: msg.fileName,
+              resourceType: msg.fileUrl.includes('.pdf') ? 'document' : 'image',
+              uploadedAt: msg.timestamp,
+              uploadedBy: msg.reporterName,
+              source: 'chat'
+            });
+          }
+        });
+        setEvidence([...allEvidence, ...chatFiles]);
+      },
+      (error) => {
+        console.error('Error fetching chat messages:', error);
+        setEvidence(allEvidence);
+      }
+    );
+
+    return () => messagesUnsubscribe();
   }, [selectedCaseId, cases, isAdmin]);
 
   // Fetch access logs for admin
@@ -151,17 +177,17 @@ export default function EvidenceStoragePage() {
   const selectedCase = cases.find(c => c.id === selectedCaseId);
 
   const getFilteredEvidence = () => {
-    if (!selectedCase?.evidence) return [];
+    if (!evidence || evidence.length === 0) return [];
 
     switch (selectedFilter) {
       case 'photo':
-        return selectedCase.evidence.filter(f => f.resourceType === 'image');
+        return evidence.filter(f => f.resourceType === 'image');
       case 'doc':
-        return selectedCase.evidence.filter(f => f.resourceType === 'raw');
+        return evidence.filter(f => f.resourceType === 'raw' || f.resourceType === 'document');
       case 'video':
-        return selectedCase.evidence.filter(f => f.resourceType === 'video');
+        return evidence.filter(f => f.resourceType === 'video');
       default:
-        return selectedCase.evidence;
+        return evidence;
     }
   };
 
@@ -269,7 +295,7 @@ export default function EvidenceStoragePage() {
               <div className="card-header">
                 <div className="card-header-content">
                   <span className="card-title">{selectedCase.caseId} — {selectedCase.incidentType}</span>
-                  <span className="file-info">{selectedCase.evidence?.length || 0} files · Secure encrypted storage</span>
+                  <span className="file-info">{evidence?.length || 0} files · Secure encrypted storage</span>
                 </div>
                 <label className="upload-btn" style={{ marginLeft: 'auto' }}>
                   <input type="file" onChange={handleFileUpload} disabled={uploading} />
@@ -297,25 +323,25 @@ export default function EvidenceStoragePage() {
                       className={`filter-btn ${selectedFilter === 'all' ? 'active' : ''}`}
                       onClick={() => setSelectedFilter('all')}
                     >
-                      All ({selectedCase.evidence?.length || 0})
+                      All ({evidence?.length || 0})
                     </button>
                     <button
                       className={`filter-btn ${selectedFilter === 'photo' ? 'active' : ''}`}
                       onClick={() => setSelectedFilter('photo')}
                     >
-                      Photo ({selectedCase.evidence?.filter(f => f.resourceType === 'image').length || 0})
+                      Photo ({evidence?.filter(f => f.resourceType === 'image').length || 0})
                     </button>
                     <button
                       className={`filter-btn ${selectedFilter === 'doc' ? 'active' : ''}`}
                       onClick={() => setSelectedFilter('doc')}
                     >
-                      Doc ({selectedCase.evidence?.filter(f => f.resourceType === 'raw').length || 0})
+                      Doc ({evidence?.filter(f => f.resourceType === 'raw' || f.resourceType === 'document').length || 0})
                     </button>
                     <button
                       className={`filter-btn ${selectedFilter === 'video' ? 'active' : ''}`}
                       onClick={() => setSelectedFilter('video')}
                     >
-                      Video ({selectedCase.evidence?.filter(f => f.resourceType === 'video').length || 0})
+                      Video ({evidence?.filter(f => f.resourceType === 'video').length || 0})
                     </button>
                   </div>
 
