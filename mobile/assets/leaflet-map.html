@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Help Centers Map</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; }
+    #map { width: 100%; height: 100%; }
+    .leaflet-container { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    .leaflet-popup-content { font-size: 13px; }
+    .leaflet-popup-content-wrapper { border-radius: 8px; }
+    .custom-popup { background: white; padding: 0; }
+    .popup-title { font-weight: 700; color: #1a1a2e; margin-bottom: 4px; font-size: 13px; }
+    .popup-line { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #555; margin-bottom: 2px; }
+    .popup-badge { display: inline-block; font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 10px; color: white; margin-top: 6px; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+    let map;
+    const markers = {};
+    const categoryColors = {
+      police: '#FF6B6B',
+      hospital: '#4ECDC4',
+      dswd: '#A78BFA',
+      barangay: '#FBBF24'
+    };
+
+    // Initialize map
+    function initMap() {
+      map = L.map('map').setView([14.8450, 120.2870], 13);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19
+      }).addTo(map);
+    }
+
+    // Create custom marker icon
+    function createMarkerIcon(color) {
+      return L.divIcon({
+        html: `
+          <div style="
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background-color: ${color};
+            border: 2px solid white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+          ">
+            📍
+          </div>
+        `,
+        className: 'custom-marker',
+        iconSize: [36, 36],
+        iconAnchor: [18, 36],
+        popupAnchor: [0, -36]
+      });
+    }
+
+    // Add POI to map
+    function addPOI(poi) {
+      const color = categoryColors[poi.category] || '#888888';
+      const marker = L.marker(
+        [poi.latitude, poi.longitude],
+        { icon: createMarkerIcon(color) }
+      ).addTo(map);
+
+      const popupContent = `
+        <div class="custom-popup" style="padding: 10px; width: 180px;">
+          <div class="popup-title">${poi.name}</div>
+          ${poi.address ? `<div class="popup-line"><strong>📍</strong> ${poi.address}</div>` : ''}
+          ${poi.phone ? `<div class="popup-line"><strong>☎️</strong> ${poi.phone}</div>` : ''}
+          ${poi.rating ? `<div class="popup-line"><strong>⭐</strong> ${poi.rating}</div>` : ''}
+          <span class="popup-badge" style="background-color: ${color};">${getCategoryLabel(poi.category)}</span>
+        </div>
+      `;
+
+      marker.bindPopup(popupContent);
+      markers[poi.id] = marker;
+    }
+
+    function getCategoryLabel(category) {
+      const labels = {
+        police: 'Police Station',
+        hospital: 'Hospital / Clinic',
+        dswd: 'DSWD / Social Facility',
+        barangay: 'Barangay Hall'
+      };
+      return labels[category] || 'Help Center';
+    }
+
+    // Clear all markers
+    function clearPOIs() {
+      Object.values(markers).forEach(m => map.removeLayer(m));
+      Object.keys(markers).forEach(k => delete markers[k]);
+    }
+
+    // Handle messages from React Native
+    window.addEventListener('message', (e) => {
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.type === 'INIT') {
+          initMap();
+        } else if (msg.type === 'ADD_POIS') {
+          clearPOIs();
+          msg.pois.forEach(poi => addPOI(poi));
+          // Fit bounds
+          if (msg.pois.length > 0) {
+            const bounds = L.latLngBounds(msg.pois.map(p => [p.latitude, p.longitude]));
+            map.fitBounds(bounds, { padding: [50, 50] });
+          }
+        }
+      } catch (err) {
+        console.error('Map error:', err);
+      }
+    });
+
+    // Signal ready
+    if (window.ReactNativeWebView) {
+      window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'READY' }));
+    }
+  </script>
+</body>
+</html>
