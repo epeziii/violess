@@ -1,9 +1,8 @@
 # TODO
-- [x] Adjust vertical centering of the “View Details” details view in Web Communications/Assigned Cases.
+- [x] Implement backend endpoint for monthly cases (12 months) using Firestore `reports.createdAt`, with `year` param default to current year.
+- [x] Update `web/src/pages/AnalyticsPage.jsx` Monthly Cases chart to use the new endpoint and render 12 months dynamically for current year.
 
-- [x] Implement change in `web/src/pages/CommunicationsPage.jsx` to center the right-side details panel vertically.
+- [ ] Manually test by running backend + web and verifying chart updates with real data.
 
-
-- [x] Run web lint/build or start dev server to verify layout (no runtime errors).
 
 

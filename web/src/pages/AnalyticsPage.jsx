@@ -7,6 +7,12 @@ export default function AnalyticsPage() {
   const [ageGroupData, setAgeGroupData] = useState([]);
   const [loadingAgeGroup, setLoadingAgeGroup] = useState(true);
 
+  const [monthlyCasesData, setMonthlyCasesData] = useState([]);
+  const [loadingMonthlyCases, setLoadingMonthlyCases] = useState(true);
+
+  const currentYear = new Date().getFullYear();
+
+
   useEffect(() => {
     let cancelled = false;
 
@@ -43,6 +49,46 @@ export default function AnalyticsPage() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadMonthlyCases() {
+      setLoadingMonthlyCases(true);
+      try {
+        const res = await fetch(`${API_BASE_URL}/analytics/monthly-cases?year=${currentYear}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'omit',
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        const apiData = Array.isArray(json?.data) ? json.data : [];
+
+        // Always render 12 months in order.
+        const monthOrder = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const map = new Map(apiData.map((d) => [d.month, Number(d.cases) || 0]));
+        const normalized = monthOrder.map((m) => ({ month: m, cases: map.get(m) ?? 0 }));
+
+        if (!cancelled) setMonthlyCasesData(normalized);
+      } catch (e) {
+        console.error('Failed to load Monthly Cases analytics:', e);
+        if (!cancelled) {
+          const monthOrder = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          setMonthlyCasesData(monthOrder.map((m) => ({ month: m, cases: 0 })));
+        }
+      } finally {
+        if (!cancelled) setLoadingMonthlyCases(false);
+      }
+    }
+
+    loadMonthlyCases();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentYear]);
+
 
   const donut = useMemo(() => {
     const fallback = [
@@ -114,17 +160,12 @@ export default function AnalyticsPage() {
       <div className="grid-2">
         <div className="card">
           <div className="card-header">
-            <span className="card-title">Monthly Cases (2025)</span>
+            <span className="card-title">Monthly Cases ({new Date().getFullYear()})</span>
           </div>
           <div className="card-body" style={{ height: 300 }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
-                data={[
-                  { month: 'January', cases: 12 },
-                  { month: 'February', cases: 18 },
-                  { month: 'March', cases: 7 },
-                  { month: 'April', cases: 4 },
-                ]}
+                data={monthlyCasesData}
                 margin={{ top: 20, right: 30, left: 0, bottom: 0 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -138,6 +179,7 @@ export default function AnalyticsPage() {
             </ResponsiveContainer>
           </div>
         </div>
+
 
         <div className="card">
           <div className="card-header">

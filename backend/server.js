@@ -1235,6 +1235,60 @@ app.get('/analytics/age-group-affected', async (req, res) => {
   }
 });
 
+// ─── ANALYTICS: MONTHLY CASES ───────────────────────────────────────
+// Returns case counts per month for a given year.
+// Query params:
+//   - year (optional, default = current year)
+// Output shape for frontend:
+//   { success: true, data: [{ month: 'Jan', cases: 0 }, ...] }
+app.get('/analytics/monthly-cases', async (req, res) => {
+  try {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+
+    const yearParam = req.query?.year;
+    const year = yearParam ? Number(yearParam) : currentYear;
+
+    if (!Number.isFinite(year)) {
+      return res.status(400).json({ success: false, error: 'Invalid year' });
+    }
+
+    const yearStart = new Date(Date.UTC(year, 0, 1, 0, 0, 0));
+    const yearEnd = new Date(Date.UTC(year, 11, 31, 23, 59, 59));
+
+    // Month keys in JS Date are 0..11
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const counts = Array.from({ length: 12 }, () => 0);
+
+    const reportsSnap = await db.collection('reports')
+      .where('createdAt', '>=', yearStart)
+      .where('createdAt', '<=', yearEnd)
+      .get();
+
+    reportsSnap.forEach((doc) => {
+      const data = doc.data() || {};
+      const createdAt = data.createdAt;
+      const dt = createdAt?.toDate ? createdAt.toDate() : createdAt;
+      if (!(dt instanceof Date) || Number.isNaN(dt.getTime())) return;
+
+      const monthIndex = dt.getMonth();
+      if (monthIndex >= 0 && monthIndex <= 11) counts[monthIndex] += 1;
+    });
+
+    const data = counts.map((c, idx) => ({
+      month: monthNames[idx],
+      cases: c,
+    }));
+
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error('[analytics/monthly-cases] failed:', err);
+    res.status(500).json({ success: false, data: [], error: err.message || 'Failed to load analytics' });
+  }
+});
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => console.log(`Server running on http://0.0.0.0:${PORT}`));
+
+
 
