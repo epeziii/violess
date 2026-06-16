@@ -175,8 +175,8 @@ export default function AnalyticsPage() {
                   tickFormatter={(value) => {
                     const n = Number(value);
                     if (!Number.isFinite(n)) return value;
-                    // Avoid truncating fractional ticks into the same label (e.g., 0.4 -> 0, 0.8 -> 0)
-                    return Number.isInteger(n) ? String(n) : String(Math.round(n));
+                    // If the tick isn't an integer, hide it to prevent duplicate labels (e.g., 0.4/0.8).
+                    return Number.isInteger(n) ? String(n) : '';
                   }}
                 />
                 <Tooltip
