@@ -174,9 +174,9 @@ export default function AnalyticsPage() {
                   stroke="var(--text-muted)"
                   tickFormatter={(value) => {
                     const n = Number(value);
-                    // Only show solid integers on the bar chart (avoid 0.0 / 0.5 etc.)
                     if (!Number.isFinite(n)) return value;
-                    return String(Math.trunc(n));
+                    // Avoid truncating fractional ticks into the same label (e.g., 0.4 -> 0, 0.8 -> 0)
+                    return Number.isInteger(n) ? String(n) : String(Math.round(n));
                   }}
                 />
                 <Tooltip
