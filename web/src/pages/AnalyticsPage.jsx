@@ -1,6 +1,78 @@
 // AnalyticsPage.jsx
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { useEffect, useMemo, useState } from 'react';
+import API_BASE_URL from '../config/api';
+
 export default function AnalyticsPage() {
+  const [ageGroupData, setAgeGroupData] = useState([]);
+  const [loadingAgeGroup, setLoadingAgeGroup] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadAgeGroup() {
+      setLoadingAgeGroup(true);
+      try {
+        const res = await fetch(`${API_BASE_URL}/analytics/age-group-affected`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'omit',
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        if (!cancelled) {
+          if (Array.isArray(json?.data)) {
+            setAgeGroupData(json.data);
+          } else {
+            console.warn('Unexpected analytics response shape for age-group-affected:', json);
+            setAgeGroupData([]);
+          }
+        }
+
+      } catch (e) {
+        console.error('Failed to load Age Group Affected analytics:', e);
+        if (!cancelled) setAgeGroupData([]);
+      } finally {
+        if (!cancelled) setLoadingAgeGroup(false);
+      }
+    }
+
+    loadAgeGroup();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const donut = useMemo(() => {
+    const fallback = [
+      { key: 'women_18_35', label: 'Women 18–35', color: 'var(--primary)', pct: 38 },
+      { key: 'youth_13_17', label: 'Youth 13–17', color: '#6A1B9A', pct: 22 },
+      { key: 'children_lt_13', label: 'Children <13', color: 'var(--info)', pct: 16 },
+      { key: 'other', label: 'Other', color: '#F8F0F5', pct: 24 },
+    ];
+
+    const data = ageGroupData;
+    if (!data) return fallback;
+    if (data.length === 0) return fallback;
+
+    // Backend returns pct that already sums to 100 (computed from Firestore counts).
+    // Still guard against invalid sums.
+    const withPct = data.map((d) => ({
+
+      key: d.key,
+      label: d.label,
+      color: d.color,
+      pct: Number(d.pct) || 0,
+    }));
+
+    const sum = withPct.reduce((a, b) => a + b.pct, 0);
+    if (sum <= 0) return fallback;
+
+    // Normalize to 100 for rendering correctness.
+    return withPct.map((d) => ({ ...d, pct: (d.pct / sum) * 100 }));
+  }, [ageGroupData]);
+
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
@@ -14,17 +86,20 @@ export default function AnalyticsPage() {
           { label: 'Cases This Month', value: '18', change: '+6 vs last month', cls: 'up', variant: 'pink' },
           { label: 'Resolution Rate', value: '74%', change: 'Up 5%', cls: 'ok', variant: 'blue' },
           { label: 'Pending Referrals', value: '6', change: 'Needs follow-up', cls: 'neutral', variant: 'red' },
-        ].map(s => (
+        ].map((s) => (
           <div key={s.label} className={`stat-card ${s.variant}`}>
             <div className="stat-label">{s.label}</div>
             <div
               className="stat-value"
               style={{
                 color:
-                  s.variant === 'pink' ? 'var(--primary)' :
-                  s.variant === 'red' ? 'var(--sos)' :
-                  s.variant === 'blue' ? 'var(--info)' :
-                  'var(--safe)'
+                  s.variant === 'pink'
+                    ? 'var(--primary)'
+                    : s.variant === 'red'
+                      ? 'var(--sos)'
+                      : s.variant === 'blue'
+                        ? 'var(--info)'
+                        : 'var(--safe)',
               }}
             >
               {s.value}
@@ -37,7 +112,9 @@ export default function AnalyticsPage() {
       {/* Charts */}
       <div className="grid-2">
         <div className="card">
-          <div className="card-header"><span className="card-title">Monthly Cases (2025)</span></div>
+          <div className="card-header">
+            <span className="card-title">Monthly Cases (2025)</span>
+          </div>
           <div className="card-body" style={{ height: 300 }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
@@ -45,14 +122,16 @@ export default function AnalyticsPage() {
                   { month: 'January', cases: 12 },
                   { month: 'February', cases: 18 },
                   { month: 'March', cases: 7 },
-                  { month: 'April', cases: 4 }
+                  { month: 'April', cases: 4 },
                 ]}
                 margin={{ top: 20, right: 30, left: 0, bottom: 0 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="month" stroke="var(--text-muted)" />
                 <YAxis stroke="var(--text-muted)" />
-                <Tooltip contentStyle={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '4px' }} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '4px' }}
+                />
                 <Bar dataKey="cases" fill="var(--primary)" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -60,7 +139,9 @@ export default function AnalyticsPage() {
         </div>
 
         <div className="card">
-          <div className="card-header"><span className="card-title">Most Common Abuse Type</span></div>
+          <div className="card-header">
+            <span className="card-title">Most Common Abuse Type</span>
+          </div>
           <div className="card-body">
             <div className="bar-chart">
               {[
@@ -68,12 +149,14 @@ export default function AnalyticsPage() {
                 ['Harassment', 12, 63, '#7B2D8B'],
                 ['Bullying', 8, 42, 'var(--info)'],
                 ['Threats', 6, 31, 'var(--warn)'],
-                ['Other', 3, 15, 'var(--text-muted)']
-              ].map(([label, count, pct, color]) => (
+                ['Other', 3, 15, 'var(--text-muted)'],
+              ].map(([label, _count, pct, color]) => (
                 <div key={label} className="bar-row">
                   <span className="bar-label">{label}</span>
                   <div className="bar-track">
-                    <div className="bar-fill" style={{ width: `${pct}%`, background: color }}>{count}</div>
+                    <div className="bar-fill" style={{ width: `${pct}%`, background: color }}>
+                      {_count}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -84,20 +167,33 @@ export default function AnalyticsPage() {
 
       {/* Resolution Timeline Overview */}
       <div className="card" style={{ marginTop: 16 }}>
-        <div className="card-header"><span className="card-title">Resolution Timeline Overview</span></div>
+        <div className="card-header">
+          <span className="card-title">Resolution Timeline Overview</span>
+        </div>
         <div className="card-body">
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
             {[
               ['1.2d', 'Avg. first response', 'var(--primary)'],
               ['4.5d', 'Avg. referral time', 'var(--info)'],
               ['12d', 'Avg. case resolution', 'var(--safe)'],
-              ['3', 'Reopen requests', 'var(--warn)']
-            ].map(([value, label, color]) => (
-              <div key={label} style={{ textAlign: 'center', flex: 1, minWidth: 80 }}>
-                <div style={{ fontSize: 28, fontWeight: 800, color }}>{value}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>{label}</div>
-              </div>
-            ))}
+              ['3', 'Reopen requests', 'var(--warn)'],
+            ].map(([value, label]) => {
+              const color = ['1.2d', '4.5d', '12d', '3'].includes(value)
+                ? label === 'Avg. first response'
+                  ? 'var(--primary)'
+                  : label === 'Avg. referral time'
+                    ? 'var(--info)'
+                    : label === 'Avg. case resolution'
+                      ? 'var(--safe)'
+                      : 'var(--warn)'
+                : 'var(--text)';
+              return (
+                <div key={label} style={{ textAlign: 'center', flex: 1, minWidth: 80 }}>
+                  <div style={{ fontSize: 28, fontWeight: 800, color }}>{value}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>{label}</div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -105,7 +201,9 @@ export default function AnalyticsPage() {
       {/* MOVED FROM DASHBOARD: Charts */}
       <div className="grid-2" style={{ marginTop: 16 }}>
         <div className="card">
-          <div className="card-header"><span className="card-title">Cases by Type</span></div>
+          <div className="card-header">
+            <span className="card-title">Cases by Type</span>
+          </div>
           <div className="card-body">
             <div className="bar-chart">
               {[
@@ -114,11 +212,13 @@ export default function AnalyticsPage() {
                 { label: 'Bullying', count: 8, pct: 41, color: 'var(--info)' },
                 { label: 'Threats', count: 6, pct: 31, color: 'var(--warn)' },
                 { label: 'Other', count: 3, pct: 15, color: 'var(--text-muted)' },
-              ].map(b => (
+              ].map((b) => (
                 <div key={b.label} className="bar-row">
                   <span className="bar-label">{b.label}</span>
                   <div className="bar-track">
-                    <div className="bar-fill" style={{ width: `${b.pct}%`, background: b.color }}>{b.count}</div>
+                    <div className="bar-fill" style={{ width: `${b.pct}%`, background: b.color }}>
+                      {b.count}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -127,26 +227,51 @@ export default function AnalyticsPage() {
         </div>
 
         <div className="card">
-          <div className="card-header"><span className="card-title">Age Group Affected</span></div>
+          <div className="card-header">
+            <span className="card-title">Age Group Affected</span>
+          </div>
           <div className="card-body" style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
-            <svg width="110" height="110" viewBox="0 0 110 110">
-              <circle cx="55" cy="55" r="42" fill="none" stroke="#F8F0F5" strokeWidth="18"/>
-              <circle cx="55" cy="55" r="42" fill="none" stroke="var(--primary)" strokeWidth="18" strokeDasharray="99 165" strokeDashoffset="0"/>
-              <circle cx="55" cy="55" r="42" fill="none" stroke="#6A1B9A" strokeWidth="18" strokeDasharray="56 165" strokeDashoffset="-99"/>
-              <circle cx="55" cy="55" r="42" fill="none" stroke="var(--info)" strokeWidth="18" strokeDasharray="42 165" strokeDashoffset="-155"/>
-              <text x="55" y="59" textAnchor="middle" fontSize="13" fontWeight="800" fill="var(--text)">47</text>
-            </svg>
+            <div style={{ width: 120, height: 120 }}>
+              {loadingAgeGroup ? (
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: '120px', textAlign: 'center' }}>Loading...</div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={donut.map((d) => ({ name: d.label, value: d.pct, color: d.color }))}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={42}
+                      outerRadius={52}
+                      paddingAngle={0}
+                      isAnimationActive={false}
+                    >
+                      {donut.map((d) => (
+                        <Cell key={d.key} fill={d.color} />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {[
-                { color: 'var(--primary)', label: 'Women 18–35', pct: '38%' },
-                { color: '#6A1B9A', label: 'Youth 13–17', pct: '22%' },
-                { color: 'var(--info)', label: 'Children <13', pct: '16%' },
-                { color: '#F8F0F5', label: 'Other', pct: '24%' },
-              ].map(l => (
+              {donut.map((l) => (
                 <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: l.color, flexShrink: 0, border: l.color === '#F8F0F5' ? '1px solid #DDD' : 'none' }} />
+                  <div
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: '50%',
+                      background: l.color,
+                      flexShrink: 0,
+                      border: l.color === '#F8F0F5' ? '1px solid #DDD' : 'none',
+                    }}
+                  />
                   <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{l.label}</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginLeft: 'auto' }}>{l.pct}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginLeft: 'auto' }}>{`${Math.round(l.pct)}%`}</span>
                 </div>
               ))}
             </div>
@@ -156,3 +281,4 @@ export default function AnalyticsPage() {
     </div>
   );
 }
+

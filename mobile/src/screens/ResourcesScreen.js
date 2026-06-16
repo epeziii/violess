@@ -266,21 +266,20 @@ export default function ResourcesScreen({ navigation }) {
           try {
             map = L.map('map', {
               zoomControl: true,
-              attributionControl: true,
+              attributionControl: false,
               zoom: 13,
               center: [14.8450, 120.2870]
             });
 
-            L.tileLayer('https://tile.openstreetmap.de/tiles/osmde/{z}/{x}/{y}.png', {
-              maxZoom: 18,
-              attribution: '© OpenStreetMap contributors'
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+              maxZoom: 19,
+              minZoom: 1
             }).addTo(map);
 
             markersGroup = L.layerGroup().addTo(map);
+            console.log('Map initialized');
           } catch (e) {
             console.error('Map init error:', e);
-            document.getElementById('map').style.background = '#e8e8e8';
-            document.getElementById('map').innerHTML = '<div style="color: #666; padding: 20px;">Map unavailable</div>';
           }
         }
 

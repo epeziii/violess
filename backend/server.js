@@ -8,11 +8,27 @@ const { v2: cloudinary } = require("cloudinary");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 // 🔑 Firebase Admin SDK service account
-const serviceAccount = JSON.parse(process.env.FIREBASE_CREDENTIALS || "{}");
+// Prefer FIREBASE_CREDENTIALS env var. Fallback to local service account json for dev.
+const serviceAccount = (() => {
+  if (process.env.FIREBASE_CREDENTIALS) {
+    try {
+      return JSON.parse(process.env.FIREBASE_CREDENTIALS);
+    } catch (e) {
+      console.warn('Invalid FIREBASE_CREDENTIALS JSON:', e);
+    }
+  }
+  try {
+    // eslint-disable-next-line import/no-unresolved
+    return require('./violess-4e542-firebase-adminsdk-fbsvc-78fd8f52d9.json');
+  } catch (e) {
+    return {};
+  }
+})();
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
+
 
 const db = admin.firestore();
 const app = express();
@@ -1146,5 +1162,77 @@ app.post("/ai-chat", async (req, res) => {
   }
 });
 
+// ─── ANALYTICS: AGE GROUP AFFECTED (donut source of truth) ─────────────
+// NOTE: Uses Firestore Admin SDK to aggregate users.role.
+// Frontend expects: { success: true, data: [{ key, label, color, pct }, ...] }
+app.get('/analytics/age-group-affected', async (req, res) => {
+  try {
+    const usersSnap = await db.collection('users').get();
+
+    const roleCounts = new Map();
+    usersSnap.forEach((doc) => {
+      const data = doc.data() || {};
+      const role = data.role;
+      if (!role) return;
+      const normalized = String(role).toLowerCase();
+      roleCounts.set(normalized, (roleCounts.get(normalized) || 0) + 1);
+    });
+
+    const buckets = [
+      {
+        key: 'women_18_35',
+        label: 'Women 18–35',
+        color: 'var(--primary)',
+        roleKeys: ['women_18_35', 'women', 'adult_women', 'women_18plus', 'adult'],
+      },
+      {
+        key: 'youth_13_17',
+        label: 'Youth 13–17',
+        color: '#6A1B9A',
+        roleKeys: ['youth', 'youth_13_17', 'teen', 'teens', '13_17'],
+      },
+      {
+        key: 'children_lt_13',
+        label: 'Children <13',
+        color: 'var(--info)',
+        roleKeys: ['children', 'child', 'children_lt_13', 'kids', '<13', 'under_13', 'kid'],
+      },
+    ];
+
+    const bucketCounts = buckets.map((b) => ({ ...b, count: 0 }));
+    let otherCount = 0;
+
+    for (const [roleKey, c] of roleCounts.entries()) {
+      const matched = bucketCounts.find((b) => b.roleKeys.includes(roleKey));
+      if (matched) matched.count += c;
+      else otherCount += c;
+    }
+
+    const total = Array.from(roleCounts.values()).reduce((a, b) => a + b, 0);
+    const safeTotal = total || 1;
+
+    const data = [
+      ...bucketCounts.map((b) => ({
+        key: b.key,
+        label: b.label,
+        color: b.color,
+        pct: (b.count / safeTotal) * 100,
+      })),
+      {
+        key: 'other',
+        label: 'Other',
+        color: '#F8F0F5',
+        pct: (otherCount / safeTotal) * 100,
+      },
+    ];
+
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error('[analytics/age-group-affected] failed:', err);
+    res.status(500).json({ success: false, data: [], error: err.message || 'Failed to load analytics' });
+  }
+});
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => console.log(`Server running on http://0.0.0.0:${PORT}`));
+
