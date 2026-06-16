@@ -46,6 +46,7 @@ export default function AnalyticsPage() {
 
   const donut = useMemo(() => {
     const fallback = [
+
       { key: 'women_18_35', label: 'Women 18–35', color: 'var(--primary)', pct: 38 },
       { key: 'youth_13_17', label: 'Youth 13–17', color: '#6A1B9A', pct: 22 },
       { key: 'children_lt_13', label: 'Children <13', color: 'var(--info)', pct: 16 },
@@ -59,8 +60,8 @@ export default function AnalyticsPage() {
     // Backend returns pct that already sums to 100 (computed from Firestore counts).
     // Still guard against invalid sums.
     const withPct = data.map((d) => ({
+      key: d.key || d.label,
 
-      key: d.key,
       label: d.label,
       color: d.color,
       pct: Number(d.pct) || 0,

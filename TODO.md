@@ -4,5 +4,6 @@
 - [x] Implement change in `web/src/pages/CommunicationsPage.jsx` to center the right-side details panel vertically.
 
 
-- [ ] Run web lint/build or start dev server to verify layout (no runtime errors).
+- [x] Run web lint/build or start dev server to verify layout (no runtime errors).
+
 
