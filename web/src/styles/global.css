@@ -198,6 +198,24 @@ input, textarea, select { font-family: inherit; outline: none; }
   box-shadow: var(--shadow-sm);
   overflow: hidden;
 }
+
+/* Let analytics cards stretch inside their grid cell */
+.analytics-card--stretch {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.analytics-chart-body {
+  padding: 0; /* charts should control internal padding */
+  flex: 1;
+  min-height: 0; /* important for ResponsiveContainer */
+}
+
+.analytics-chart-body > * {
+  height: 100% !important;
+}
+
 .card-header {
   display: flex;
   align-items: center;

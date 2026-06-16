@@ -158,15 +158,15 @@ export default function AnalyticsPage() {
 
       {/* Charts */}
       <div className="grid-2">
-        <div className="card">
+        <div className="card analytics-card--stretch">
           <div className="card-header">
             <span className="card-title">Monthly Cases ({new Date().getFullYear()})</span>
           </div>
-          <div className="card-body" style={{ height: 300 }}>
+          <div className="card-body analytics-chart-body">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={monthlyCasesData}
-                margin={{ top: 20, right: 30, left: 0, bottom: 0 }}
+              margin={{ top: 10, right: 20, left: -10, bottom: 10 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="month" stroke="var(--text-muted)" />
@@ -193,29 +193,82 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
-
-        <div className="card">
-          <div className="card-header">
-            <span className="card-title">Most Common Abuse Type</span>
-          </div>
-          <div className="card-body">
-            <div className="bar-chart">
-              {[
-                ['Domestic', 15, 80, 'var(--primary)'],
-                ['Harassment', 12, 63, '#7B2D8B'],
-                ['Bullying', 8, 42, 'var(--info)'],
-                ['Threats', 6, 31, 'var(--warn)'],
-                ['Other', 3, 15, 'var(--text-muted)'],
-              ].map(([label, _count, pct, color]) => (
-                <div key={label} className="bar-row">
-                  <span className="bar-label">{label}</span>
-                  <div className="bar-track">
-                    <div className="bar-fill" style={{ width: `${pct}%`, background: color }}>
-                      {_count}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="card">
+            <div className="card-header">
+              <span className="card-title">Most Common Abuse Type</span>
+            </div>
+            <div className="card-body">
+              <div className="bar-chart">
+                {[
+                  ['Domestic', 15, 80, 'var(--primary)'],
+                  ['Harassment', 12, 63, '#7B2D8B'],
+                  ['Bullying', 8, 42, 'var(--info)'],
+                  ['Threats', 6, 31, 'var(--warn)'],
+                  ['Other', 3, 15, 'var(--text-muted)'],
+                ].map(([label, _count, pct, color]) => (
+                  <div key={label} className="bar-row">
+                    <span className="bar-label">{label}</span>
+                    <div className="bar-track">
+                      <div className="bar-fill" style={{ width: `${pct}%`, background: color }}>
+                        {_count}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-header">
+              <span className="card-title">Age Group Affected</span>
+            </div>
+            <div className="card-body" style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
+              <div style={{ width: 120, height: 120 }}>
+                {loadingAgeGroup ? (
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: '120px', textAlign: 'center' }}>Loading...</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={donut.map((d) => ({ name: d.label, value: d.pct, color: d.color }))}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={36}
+                        outerRadius={60}
+                        paddingAngle={0}
+                        isAnimationActive={false}
+                      >
+                        {donut.map((d) => (
+                          <Cell key={d.key} fill={d.color} />
+                        ))}
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {donut.map((l) => (
+                  <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div
+                      style={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: '50%',
+                        background: l.color,
+                        flexShrink: 0,
+                        border: l.color === '#F8F0F5' ? '1px solid #DDD' : 'none',
+                      }}
+                    />
+                    <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{l.label}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginLeft: 'auto' }}>{`${Math.round(l.pct)}%`}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -250,87 +303,6 @@ export default function AnalyticsPage() {
                 </div>
               );
             })}
-          </div>
-        </div>
-      </div>
-
-      {/* MOVED FROM DASHBOARD: Charts */}
-      <div className="grid-2" style={{ marginTop: 16 }}>
-        <div className="card">
-          <div className="card-header">
-            <span className="card-title">Cases by Type</span>
-          </div>
-          <div className="card-body">
-            <div className="bar-chart">
-              {[
-                { label: 'Domestic abuse', count: 15, pct: 78, color: 'var(--primary)' },
-                { label: 'Harassment', count: 12, pct: 62, color: '#7B2D8B' },
-                { label: 'Bullying', count: 8, pct: 41, color: 'var(--info)' },
-                { label: 'Threats', count: 6, pct: 31, color: 'var(--warn)' },
-                { label: 'Other', count: 3, pct: 15, color: 'var(--text-muted)' },
-              ].map((b) => (
-                <div key={b.label} className="bar-row">
-                  <span className="bar-label">{b.label}</span>
-                  <div className="bar-track">
-                    <div className="bar-fill" style={{ width: `${b.pct}%`, background: b.color }}>
-                      {b.count}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-header">
-            <span className="card-title">Age Group Affected</span>
-          </div>
-          <div className="card-body" style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
-            <div style={{ width: 120, height: 120 }}>
-              {loadingAgeGroup ? (
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: '120px', textAlign: 'center' }}>Loading...</div>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={donut.map((d) => ({ name: d.label, value: d.pct, color: d.color }))}
-                      dataKey="value"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={36}
-                      outerRadius={60}
-                      paddingAngle={0}
-                      isAnimationActive={false}
-                    >
-                      {donut.map((d) => (
-                        <Cell key={d.key} fill={d.color} />
-                      ))}
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {donut.map((l) => (
-                <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div
-                    style={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: '50%',
-                      background: l.color,
-                      flexShrink: 0,
-                      border: l.color === '#F8F0F5' ? '1px solid #DDD' : 'none',
-                    }}
-                  />
-                  <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{l.label}</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginLeft: 'auto' }}>{`${Math.round(l.pct)}%`}</span>
-                </div>
-              ))}
-            </div>
           </div>
         </div>
       </div>
