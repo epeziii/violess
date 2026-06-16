@@ -170,11 +170,24 @@ export default function AnalyticsPage() {
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="month" stroke="var(--text-muted)" />
-                <YAxis stroke="var(--text-muted)" />
+                <YAxis
+                  stroke="var(--text-muted)"
+                  tickFormatter={(value) => {
+                    const n = Number(value);
+                    // Only show solid integers on the bar chart (avoid 0.0 / 0.5 etc.)
+                    if (!Number.isFinite(n)) return value;
+                    return String(Math.trunc(n));
+                  }}
+                />
                 <Tooltip
                   contentStyle={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '4px' }}
+                  formatter={(value) => {
+                    const n = Number(value);
+                    return Number.isFinite(n) ? Math.trunc(n) : value;
+                  }}
                 />
                 <Bar dataKey="cases" fill="var(--primary)" radius={[8, 8, 0, 0]} />
+
               </BarChart>
             </ResponsiveContainer>
           </div>
