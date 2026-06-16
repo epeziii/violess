@@ -1183,7 +1183,9 @@ app.get('/analytics/age-group-affected', async (req, res) => {
         key: 'women_18_35',
         label: 'Women 18–35',
         color: 'var(--primary)',
-        roleKeys: ['women_18_35', 'women', 'adult_women', 'women_18plus', 'adult'],
+        // Firestore data has had historical inconsistencies like `woman` vs `women`.
+        // Include both to ensure correct bucket mapping.
+        roleKeys: ['women_18_35', 'women', 'woman', 'adult_women', 'women_18plus', 'adult_women', 'adult'],
       },
       {
         key: 'youth_13_17',
