@@ -244,8 +244,8 @@ export default function AnalyticsPage() {
                       nameKey="name"
                       cx="50%"
                       cy="50%"
-                      innerRadius={42}
-                      outerRadius={52}
+                      innerRadius={36}
+                      outerRadius={60}
                       paddingAngle={0}
                       isAnimationActive={false}
                     >
