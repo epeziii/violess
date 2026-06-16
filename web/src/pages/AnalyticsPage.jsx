@@ -10,7 +10,11 @@ export default function AnalyticsPage() {
   const [monthlyCasesData, setMonthlyCasesData] = useState([]);
   const [loadingMonthlyCases, setLoadingMonthlyCases] = useState(true);
 
+  const [abuseTypeData, setAbuseTypeData] = useState([]);
+  const [loadingAbuseType, setLoadingAbuseType] = useState(true);
+
   const currentYear = new Date().getFullYear();
+
 
 
   useEffect(() => {
@@ -88,6 +92,48 @@ export default function AnalyticsPage() {
       cancelled = true;
     };
   }, [currentYear]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadAbuseType() {
+      setLoadingAbuseType(true);
+      try {
+        const res = await fetch(`${API_BASE_URL}/analytics/most-common-abuse-type`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'omit',
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+
+        const rows = Array.isArray(json?.data) ? json.data : [];
+        if (!cancelled) {
+          setAbuseTypeData(
+            rows.map((r) => ({
+              key: r.key || r.label,
+              label: r.label,
+              count: Number(r.count) || 0,
+              pct: Number(r.pct) || 0,
+              color: r.color || 'var(--text-muted)',
+            }))
+          );
+        }
+      } catch (e) {
+        console.error('Failed to load Most Common Abuse Type analytics:', e);
+        if (!cancelled) setAbuseTypeData([]);
+      } finally {
+        if (!cancelled) setLoadingAbuseType(false);
+      }
+    }
+
+    loadAbuseType();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
 
 
   const donut = useMemo(() => {
@@ -200,25 +246,26 @@ export default function AnalyticsPage() {
             </div>
             <div className="card-body">
               <div className="bar-chart">
-                {[
-                  ['Domestic', 15, 80, 'var(--primary)'],
-                  ['Harassment', 12, 63, '#7B2D8B'],
-                  ['Bullying', 8, 42, 'var(--info)'],
-                  ['Threats', 6, 31, 'var(--warn)'],
-                  ['Other', 3, 15, 'var(--text-muted)'],
-                ].map(([label, _count, pct, color]) => (
-                  <div key={label} className="bar-row">
-                    <span className="bar-label">{label}</span>
-                    <div className="bar-track">
-                      <div className="bar-fill" style={{ width: `${pct}%`, background: color }}>
-                        {_count}
+                {loadingAbuseType ? (
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: '8px 0' }}>Loading...</div>
+                ) : abuseTypeData.length === 0 ? (
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: '8px 0' }}>No data available</div>
+                ) : (
+                  abuseTypeData.map((row) => (
+                    <div key={row.label} className="bar-row">
+                      <span className="bar-label">{row.label}</span>
+                      <div className="bar-track">
+                        <div className="bar-fill" style={{ width: `${row.pct}%`, background: row.color }}>
+                          {row.count}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
           </div>
+
 
           <div className="card">
             <div className="card-header">

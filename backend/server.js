@@ -1287,8 +1287,81 @@ app.get('/analytics/monthly-cases', async (req, res) => {
   }
 });
 
+// ─── ANALYTICS: MOST COMMON ABUSE TYPE ──────────────────────────────
+// Computes the most common incidentType from Firestore `reports`.
+// Output shape for frontend:
+//   { success: true, data: [{ label, count, pct, color }, ...] }
+app.get('/analytics/most-common-abuse-type', async (req, res) => {
+  try {
+    // Colors should match the frontend widget styling.
+    const colorMap = {
+      Domestic: process.env.ABUSE_COLOR_DOMESTIC || 'var(--primary)',
+      Harassment: process.env.ABUSE_COLOR_HARASSMENT || '#7B2D8B',
+      Bullying: process.env.ABUSE_COLOR_BULLYING || 'var(--info)',
+      Threats: process.env.ABUSE_COLOR_THREATS || 'var(--warn)',
+      Other: process.env.ABUSE_COLOR_OTHER || 'var(--text-muted)',
+    };
+
+    // Normalize incident types we expect.
+    // If Firestore has inconsistent naming, we map known variants.
+    const normalizeIncidentType = (raw) => {
+      if (!raw) return null;
+      const s = String(raw).trim().toLowerCase();
+      const map = [
+        { keys: ['domestic', 'domestic violence', 'dv'], label: 'Domestic' },
+        { keys: ['harassment', 'harass'], label: 'Harassment' },
+        { keys: ['bullying', 'bully'], label: 'Bullying' },
+        { keys: ['threats', 'threat', 'threatening'], label: 'Threats' },
+      ];
+      const found = map.find((m) => m.keys.includes(s));
+      return found?.label || null;
+    };
+
+    const reportsSnap = await db.collection('reports').get();
+
+    const counts = new Map();
+    let otherCount = 0;
+
+    reportsSnap.forEach((doc) => {
+      const data = doc.data() || {};
+      const normalized = normalizeIncidentType(data.incidentType);
+      if (normalized) counts.set(normalized, (counts.get(normalized) || 0) + 1);
+      else otherCount += 1;
+    });
+
+    const labelsInOrder = ['Domestic', 'Harassment', 'Bullying', 'Threats', 'Other'];
+
+    const total = labelsInOrder.reduce((acc, label) => {
+      if (label === 'Other') return acc + otherCount;
+      return acc + (counts.get(label) || 0);
+    }, 0);
+
+    const safeTotal = total || 1;
+
+    const data = labelsInOrder.map((label) => {
+      const count = label === 'Other' ? otherCount : (counts.get(label) || 0);
+      return {
+        key: label,
+        label,
+        count,
+        pct: (count / safeTotal) * 100,
+        color: colorMap[label] || 'var(--text-muted)',
+      };
+    });
+
+    // Sort within categories? For the widget we keep fixed order.
+    // If you want top-N sorting later, we can adjust.
+
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error('[analytics/most-common-abuse-type] failed:', err);
+    res.status(500).json({ success: false, data: [], error: err.message || 'Failed to load analytics' });
+  }
+});
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => console.log(`Server running on http://0.0.0.0:${PORT}`));
+
 
 
 
