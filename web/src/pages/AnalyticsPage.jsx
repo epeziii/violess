@@ -203,8 +203,9 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Charts */}
-      <div className="grid-2">
-        <div className="card analytics-card--stretch">
+      <div className="grid-2" style={{ alignItems: 'stretch' }}>
+        <div className="card analytics-card--stretch" style={{ width: '100%', minWidth: 0 }}>
+
           <div className="card-header">
             <span className="card-title">Monthly Cases ({new Date().getFullYear()})</span>
           </div>
@@ -239,8 +240,10 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div className="card">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, width: '100%' }}>
+
+          <div className="card" style={{ width: '100%' }}>
+
             <div className="card-header">
               <span className="card-title">Most Common Abuse Type</span>
             </div>

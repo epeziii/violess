@@ -1,8 +1,8 @@
-# TODO
-
-- [x] Inspect current Analytics page layout and identify where Age Group Affected and Most Common Abuse Type are rendered.
-- [x] Update charts layout so Age Group Affected card renders directly below Most Common Abuse Type card (stacked in the right column).
-- [x] Increase Monthly Cases card body height so it visually aligns with the combined height of the stacked right-column cards.
-- [x] Verify layout builds/runs (optional: run web build/dev).
+# TODO - Analytics right-side free space fix
+- [ ] Reproduce/identify cause of right-side free space after two-card row in AnalyticsPage.
+- [x] Update layout CSS for `.grid-2` and/or chart container to remove unused right padding/margin.
+- [x] Ensure both chart cards stretch to occupy full row width (100% of grid cells) without max-width limit restricting the second column.
+- [ ] Verify on desktop breakpoint and small screens.
+- [ ] Run frontend build/lint if available.
 
 

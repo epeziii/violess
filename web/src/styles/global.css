@@ -376,7 +376,12 @@ input[type="date"].form-input::-webkit-datetime-edit-fields-wrapper {
 .form-textarea { resize: vertical; min-height: 80px; }
 
 /* ── Grid Layouts ────────────────────────────────────────── */
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr;   gap: 16px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; width: 100%; }
+
+/* Keep grid columns stable; don’t force stretch to avoid affecting card sizing */
+.grid-2 > * { min-width: 0; }
+
+
 .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
 .grid-auto { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
 

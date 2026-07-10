@@ -73,13 +73,7 @@ export default function WelcomeScreen({ navigation }) {
           <Text style={styles.btnSecondaryText}>Create Account</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.btnAnon}
-          onPress={() => navigation.navigate('Anonymous')}
-          activeOpacity={0.88}
-        >
-          <Text style={styles.btnAnonText}>  Report Anonymously</Text>
-        </TouchableOpacity>
+
 
         <Text style={styles.footerNote}>
           By continuing, you agree to our Privacy Policy.{'\n'}
@@ -144,7 +138,12 @@ const styles = StyleSheet.create({
   pillText: { fontSize: 13, color: 'rgba(255,255,255,0.85)', fontWeight: '500' },
 
   ctaWrap: { gap: spacing.sm },
+
+  // Removed: Report Anonymously button from welcome screen
+  // btnAnon: {},
+
   btnPrimary: {
+
     backgroundColor: '#fff',
     borderRadius: radius.lg,
     paddingVertical: 15,
@@ -160,13 +159,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   btnSecondaryText: { fontSize: 15, fontWeight: '700', color: '#fff' },
-  btnAnon: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: radius.lg,
-    paddingVertical: 13,
-    alignItems: 'center',
-  },
-  btnAnonText: { fontSize: 14, fontWeight: '600', color: 'rgba(255,255,255,0.75)' },
+
   footerNote: {
     fontSize: 10,
     color: 'rgba(255,255,255,0.35)',
