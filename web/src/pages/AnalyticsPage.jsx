@@ -196,26 +196,31 @@ export default function AnalyticsPage() {
 
   const donut = useMemo(() => {
     const fallback = [
-      { key: 'women_18_35', label: 'Women 18–35', color: 'var(--primary)', pct: 38 },
-      { key: 'youth_13_17', label: 'Youth 13–17', color: '#6A1B9A', pct: 22 },
-      { key: 'children_lt_13', label: 'Children <13', color: 'var(--info)', pct: 16 },
-      { key: 'other', label: 'Other', color: '#F8F0F5', pct: 24 },
+      { key: 'women_18_35', label: 'Women 18–35', color: 'var(--primary)', pct: 38, count: 0 },
+      { key: 'youth_13_17', label: 'Youth 13–17', color: '#6A1B9A', pct: 22, count: 0 },
+      { key: 'children_lt_13', label: 'Children <13', color: 'var(--info)', pct: 16, count: 0 },
+      { key: 'other', label: 'Other', color: '#F8F0F5', pct: 24, count: 0 },
     ];
 
     const data = ageGroupData;
     if (!data || data.length === 0) return fallback;
 
-    const withPct = data.map((d) => ({
+    const withPctAndCount = data.map((d) => ({
       key: d.key || d.label,
       label: d.label,
       color: d.color,
-      pct: Number(d.pct) || 0,
+      // backend may send either `pct` or `percentage`
+      pct: Number(d.pct ?? d.percentage) || 0,
+      count: Number(d.count) || 0,
     }));
 
-    const sum = withPct.reduce((a, b) => a + b.pct, 0);
+    const sum = withPctAndCount.reduce((a, b) => a + b.pct, 0);
     if (sum <= 0) return fallback;
 
-    return withPct.map((d) => ({ ...d, pct: (d.pct / sum) * 100 }));
+    return withPctAndCount.map((d) => ({
+      ...d,
+      pct: (d.pct / sum) * 100,
+    }));
   }, [ageGroupData]);
 
   // Dynamic status items for stats grid
@@ -457,7 +462,9 @@ export default function AnalyticsPage() {
                       }}
                     />
                     <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--text-secondary)' }}>{l.label}</span>
-                    <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text)', marginLeft: 'auto' }}>{`${Math.round(l.pct)}%`}</span>
+                    <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text)', marginLeft: 'auto' }}>
+                      {`${l.count} (${Math.round(l.pct)}%)`}
+                    </span>
                   </div>
                 ))}
               </div>
