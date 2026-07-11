@@ -366,19 +366,29 @@ export default function AnalyticsPage() {
                 ) : abuseTypeData.length === 0 ? (
                   <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: '8px 0', textAlign: 'center' }}>No incident data available</div>
                 ) : (
-                  abuseTypeData.map((row) => (
-                    <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '11.5px', fontWeight: 650, color: 'var(--text-secondary)' }}>{row.label}</span>
-                        <span style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text)' }}>
-                          {row.count} <span style={{ fontWeight: 555, color: 'var(--text-muted)', fontSize: '10.5px' }}>({Math.round(row.pct)}%)</span>
-                        </span>
+                  abuseTypeData.map((row) => {
+                    const barGradients = {
+                      Domestic: 'linear-gradient(90deg, var(--primary) 0%, var(--primary-dark) 100%)',
+                      Harassment: 'linear-gradient(90deg, #7B2D8B 0%, #4A148C 100%)',
+                      Bullying: 'linear-gradient(90deg, var(--info) 0%, #0D47A1 100%)',
+                      Threats: 'linear-gradient(90deg, var(--warn) 0%, #E65100 100%)',
+                      Other: 'linear-gradient(90deg, var(--text-secondary) 0%, var(--text-muted) 100%)'
+                    };
+                    const barBg = barGradients[row.label] || 'linear-gradient(90deg, var(--text-secondary) 0%, var(--text-muted) 100%)';
+                    return (
+                      <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '11.5px', fontWeight: 650, color: 'var(--text-secondary)' }}>{row.label}</span>
+                          <span style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text)' }}>
+                            {row.count} <span style={{ fontWeight: 555, color: 'var(--text-muted)', fontSize: '10.5px' }}>({Math.round(row.pct)}%)</span>
+                          </span>
+                        </div>
+                        <div className="bar-track" style={{ height: 8, borderRadius: 4, width: '100%', border: 'none' }}>
+                          <div className="bar-fill" style={{ width: `${row.pct}%`, background: barBg, height: '100%', borderRadius: 4, boxShadow: 'none', padding: 0 }} />
+                        </div>
                       </div>
-                      <div className="bar-track" style={{ height: 8, borderRadius: 4, width: '100%', border: 'none' }}>
-                        <div className="bar-fill" style={{ width: `${row.pct}%`, background: row.color, height: '100%', borderRadius: 4, boxShadow: 'none', padding: 0 }} />
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
