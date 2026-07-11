@@ -367,12 +367,15 @@ export default function AnalyticsPage() {
                   <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: '8px 0', textAlign: 'center' }}>No incident data available</div>
                 ) : (
                   abuseTypeData.map((row) => (
-                    <div key={row.label} className="bar-row">
-                      <span className="bar-label">{row.label}</span>
-                      <div className="bar-track">
-                        <div className="bar-fill" style={{ width: `${row.pct}%`, background: row.color }}>
-                          {row.count}
-                        </div>
+                    <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '11.5px', fontWeight: 650, color: 'var(--text-secondary)' }}>{row.label}</span>
+                        <span style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text)' }}>
+                          {row.count} <span style={{ fontWeight: 555, color: 'var(--text-muted)', fontSize: '10.5px' }}>({Math.round(row.pct)}%)</span>
+                        </span>
+                      </div>
+                      <div className="bar-track" style={{ height: 8, borderRadius: 4, width: '100%', border: 'none' }}>
+                        <div className="bar-fill" style={{ width: `${row.pct}%`, background: row.color, height: '100%', borderRadius: 4, boxShadow: 'none', padding: 0 }} />
                       </div>
                     </div>
                   ))
@@ -385,7 +388,7 @@ export default function AnalyticsPage() {
             <div className="card-header">
               <span className="card-title">Age Group Affected</span>
             </div>
-            <div className="card-body" style={{ display: 'flex', gap: 24, alignItems: 'center', justifyContent: 'center', flex: 1 }}>
+            <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center', justifyContent: 'center', flex: 1, padding: '16px 20px 20px 20px' }}>
               <div style={{ width: 120, height: 120, position: 'relative', flexShrink: 0 }}>
                 {loadingAgeGroup ? (
                   <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: '120px', textAlign: 'center' }}>Loading...</div>
@@ -430,7 +433,7 @@ export default function AnalyticsPage() {
                 )}
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
                 {donut.map((l) => (
                   <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <div
@@ -443,8 +446,8 @@ export default function AnalyticsPage() {
                         border: l.color === '#F8F0F5' ? '1px solid #DDD' : 'none',
                       }}
                     />
-                    <span style={{ fontSize: 12, fontWeight: 550, color: 'var(--text-secondary)' }}>{l.label}</span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginLeft: 'auto' }}>{`${Math.round(l.pct)}%`}</span>
+                    <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--text-secondary)' }}>{l.label}</span>
+                    <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text)', marginLeft: 'auto' }}>{`${Math.round(l.pct)}%`}</span>
                   </div>
                 ))}
               </div>
