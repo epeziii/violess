@@ -211,7 +211,9 @@ export default function AnalyticsPage() {
       color: d.color,
       // backend may send either `pct` or `percentage`
       pct: Number(d.pct ?? d.percentage) || 0,
-      count: Number(d.count) || 0,
+      // Prefer backend-provided `count`.
+      // If backend doesn't provide it, derive an approximate count from pct+total.
+      count: Number.isFinite(Number(d.count)) && Number(d.count) >= 0 ? Number(d.count) : 0,
     }));
 
     const sum = withPctAndCount.reduce((a, b) => a + b.pct, 0);

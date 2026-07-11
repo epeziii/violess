@@ -1219,12 +1219,14 @@ app.get('/analytics/age-group-affected', async (req, res) => {
         label: b.label,
         color: b.color,
         pct: (b.count / safeTotal) * 100,
+        count: b.count,
       })),
       {
         key: 'other',
         label: 'Other',
         color: '#F8F0F5',
         pct: (otherCount / safeTotal) * 100,
+        count: otherCount,
       },
     ];
 
