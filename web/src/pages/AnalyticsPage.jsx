@@ -383,7 +383,7 @@ export default function AnalyticsPage() {
                             {row.count} <span style={{ fontWeight: 555, color: 'var(--text-muted)', fontSize: '10.5px' }}>({Math.round(row.pct)}%)</span>
                           </span>
                         </div>
-                        <div className="bar-track" style={{ height: 8, borderRadius: 4, width: '100%', border: 'none' }}>
+                        <div className="bar-track" style={{ height: 8, borderRadius: 4, width: '100%', border: 'none', flex: 'none', background: 'rgba(194, 24, 91, 0.05)' }}>
                           <div className="bar-fill" style={{ width: `${row.pct}%`, background: barBg, height: '100%', borderRadius: 4, boxShadow: 'none', padding: 0 }} />
                         </div>
                       </div>
