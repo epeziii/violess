@@ -16,7 +16,7 @@ import {
 import { db } from "../firebase";
 import { useAuth } from "../AuthContext";
 
-export default function CommunicationsPage() {
+export default function CommunicationsPage({ initialSelectedCaseId }) {
   const { user } = useAuth();
   const [selectedCase, setSelectedCase] = useState(null);
   const [msgs, setMsgs] = useState([]);
@@ -33,6 +33,7 @@ export default function CommunicationsPage() {
   const [scheduling, setScheduling] = useState(false);
   const [scheduleMessage, setScheduleMessage] = useState("");
   const [caseFilter, setCaseFilter] = useState("all");
+  const [caseSearchInput, setCaseSearchInput] = useState("");
   const [detailTab, setDetailTab] = useState("messages");
   const [quickActionOpen, setQuickActionOpen] = useState(false);
   const [caseDetailsModalOpen, setCaseDetailsModalOpen] = useState(false);
@@ -191,17 +192,41 @@ export default function CommunicationsPage() {
   };
 
   const getFilteredCases = () => {
-    if (caseFilter === "all") return assignedCases;
+    const searchTerm = (caseSearchInput || "").toLowerCase().trim();
+
+    const applySearch = (cases) => {
+      if (!searchTerm) return cases;
+      return cases.filter((c) => {
+        const id = (c.id || "").toString().toLowerCase();
+        const type = (c.type || "").toString().toLowerCase();
+        const reporter = (c.reporter || "").toString().toLowerCase();
+        const location = (c.location || "").toString().toLowerCase();
+        return (
+          id.includes(searchTerm) ||
+          type.includes(searchTerm) ||
+          reporter.includes(searchTerm) ||
+          location.includes(searchTerm)
+        );
+      });
+    };
+
+    let casesByFilter = assignedCases;
+
+    if (caseFilter === "all") {
+      return applySearch(casesByFilter);
+    }
 
     // Urgent cases are stored as a priority level, not as a status.
     if (caseFilter === "urgent") {
-      return assignedCases.filter((c) => {
+      casesByFilter = assignedCases.filter((c) => {
         const p = (c.priority ?? "").toString().trim().toLowerCase();
         return p === "urgent";
       });
+      return applySearch(casesByFilter);
     }
 
-    return assignedCases.filter((c) => c.status === caseFilter);
+    casesByFilter = assignedCases.filter((c) => c.status === caseFilter);
+    return applySearch(casesByFilter);
   };
 
   const getStatusDot = (status) => {
@@ -218,6 +243,20 @@ export default function CommunicationsPage() {
     setSelectedCaseDetails(caseItem);
     setCaseDetailsModalOpen(true);
   };
+
+  // Auto-select case when navigated from Notification modal.
+  useEffect(() => {
+    if (!initialSelectedCaseId) return;
+
+    if (!assignedCases || assignedCases.length === 0) return;
+
+    const match = assignedCases.find((c) => c.id === initialSelectedCaseId);
+    if (match) {
+      setSelectedCase(match);
+      setCaseFilter("all");
+      setDetailTab("messages");
+    }
+  }, [initialSelectedCaseId, assignedCases]);
 
   const closeCaseDetailsModal = () => {
     setCaseDetailsModalOpen(false);
@@ -468,8 +507,22 @@ export default function CommunicationsPage() {
               display: "flex",
               gap: 8,
               flexWrap: "wrap",
+              alignItems: "center",
             }}
           >
+            <input
+              className="form-input"
+              placeholder="Search cases..."
+              style={{
+                maxWidth: 220,
+                height: 34,
+                fontSize: 12.5,
+                flex: "1 1 180px",
+                minWidth: 160,
+              }}
+              value={caseSearchInput}
+              onChange={(e) => setCaseSearchInput(e.target.value)}
+            />
             {['all', 'urgent', 'reviewing', 'closed'].map((filter) => (
               <button
                 key={filter}

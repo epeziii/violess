@@ -5,7 +5,12 @@ import { db } from "../firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { useAuth } from "../AuthContext";
 
-export default function NotificationDropdown({ notifications, unreadCount, onMarkAsRead }) {
+export default function NotificationDropdown({
+  notifications,
+  unreadCount,
+  onMarkAsRead,
+  onNavigateToCommunications,
+}) {
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [notificationModalOpen, setNotificationModalOpen] = useState(false);
@@ -302,7 +307,11 @@ export default function NotificationDropdown({ notifications, unreadCount, onMar
                 className="btn btn-primary"
                 style={{ width: "100%" }}
                 onClick={() => {
+                  const caseId = selectedNotificationCase?.id;
                   closeNotificationModal();
+                  if (caseId && typeof onNavigateToCommunications === "function") {
+                    onNavigateToCommunications(caseId);
+                  }
                 }}
               >
                 <i className="fas fa-comment" style={{ marginRight: 6 }}></i> Message reporter

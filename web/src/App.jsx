@@ -30,6 +30,7 @@ const NAV = [
 function Shell() {
   const { user, logout, can, loading } = useAuth(); // ✅ include loading
   const [page, setPage] = useState("analytics");
+  const [pendingCommunicationsCaseId, setPendingCommunicationsCaseId] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const { notifications, unreadCount } = useNotifications(user?.uid);
@@ -50,7 +51,7 @@ function Shell() {
   const pages = {
     cases:     <ProtectedRoute permission="cases"><CasesPage /></ProtectedRoute>,
     referrals: <ReferralPage />,
-    comms:     <CommunicationsPage />,
+    comms:     <CommunicationsPage initialSelectedCaseId={pendingCommunicationsCaseId} />,
     analytics: <AnalyticsPage />,
     evidence:  <EvidenceStoragePage />,
     accounts:  <ProtectedRoute permission="accountManagement"><AccountManagementPage /></ProtectedRoute>,
@@ -179,6 +180,10 @@ function Shell() {
               notifications={notifications}
               unreadCount={unreadCount}
               onMarkAsRead={() => setNotifKey(k => k + 1)}
+              onNavigateToCommunications={(caseId) => {
+                setPendingCommunicationsCaseId(caseId);
+                setPage("comms");
+              }}
             />
           </div>
         </header>

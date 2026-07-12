@@ -1,11 +1,10 @@
 # TODO
 
-## Feature: show Assigned Date/Time for officer’s assigned cases (Web Communications)
-
-- [x] Update backend `/update-case` so when `assignedOfficer` changes it stores an `assignedAt` (Date/Firestore timestamp) on the case.
-- [x] Update `web/src/pages/CommunicationsPage.jsx` to display `assignedAt` (date + time) in the Assigned Cases list and case details modal.
-- [x] Ensure Firestore reads map `assignedAt` to the UI (handle both `Timestamp` and `Date`).
-- [ ] Run web lint/build/tests if available.
-
+## Notification modal → Communications navigation
+- [x] Inspect existing NotificationDropdown modal and CommunicationsPage selection logic
+- [x] Implement “Message reporter” button click to navigate to Communications
+- [x] Auto-select the matching assigned case in CommunicationsPage based on the notification’s caseId
+- [x] Wire props/state through App.jsx (NotificationDropdown → App page switch → CommunicationsPage)
+- [ ] Test end-to-end in web UI
 
 
