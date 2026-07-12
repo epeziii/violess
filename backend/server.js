@@ -234,7 +234,7 @@ app.post("/update-staff-status", async (req, res) => {
 // ─── UPDATE CASE (with officer assignment) ────────────────────────────
 app.post("/update-case", async (req, res) => {
   try {
-    const { uid, caseId, status, priorityLevel, assignedOfficer } = req.body;
+    const { uid, caseId, status, priorityLevel, assignedOfficer, assignedOfficerUid } = req.body;
     if (!uid || !caseId) return res.status(400).json({ error: "uid and caseId are required" });
 
     // Verify user is admin
@@ -257,84 +257,113 @@ app.post("/update-case", async (req, res) => {
     }
 
     const caseData = caseSnap.data();
-    const oldAssignedOfficer = caseData.assignedOfficer || "";
-    const newAssignedOfficer = assignedOfficer || "";
+
+    // Canonical fields (recommended): assignedOfficerUid + assignedOfficer
+    // Backward compat: if assignedOfficerUid isn't provided, we fall back to name-based assignment.
+    const oldAssignedOfficerUid = caseData.assignedOfficerUid || null;
+    const newAssignedOfficerUid = assignedOfficerUid || null;
+
+    const oldAssignedOfficerName = caseData.assignedOfficer || "";
+    const newAssignedOfficerName = assignedOfficer || "";
 
     // Update the case
     const updateData = {};
     if (status !== undefined) updateData.status = status;
     if (priorityLevel !== undefined) updateData.priorityLevel = priorityLevel;
+    // Canonical assignment
+    if (assignedOfficerUid !== undefined) updateData.assignedOfficerUid = assignedOfficerUid || "";
+
+    // Keep name field for backward compat + UI display (optional). Prefer uid as source of truth.
     if (assignedOfficer !== undefined) updateData.assignedOfficer = assignedOfficer || "";
     updateData.updatedAt = new Date();
 
     // Handle officer assignment changes
-    if (oldAssignedOfficer !== newAssignedOfficer) {
+    // Prefer uid diff; if uid not present, fall back to name diff for old behavior.
+    const hasUidChange = oldAssignedOfficerUid !== newAssignedOfficerUid;
+    const hasNameChange = oldAssignedOfficerName !== newAssignedOfficerName;
+
+    if (hasUidChange || hasNameChange) {
       // When assigned officer changes, record assignment timestamp
-      if (newAssignedOfficer) {
+      const hasNewOfficer = !!(assignedOfficerUid !== undefined ? newAssignedOfficerUid : newAssignedOfficerName);
+      if (hasNewOfficer) {
         updateData.assignedAt = new Date();
       } else {
         updateData.assignedAt = null;
       }
 
       // Decrement old officer's case count and send reassignment notification
-      if (oldAssignedOfficer) {
-        const staffSnapshot = await db.collection("staff").where("firstName", "!=", "").get();
-        let oldOfficerFound = false;
+      if (oldAssignedOfficerUid || oldAssignedOfficerName) {
+        let oldOfficerUid = oldAssignedOfficerUid;
 
-        for (const doc of staffSnapshot.docs) {
-          const staffData = doc.data();
-          const fullName = `${staffData.firstName} ${staffData.lastName}`.trim();
-          if (fullName === oldAssignedOfficer) {
-            const newCount = Math.max(0, (staffData.cases || 0) - 1);
-            await db.collection("staff").doc(doc.id).update({ cases: newCount });
-
-            // Send reassignment notification to old officer
-            await createNotification(
-              doc.id,
-              "case_reassigned",
-              "Case Reassigned",
-              `Case #${caseData.caseId} has been reassigned to another officer`,
-              caseId,
-              {
-                caseId: caseData.caseId,
-                incidentType: caseData.incidentType,
-                priorityLevel: caseData.priorityLevel
-              }
-            );
-            oldOfficerFound = true;
-            break;
+        // Backward compat: resolve uid from name if needed
+        if (!oldOfficerUid && oldAssignedOfficerName) {
+          const staffSnapshot = await db.collection("staff").where("firstName", "!=", "").get();
+          for (const doc of staffSnapshot.docs) {
+            const staffData = doc.data();
+            const fullName = `${staffData.firstName} ${staffData.lastName}`.trim();
+            if (fullName === oldAssignedOfficerName) {
+              oldOfficerUid = doc.id;
+              break;
+            }
           }
+        }
+
+        if (oldOfficerUid) {
+          const oldStaffSnap = await db.collection("staff").doc(oldOfficerUid).get();
+          const oldStaffData = oldStaffSnap.data() || {};
+          const newCount = Math.max(0, (oldStaffData.cases || 0) - 1);
+          await db.collection("staff").doc(oldOfficerUid).update({ cases: newCount });
+
+          await createNotification(
+            oldOfficerUid,
+            "case_reassigned",
+            "Case Reassigned",
+            `Case #${caseData.caseId} has been reassigned to another officer`,
+            caseId,
+            {
+              caseId: caseData.caseId,
+              incidentType: caseData.incidentType,
+              priorityLevel: caseData.priorityLevel
+            }
+          );
         }
       }
 
       // Increment new officer's case count and send notification
-      if (newAssignedOfficer) {
-        const staffSnapshot = await db.collection("staff").where("firstName", "!=", "").get();
-        let newOfficerFound = false;
+      if (newAssignedOfficerUid || newAssignedOfficerName) {
+        let newOfficerUid = newAssignedOfficerUid;
 
-        for (const doc of staffSnapshot.docs) {
-          const staffData = doc.data();
-          const fullName = `${staffData.firstName} ${staffData.lastName}`.trim();
-          if (fullName === newAssignedOfficer) {
-            const newCount = (staffData.cases || 0) + 1;
-            await db.collection("staff").doc(doc.id).update({ cases: newCount });
-
-            // Create notification for the assigned officer
-            await createNotification(
-              doc.id,
-              "case_assigned",
-              "Case Assigned",
-              `You have been assigned to case #${caseData.caseId}`,
-              caseId,
-              {
-                caseId: caseData.caseId,
-                incidentType: caseData.incidentType,
-                priorityLevel: status || caseData.priorityLevel
-              }
-            );
-            newOfficerFound = true;
-            break;
+        // Backward compat: resolve uid from name if needed
+        if (!newOfficerUid && newAssignedOfficerName) {
+          const staffSnapshot = await db.collection("staff").where("firstName", "!=", "").get();
+          for (const doc of staffSnapshot.docs) {
+            const staffData = doc.data();
+            const fullName = `${staffData.firstName} ${staffData.lastName}`.trim();
+            if (fullName === newAssignedOfficerName) {
+              newOfficerUid = doc.id;
+              break;
+            }
           }
+        }
+
+        if (newOfficerUid) {
+          const newStaffSnap = await db.collection("staff").doc(newOfficerUid).get();
+          const newStaffData = newStaffSnap.data() || {};
+          const newCount = (newStaffData.cases || 0) + 1;
+          await db.collection("staff").doc(newOfficerUid).update({ cases: newCount });
+
+          await createNotification(
+            newOfficerUid,
+            "case_assigned",
+            "Case Assigned",
+            `You have been assigned to case #${caseData.caseId}`,
+            caseId,
+            {
+              caseId: caseData.caseId,
+              incidentType: caseData.incidentType,
+              priorityLevel: status || caseData.priorityLevel
+            }
+          );
         }
       }
     }
@@ -417,10 +446,19 @@ app.post("/submit-resolution", async (req, res) => {
 
     const caseData = caseSnap.data();
 
-    // Verify officer is assigned to case
-    const officerFullName = `${staffData.firstName} ${staffData.lastName}`.trim();
-    if (caseData.assignedOfficer !== officerFullName) {
-      return res.status(403).json({ error: "Unauthorized: you are not assigned to this case" });
+    // Verify officer is assigned to case (canonical: assignedOfficerUid)
+    const caseOfficerUid = caseData.assignedOfficerUid || null;
+
+    if (caseOfficerUid) {
+      if (caseOfficerUid !== uid) {
+        return res.status(403).json({ error: "Unauthorized: you are not assigned to this case" });
+      }
+    } else {
+      // Backward compat: fallback to name string match
+      const officerFullName = `${staffData.firstName} ${staffData.lastName}`.trim();
+      if (caseData.assignedOfficer !== officerFullName) {
+        return res.status(403).json({ error: "Unauthorized: you are not assigned to this case" });
+      }
     }
 
     // Create resolution document
