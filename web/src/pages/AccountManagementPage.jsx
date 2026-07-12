@@ -40,6 +40,7 @@ function splitFullName(fullName) {
 
 
 
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 function StatCards({ accounts }) {
   const total     = accounts.length;
@@ -206,7 +207,6 @@ onChange={e => set("fullName", toTitleCaseName(e.target.value))}
 // ─── EditModal ───────────────────────────────────────────────────────────────
 function EditModal({ account, onClose, refreshAccounts }) {
   const [form, setForm] = useState({
-    fullName: account.fullName || `${account.firstName || ""} ${account.lastName || ""}`.trim(),
     role: account.role,
     status: account.status,
   });
@@ -214,14 +214,11 @@ function EditModal({ account, onClose, refreshAccounts }) {
 
   const handleSave = async () => {
     try {
-      const nameData = splitFullName(form.fullName);
       const res = await fetch(`${API_BASE_URL}/update-staff`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           uid: account.id,
-          ...nameData,
-          fullName: nameData.fullName,
           role: form.role,
           status: form.status,
         }),
@@ -246,17 +243,6 @@ function EditModal({ account, onClose, refreshAccounts }) {
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
         <div className="modal-body">
-          <div className="form-row">
-            <div className="form-group span-2">
-              <label>Full name</label>
-              <input
-                className="form-input"
-                placeholder="Enter full name"
-                value={form.fullName}
-                onChange={e => set("fullName", e.target.value)}
-              />
-            </div>
-          </div>
           <div className="form-row">
             <div className="form-group">
               <label>Role</label>
@@ -285,6 +271,7 @@ function EditModal({ account, onClose, refreshAccounts }) {
     </div>
   );
 }
+
 
 function ConfirmModal({ type, account, onClose, refreshAccounts }) {
   const isSuspend = type === "suspend";

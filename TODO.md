@@ -1,10 +1,4 @@
-# TODO
-
-## Notification modal → Communications navigation
-- [x] Inspect existing NotificationDropdown modal and CommunicationsPage selection logic
-- [x] Implement “Message reporter” button click to navigate to Communications
-- [x] Auto-select the matching assigned case in CommunicationsPage based on the notification’s caseId
-- [x] Wire props/state through App.jsx (NotificationDropdown → App page switch → CommunicationsPage)
-- [ ] Test end-to-end in web UI
-
-
+- [x] Remove "Full name" input from Edit Staff Account modal in web/src/pages/AccountManagementPage.jsx
+- [x] Update edit submission payload to no longer send fullName/firstName/lastName
+- [x] Keep UI consistent (modal fields: role + status only)
+- [x] Run web lint/build to verify no errors
