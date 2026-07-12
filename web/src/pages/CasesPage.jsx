@@ -69,6 +69,7 @@ export default function CasesPage() {
   const [selectedCase, setSelectedCase] = useState(null);
   const [status, setStatus] = useState("reviewing");
   const [assignedOfficer, setAssignedOfficer] = useState("");
+  const [assignedOfficerUid, setAssignedOfficerUid] = useState("");
   const [priorityLevel, setPriorityLevel] = useState("normal");
   const [note, setNote] = useState("");
   const [searchInput, setSearchInput] = useState("");
@@ -128,6 +129,7 @@ export default function CasesPage() {
           incidentDateTime: formatIncidentDateTime(doc.data().datetime),
           priority: doc.data().priorityLevel || "normal",
           assignedOfficer: doc.data().assignedOfficer || "",
+          assignedOfficerUid: doc.data().assignedOfficerUid || "",
           description: doc.data().description || "",
           suspectDescription: doc.data().suspectDescription || "",
           createdAt: doc.data().createdAt,
@@ -222,6 +224,7 @@ export default function CasesPage() {
     setSelectedCase(caseData);
     setStatus(caseData.status);
     setAssignedOfficer(caseData.assignedOfficer || "");
+    setAssignedOfficerUid(caseData.assignedOfficerUid || "");
     setPriorityLevel(caseData.priority || "normal");
   };
 
@@ -347,6 +350,7 @@ export default function CasesPage() {
           status: status,
           priorityLevel: priorityLevel,
           assignedOfficer: assignedOfficer || "",
+          assignedOfficerUid: assignedOfficerUid || "",
         }),
       });
 
