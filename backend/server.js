@@ -108,9 +108,20 @@ app.post("/delete-evidence", async (req, res) => {
   }
 });
 
+function toTitleCaseName(input) {
+  const normalized = (input || "").trim().replace(/\s+/g, " ");
+  if (!normalized) return "";
+
+  return normalized
+    .split(" ")
+    .filter(Boolean)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ");
+}
+
 function splitName(fullName) {
   if (typeof fullName !== "string") return { firstName: "", lastName: "", fullName: "" };
-  const normalized = fullName.trim().replace(/\s+/g, " ");
+  const normalized = toTitleCaseName(fullName);
   const parts = normalized.split(" ").filter(Boolean);
   if (parts.length === 0) return { firstName: "", lastName: "", fullName: "" };
   if (parts.length === 1) return { firstName: parts[0], lastName: "", fullName: parts[0] };
@@ -121,6 +132,7 @@ function splitName(fullName) {
   };
 }
 
+
 // ─── CREATE STAFF ACCOUNT ──────────────────────────────────────────────
 app.post("/create-staff", async (req, res) => {
   try {
@@ -130,14 +142,19 @@ app.post("/create-staff", async (req, res) => {
 
     let resolvedFirstName = firstName || nameFromFull.firstName;
     let resolvedLastName = lastName || nameFromFull.lastName;
-    let resolvedFullName = (fullName || "").trim();
+let resolvedFullName = (fullName || "").trim();
+    resolvedFullName = toTitleCaseName(resolvedFullName);
 
     if (!resolvedFirstName && staffUsername) {
+
       resolvedFirstName = String(staffUsername).replace(/\d+$/, "");
     }
-    if (!resolvedFullName) {
+if (!resolvedFullName) {
       resolvedFullName = `${resolvedFirstName || ""} ${resolvedLastName || ""}`.trim();
     }
+
+    resolvedFullName = toTitleCaseName(resolvedFullName);
+
 
     const missing = [];
     if (!staffUsername) missing.push("username or email");
@@ -185,8 +202,10 @@ app.post("/update-staff", async (req, res) => {
     const { uid, firstName, lastName, fullName, role, status } = req.body;
     if (!uid || !role || !status) return res.status(400).json({ error: "All fields are required" });
 
-    const nameFromFull = splitName(fullName || "");
-    const updateData = { role, status, fullName: fullName?.trim() || `${firstName || nameFromFull.firstName} ${lastName || nameFromFull.lastName}`.trim() };
+const nameFromFull = splitName(fullName || "");
+    const rawFull = fullName?.trim() || `${firstName || nameFromFull.firstName} ${lastName || nameFromFull.lastName}`.trim();
+    const updateData = { role, status, fullName: toTitleCaseName(rawFull) };
+
     if (firstName || nameFromFull.firstName) updateData.firstName = firstName || nameFromFull.firstName;
     if (lastName || nameFromFull.lastName) updateData.lastName = lastName || nameFromFull.lastName;
 

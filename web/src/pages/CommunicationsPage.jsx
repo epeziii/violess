@@ -406,7 +406,7 @@ export default function CommunicationsPage({ initialSelectedCaseId }) {
                       padding: "12px",
                     }}
                   >
-                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8 }}>Location</div>
+Incident Location
                     <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{selectedCaseDetails.location}</div>
                   </div>
                   <div

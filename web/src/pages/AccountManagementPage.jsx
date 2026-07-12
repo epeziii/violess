@@ -13,8 +13,21 @@ const STATUS_CLASS = { active: "badge-active", inactive: "badge-inactive", suspe
 const AVATAR_COLOR = { pink: "av-pink", blue: "av-blue", green: "av-green", purple: "av-purple", amber: "av-amber" };
 const EMPTY_FORM = { fullName: "", username: "", role: "", password: "", confirmPassword: "" };
 
+function toTitleCaseName(input) {
+  const normalized = (input || "").trim().replace(/\s+/g, " ");
+  if (!normalized) return "";
+
+  // Title Case each word: "dela" -> "Dela", "CRUZ" -> "Cruz"
+  return normalized
+    .split(" ")
+    .filter(Boolean)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ");
+}
+
 function splitFullName(fullName) {
-  const normalized = (fullName || "").trim().replace(/\s+/g, " ");
+  const titleCased = toTitleCaseName(fullName);
+  const normalized = titleCased.trim().replace(/\s+/g, " ");
   const parts = normalized.split(" ").filter(Boolean);
 
   if (parts.length === 0) return { firstName: "", lastName: "", fullName: "" };
@@ -24,6 +37,7 @@ function splitFullName(fullName) {
   const firstName = parts.slice(0, -1).join(" ");
   return { firstName, lastName, fullName: normalized };
 }
+
 
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -145,7 +159,7 @@ function CreateModal({ onClose, refreshAccounts }) {
               className="form-input"
               placeholder="Enter full name"
               value={form.fullName}
-              onChange={e => set("fullName", e.target.value)}
+onChange={e => set("fullName", toTitleCaseName(e.target.value))}
             />
           </div>
           <div className="form-group">

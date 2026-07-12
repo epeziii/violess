@@ -199,7 +199,8 @@ export default function CasesPage() {
       c.id.toLowerCase().includes(searchTerm) ||
       c.type.toLowerCase().includes(searchTerm) ||
       c.reporter.toLowerCase().includes(searchTerm) ||
-      c.location.toLowerCase().includes(searchTerm);
+      (c.assignedOfficer || "").toLowerCase().includes(searchTerm);
+
 
     // Status/Priority filter
     let matchesFilter = filterType === 'all';
@@ -595,7 +596,8 @@ export default function CasesPage() {
                 {renderSortHeader("Case ID", "id")}
                 {renderSortHeader("Type", "type")}
                 {renderSortHeader("Reporter", "reporter")}
-                {renderSortHeader("Location", "location")}
+                {renderSortHeader("Assigned to", "assignedOfficer")}
+
                 {renderSortHeader("Status", "status")}
                 {renderSortHeader("Priority", "priority")}
                 {renderSortHeader("Date Filed", "date")}
@@ -621,7 +623,8 @@ export default function CasesPage() {
                     <td className="bold">{c.id}</td>
                     <td>{c.type}</td>
                     <td>{c.reporter}</td>
-                    <td>{c.location}</td>
+                    <td>{c.assignedOfficer || "Unassigned"}</td>
+
                     <td><Badge status={c.status} /></td>
                     <td>
                       <span style={{ fontSize: '11px', fontWeight: '700', textTransform: 'capitalize', padding: '3px 8px', borderRadius: '12px', backgroundColor: c.priority === 'urgent' ? 'var(--sos-light)' : c.priority === 'high' ? 'var(--warn-light)' : 'var(--safe-light)', color: c.priority === 'urgent' ? 'var(--sos)' : c.priority === 'high' ? 'var(--warn)' : 'var(--safe)', border: `0.5px solid ${c.priority === 'urgent' ? 'rgba(198,40,40,0.2)' : c.priority === 'high' ? 'rgba(230,81,0,0.2)' : 'rgba(0,105,92,0.2)'}`, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
@@ -702,7 +705,7 @@ export default function CasesPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 12, padding: 14, backgroundColor: 'var(--bg)', borderRadius: 'var(--radius-lg)', border: '0.5px solid var(--border)' }}>
                   {[{ icon: 'user', bg: 'var(--primary-light)', color: 'var(--primary)', label: 'Reporter', val: selectedCase.reporter },
                   { icon: 'calendar', bg: 'var(--accent-light)', color: 'var(--accent)', label: 'Date Filed', val: selectedCase.date },
-                  { icon: 'location-dot', bg: 'var(--sos-light)', color: 'var(--sos)', label: 'Location', val: selectedCase.location },
+{ icon: 'location-dot', bg: 'var(--sos-light)', color: 'var(--sos)', label: 'Incident Location', val: selectedCase.location },
                   { icon: 'user-tie', bg: 'var(--safe-light)', color: 'var(--safe)', label: 'Assigned To', val: assignedOfficer || 'Unassigned' }
                   ].map(item => (
                     <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
