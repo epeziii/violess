@@ -44,21 +44,25 @@ export default function CommunicationsPage() {
     const q = query(collection(db, "reports"), where("assignedOfficer", "==", officerName));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const cases = snapshot.docs.map((doc) => ({
-        id: doc.data().caseId,
-        type: doc.data().incidentType,
-        reporter: doc.data().reporterName,
-        status: doc.data().status || "pending",
-        priority: doc.data().priorityLevel || "normal",
-        docId: doc.id,
-        uid: doc.data().uid,
-        location: doc.data().location || "N/A",
-        datetime: doc.data().datetime || "",
-        description: doc.data().description || "",
-        suspectDescription: doc.data().suspectDescription || "",
-        assignedOfficer: doc.data().assignedOfficer || "",
-        createdAt: doc.data().createdAt || "",
-      }));
+        const cases = snapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: data.caseId,
+          type: data.incidentType,
+          reporter: data.reporterName,
+          status: data.status || "pending",
+          priority: data.priorityLevel || "normal",
+          docId: doc.id,
+          uid: data.uid,
+          location: data.location || "N/A",
+          datetime: data.datetime || "",
+          description: data.description || "",
+          suspectDescription: data.suspectDescription || "",
+          assignedOfficer: data.assignedOfficer || "",
+          createdAt: data.createdAt || "",
+          assignedAt: data.assignedAt || null,
+        };
+      });
       setAssignedCases(cases);
       setLoadingCases(false);
     });
@@ -332,6 +336,13 @@ export default function CommunicationsPage() {
                     <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
                       {selectedCaseDetails.assignedOfficer || "Unassigned"}
                     </div>
+                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 8 }}>
+                      Assigned at: {selectedCaseDetails.assignedAt
+                        ? (selectedCaseDetails.assignedAt.toDate
+                          ? selectedCaseDetails.assignedAt.toDate().toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true })
+                          : new Date(selectedCaseDetails.assignedAt).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true }))
+                        : "Not recorded"}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -539,6 +550,13 @@ export default function CommunicationsPage() {
                       </div>
                       <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 6 }}>
                         {caseItem.reporter}
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6 }}>
+                        Assigned: {caseItem.assignedAt
+                          ? (caseItem.assignedAt.toDate
+                            ? caseItem.assignedAt.toDate().toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true })
+                            : new Date(caseItem.assignedAt).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true }))
+                          : "Not recorded"}
                       </div>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                         <span

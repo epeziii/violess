@@ -250,6 +250,13 @@ app.post("/update-case", async (req, res) => {
 
     // Handle officer assignment changes
     if (oldAssignedOfficer !== newAssignedOfficer) {
+      // When assigned officer changes, record assignment timestamp
+      if (newAssignedOfficer) {
+        updateData.assignedAt = new Date();
+      } else {
+        updateData.assignedAt = null;
+      }
+
       // Decrement old officer's case count and send reassignment notification
       if (oldAssignedOfficer) {
         const staffSnapshot = await db.collection("staff").where("firstName", "!=", "").get();
