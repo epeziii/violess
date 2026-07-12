@@ -82,9 +82,16 @@ export default function CasesPage() {
   const [approvalComments, setApprovalComments] = useState("");
   const [approving, setApproving] = useState(false);
   const [rejecting, setRejecting] = useState(false);
-  const [actionMode, setActionMode] = useState("none"); // "none", "update", "resolution"
+  const [actionMode, setActionMode] = useState("update"); // default to "update" (settings tab)
   const [evidence, setEvidence] = useState([]);
   const [messages, setMessages] = useState([]);
+
+  // Sorting and Pagination states
+  const [sortField, setSortField] = useState("date");
+  const [sortDirection, setSortDirection] = useState("desc");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
 
   useEffect(() => {
     // Check and notify admin about any new cases on page load
@@ -216,6 +223,112 @@ export default function CasesPage() {
     setAssignedOfficer(caseData.assignedOfficer || "");
     setPriorityLevel(caseData.priority || "normal");
   };
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
+  const getPriorityWeight = (priority) => {
+    if (priority === "urgent") return 3;
+    if (priority === "high") return 2;
+    if (priority === "normal") return 1;
+    return 0;
+  };
+
+  const getStatusWeight = (status) => {
+    switch (status) {
+      case "urgent": return 5;
+      case "pending": return 4;
+      case "reviewing": return 3;
+      case "referred": return 2;
+      case "resolved": return 1;
+      case "closed": return 0;
+      default: return 0;
+    }
+  };
+
+  // Sort filtered reports
+  const sortedReports = [...filteredReports].sort((a, b) => {
+    let valA = a[sortField];
+    let valB = b[sortField];
+
+    if (sortField === "date") {
+      valA = a.createdAt?.toDate?.() || new Date(a.createdAt || 0);
+      valB = b.createdAt?.toDate?.() || new Date(b.createdAt || 0);
+    } else if (sortField === "priority") {
+      valA = getPriorityWeight(a.priority);
+      valB = getPriorityWeight(b.priority);
+    } else if (sortField === "status") {
+      valA = getStatusWeight(a.status);
+      valB = getStatusWeight(b.status);
+    }
+
+    if (valA === valB) return 0;
+    if (valA == null) return 1;
+    if (valB == null) return -1;
+
+    let comparison = 0;
+    if (valA instanceof Date && valB instanceof Date) {
+      comparison = valA - valB;
+    } else if (typeof valA === "string" && typeof valB === "string") {
+      comparison = valA.localeCompare(valB);
+    } else {
+      comparison = valA > valB ? 1 : -1;
+    }
+
+    return sortDirection === "asc" ? comparison : -comparison;
+  });
+
+  const totalPages = Math.ceil(sortedReports.length / rowsPerPage) || 1;
+
+  // Reset page if it exceeds total pages
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(1);
+    }
+  }, [sortedReports.length, rowsPerPage, totalPages, currentPage]);
+
+  const startIndex = (currentPage - 1) * rowsPerPage;
+  const endIndex = Math.min(startIndex + rowsPerPage, sortedReports.length);
+  const paginatedReports = sortedReports.slice(startIndex, startIndex + rowsPerPage);
+
+  const renderSortHeader = (label, field) => {
+    const isSorted = sortField === field;
+    return (
+      <th
+        onClick={() => handleSort(field)}
+        style={{
+          position: "sticky",
+          top: 0,
+          background: "#FDFAFC",
+          zIndex: 10,
+          cursor: "pointer",
+          userSelect: "none",
+          transition: "background-color 0.2s",
+          boxShadow: "inset 0 -1.5px 0 var(--border)",
+          padding: "10px 16px"
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "rgba(194, 24, 91, 0.04)" }}
+        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "#FDFAFC" }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span>{label}</span>
+          <Icon
+            icon={isSorted ? (sortDirection === "asc" ? "arrow-up" : "arrow-down") : "sort"}
+            size="10px"
+            color={isSorted ? "var(--primary)" : "var(--text-muted)"}
+            style={{ opacity: isSorted ? 1 : 0.4 }}
+          />
+        </div>
+      </th>
+    );
+  };
+
 
   const handleSaveChanges = async () => {
     if (!selectedCase || !selectedCase.docId) {
@@ -453,318 +566,285 @@ export default function CasesPage() {
           </div>
         ))}
       </div>
-      <div className="grid-2" style={{ alignItems: 'start' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Case detail */}
-          <div className="card">
-            <div className="card-header">
-              <span className="card-title">{selectedCase ? `${selectedCase.id} — ${selectedCase.type}` : "Case Details"}</span>
-              {selectedCase && <Badge status={selectedCase.status} />}
-            </div>
-          <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {selectedCase ? (
-                <>
-                  <div className="grid-2">
-                    <div><div className="form-label">Reporter</div><div style={{ fontSize: 13, fontWeight: 600 }}>{selectedCase.reporter}</div></div>
-                    <div><div className="form-label">Date Filed</div><div style={{ fontSize: 13, fontWeight: 600 }}>{selectedCase.date}</div></div>
-
-                    <div><div className="form-label">Location</div><div style={{ fontSize: 13, fontWeight: 600 }}>{selectedCase.location}</div></div>
-                    <div><div className="form-label">Assigned To</div><div style={{ fontSize: 13, fontWeight: 600 }}>{assignedOfficer || "Unassigned"}</div></div>
-                    <div><div className="form-label">Date & Time of Incident</div><div style={{ fontSize: 13, fontWeight: 600 }}>{selectedCase.incidentDateTime || "Not recorded"}</div></div>
-                  </div>
-                  <div>
-                    <div className="form-label">Incident Description</div>
-                    <div style={{ background: 'var(--bg)', borderRadius: 'var(--radius-md)', padding: '10px 12px', fontSize: 12, color: 'var(--text)', lineHeight: 1.6, border: '0.5px solid var(--border)' }}>
-                      {selectedCase.description}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="form-label">Suspect Description</div>
-                    <div style={{ background: 'var(--bg)', borderRadius: 'var(--radius-md)', padding: '10px 12px', fontSize: 12, color: 'var(--text)', lineHeight: 1.6, border: '0.5px solid var(--border)' }}>
-                      {selectedCase.suspectDescription || "Not recorded"}
-                    </div>
-                  </div>
-                  {evidence.length > 0 && (
-                    <div>
-                      <div className="form-label">Evidence Files</div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        {evidence.map((file) => (
-                          <div key={file.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', backgroundColor: 'var(--bg)', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--border)' }}>
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>📎 {file.fileName}</div>
-                              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Uploaded by {file.uploadedBy}</div>
-                            </div>
-                            <a
-                              href={file.fileUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{
-                                padding: '6px 12px',
-                                backgroundColor: 'var(--primary)',
-                                color: 'white',
-                                borderRadius: '4px',
-                                textDecoration: 'none',
-                                fontSize: 12,
-                                fontWeight: 600
-                              }}
-                            >
-                              View
-                            </a>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {messages.length > 0 && (
-                    <div>
-                      <div className="form-label">Chat Messages</div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 300, overflowY: 'auto', backgroundColor: 'var(--bg)', borderRadius: 'var(--radius-md)', padding: 12, border: '0.5px solid var(--border)' }}>
-                        {messages.map((msg) => {
-                          const isFileMsg = msg.fileUrl && msg.text.includes('📎');
-                          return (
-                            <div key={msg.id} style={{ paddingBottom: 8, borderBottom: '0.5px solid var(--border)' }}>
-                              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
-                                {msg.reporterName}
-                              </div>
-                              <div style={{ fontSize: 12, color: 'var(--text)' }}>
-                                {msg.text}
-                              </div>
-                              {isFileMsg && msg.fileUrl && (
-                                <a
-                                  href={msg.fileUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  style={{
-                                    display: 'inline-block',
-                                    marginTop: 6,
-                                    padding: '4px 10px',
-                                    backgroundColor: 'var(--primary)',
-                                    color: 'white',
-                                    borderRadius: '4px',
-                                    textDecoration: 'none',
-                                    fontSize: 11,
-                                    fontWeight: 600
-                                  }}
-                                >
-                                  [View Evidence]
-                                </a>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <button className="btn btn-ghost btn-sm">Refer Case</button>
-                  </div>
-                </>
-              ) : (
-                <div style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: '20px' }}>Select a case to view details</div>
-              )}
-            </div>
-          </div>
-
-          {/* Case Notes */}
-          
+      {/* Reports table - full width */}
+      <div className="card" style={{ marginTop: 20 }}>
+        <div className="card-header">
+          <span className="card-title">Reports</span>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>Click a row to view details</span>
         </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Case Actions - Consolidated with Dropdown */}
-          <div className="card">
-            <div className="card-header">
-              <span className="card-title">Case Actions</span>
-            </div>
-            <div className="card-body">
-              {selectedCase ? (
-                <>
-                  <div className="form-group">
-                    <label className="form-label">Select Action</label>
-<select
-                      className="form-select"
-                      value={actionMode}
-                      onChange={(e) => setActionMode(e.target.value)}
-                    >
-                      <option value="none">-- Select Action --</option>
-                      <option value="update">Update Case</option>
-                      <option value="resolution">Resolution Approvals</option>
-                    </select>
-                  </div>
-
-                  {actionMode === "update" && (
-                    <>
-                      <div className="form-group">
-                        <label className="form-label">Case Status</label>
-                        <select className="form-select" value={status} onChange={e => setStatus(e.target.value)}>
-                          <option value="pending">Pending</option>
-                          <option value="reviewing">Under Review</option>
-                          <option value="referred">Referred</option>
-                          <option value="resolved">Resolved</option>
-                          <option value="closed">Case Closed</option>
-                        </select>
-                      </div>
-<div className="form-group">
-                        <label className="form-label">Assign Officer</label>
-                        <select className="form-select" value={assignedOfficer} onChange={e => setAssignedOfficer(e.target.value)} disabled={status === "pending"} style={status === "pending" ? { opacity: 0.5, cursor: "not-allowed", backgroundColor: "var(--bg)" } : {}}>
-                          <option value="">-- Unassigned --</option>
-                          {officers.map((officer) => (
-                            <option key={officer.id} value={officer.name}>{officer.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="form-group">
-                        <label className="form-label">Priority Level</label>
-                        <select className="form-select" value={priorityLevel} onChange={e => setPriorityLevel(e.target.value)}>
-                          <option value="normal">Normal</option>
-                          <option value="high">High</option>
-                          <option value="urgent">Urgent</option>
-                        </select>
-                      </div>
-                      <button className="btn btn-primary" style={{ width: '100%' }} onClick={handleSaveChanges}>Save Changes</button>
-                    </>
-                  )}
-
-                  {actionMode === "resolution" && (
-                    <>
-                      <div style={{ marginBottom: 16 }}>
-                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>Submitted By</div>
-                        <div style={{ fontSize: 13, fontWeight: 600 }}>{pendingResolution?.submittedByName}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                          {pendingResolution?.submittedAt?.toDate ? pendingResolution.submittedAt.toDate().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'N/A'}
-                        </div>
-                      </div>
-
-                      <div style={{ marginBottom: 16, padding: 12, backgroundColor: 'var(--bg)', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--border)' }}>
-                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>Officer's Summary</div>
-                        <div style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{pendingResolution?.notes}</div>
-                      </div>
-
-                      <div className="form-group">
-                        <label className="form-label">Your Review Comments (Optional)</label>
-                        <textarea
-                          className="form-input"
-                          placeholder="Comments visible to officer if rejected..."
-                          value={approvalComments}
-                          onChange={(e) => setApprovalComments(e.target.value)}
-                          style={{ minHeight: 80, resize: 'vertical', fontFamily: 'inherit' }}
-                        />
-                      </div>
-
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <button
-                          className="btn btn-primary"
-                          style={{ flex: 1 }}
-                          onClick={handleApproveResolution}
-                          disabled={approving || !pendingResolution}
-                        >
-                          <Icon icon="check" style={{ marginRight: "6px" }} size="14px" />
-                          {approving ? 'Approving...' : 'Approve & Close'}
-                        </button>
-                        <button
-                          className="btn btn-ghost"
-                          style={{ flex: 1 }}
-                          onClick={handleRejectResolution}
-                          disabled={rejecting || !pendingResolution}
-                        >
-                          <Icon icon="xmark" style={{ marginRight: "6px" }} size="14px" />
-                          {rejecting ? 'Rejecting...' : 'Reject'}
-                        </button>
-                      </div>
-                    </>
-                  )}
-
-                  {actionMode === "none" && (
-                    <div style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: '20px' }}>
-                      Select "Update Case" or "Resolution Approvals" to proceed
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: '20px' }}>
-                  Select a case first
-                </div>
-              )}
-            </div>
-          </div>
-
-
-
+        <div style={{ padding: '6px 16px 0', display: 'flex', gap: 8, alignItems: 'center' }}>
+          <input className="form-input" placeholder="Search cases..." style={{ maxWidth: 220, height: 34 }} value={searchInput} onChange={(e) => setSearchInput(e.target.value)} />
+          <select className="form-select" style={{ width: 128, height: 34 }} value={filterType} onChange={(e) => setFilterType(e.target.value)}>
+            <option value="all">All</option>
+            <option value="pending">Pending</option>
+            <option value="reviewing">Reviewing</option>
+            <option value="in_progress">In Progress</option>
+            <option value="pending_admin_review">Pending Review</option>
+            <option value="referred">Referred</option>
+            <option value="resolved">Resolved</option>
+            <option value="closed">Closed</option>
+            <option value="urgent">Urgent</option>
+            <option value="high">High</option>
+            <option value="normal">Normal</option>
+          </select>
         </div>
-      </div>
-
-      {/* Reports table */}
-      <div className="grid-2" style={{ marginTop: 20 }}>
-        <div className="card" style={{ gridColumn: 'span 2' }}>
-          <div className="card-header">
-            <span className="card-title">Reports</span>
-          </div>
-          <div style={{ padding: '6px 16px 0', display: 'flex', gap: 8, alignItems: 'center' }}>
-            <input className="form-input" placeholder="Search cases..." style={{ maxWidth: 220, height: 34 }} value={searchInput} onChange={(e) => setSearchInput(e.target.value)} />
-            <select className="form-select" style={{ width: 128, height: 34 }} value={filterType} onChange={(e) => setFilterType(e.target.value)}>
-
-              <option value="all">All</option>
-              <option value="pending">Pending</option>
-              <option value="reviewing">Reviewing</option>
-              <option value="in_progress">In Progress</option>
-              <option value="pending_admin_review">Pending Review</option>
-              <option value="referred">Referred</option>
-              <option value="resolved">Resolved</option>
-              <option value="closed">Closed</option>
-              <option value="urgent">Urgent</option>
-              <option value="high">High</option>
-              <option value="normal">Normal</option>
-            </select>
-          </div>
-          <table className="data-table" style={{ margin: 0 }}>
-<thead>
-              <tr><th>Case ID</th><th>Type</th><th>Reporter</th><th>Location</th><th>Status</th><th>Priority</th><th>Date Filed</th></tr>
+        <div style={{ maxHeight: '420px', overflowY: 'auto', position: 'relative' }}>
+          <table className="data-table" style={{ margin: 0, width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                {renderSortHeader("Case ID", "id")}
+                {renderSortHeader("Type", "type")}
+                {renderSortHeader("Reporter", "reporter")}
+                {renderSortHeader("Location", "location")}
+                {renderSortHeader("Status", "status")}
+                {renderSortHeader("Priority", "priority")}
+                {renderSortHeader("Date Filed", "date")}
+              </tr>
             </thead>
-<tbody>
-              {filteredReports.map(c => (
-                <tr 
-                  key={c.id} 
-                  onClick={() => handleViewCase(c)}
-                  style={{ 
-                    cursor: 'pointer',
-                    backgroundColor: selectedCase?.docId === c.docId ? 'var(--bg-muted)' : 'transparent',
-                    transition: 'background-color 0.15s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (selectedCase?.docId !== c.docId) {
-                      e.currentTarget.style.backgroundColor = 'var(--bg)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (selectedCase?.docId !== c.docId) {
-                      e.currentTarget.style.backgroundColor = 'transparent';
-                    }
-                  }}
-                >
-                  <td className="bold">{c.id}</td>
-                  <td>{c.type}</td>
-                  <td>{c.reporter}</td>
-                  <td>{c.location}</td>
-                  <td><Badge status={c.status} /></td>
-                  <td>
-                    <span style={{
-                      fontSize: 12,
-                      fontWeight: 600,
-                      textTransform: 'capitalize',
-                      padding: '4px 8px',
-                      borderRadius: '4px',
-                      backgroundColor: c.priority === 'urgent' ? '#ffebee' : c.priority === 'high' ? '#fff9c4' : '#e8f5e9',
-                      color: c.priority === 'urgent' ? '#c62828' : c.priority === 'high' ? '#f57f17' : '#2e7d32'
-                    }}>
-                      {c.priority || "normal"}
-                    </span>
+            <tbody>
+              {paginatedReports.length === 0 ? (
+                <tr>
+                  <td colSpan={7} style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
+                    <Icon icon="circle-info" size="24px" color="var(--text-muted)" style={{ marginBottom: 8, display: 'block', marginLeft: 'auto', marginRight: 'auto', opacity: 0.6 }} />
+                    No reports match the filter or search criteria.
                   </td>
-                  <td>{c.date}</td>
                 </tr>
-              ))}
+              ) : (
+                paginatedReports.map(c => (
+                  <tr
+                    key={c.id}
+                    onClick={() => handleViewCase(c)}
+                    style={{ cursor: 'pointer', backgroundColor: 'transparent', transition: 'background-color 0.15s ease' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                  >
+                    <td className="bold">{c.id}</td>
+                    <td>{c.type}</td>
+                    <td>{c.reporter}</td>
+                    <td>{c.location}</td>
+                    <td><Badge status={c.status} /></td>
+                    <td>
+                      <span style={{ fontSize: '11px', fontWeight: '700', textTransform: 'capitalize', padding: '3px 8px', borderRadius: '12px', backgroundColor: c.priority === 'urgent' ? 'var(--sos-light)' : c.priority === 'high' ? 'var(--warn-light)' : 'var(--safe-light)', color: c.priority === 'urgent' ? 'var(--sos)' : c.priority === 'high' ? 'var(--warn)' : 'var(--safe)', border: `0.5px solid ${c.priority === 'urgent' ? 'rgba(198,40,40,0.2)' : c.priority === 'high' ? 'rgba(230,81,0,0.2)' : 'rgba(0,105,92,0.2)'}`, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <Icon icon="flag" size="8px" />
+                        {c.priority || "normal"}
+                      </span>
+                    </td>
+                    <td>{c.date}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', borderTop: '0.5px solid var(--border)', backgroundColor: '#FDFAFC', flexWrap: 'wrap', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '12px', color: 'var(--text-secondary)' }}>
+            <span>Show</span>
+            <select value={rowsPerPage} onChange={(e) => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }} className="form-select" style={{ width: '70px', padding: '4px 8px', height: '30px', fontSize: '12.5px' }}>
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+            </select>
+            <span>entries</span>
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+            {sortedReports.length > 0 ? `Showing ${startIndex + 1} to ${endIndex} of ${sortedReports.length} entries` : 'Showing 0 to 0 of 0 entries'}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <button onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} disabled={currentPage === 1} className="btn btn-ghost" style={{ height: '30px', padding: '0 10px', fontSize: '11px', opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}>
+              <Icon icon="chevron-left" size="10px" /> Prev
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).filter(page => page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1).map((page, index, array) => {
+              const prevPage = array[index - 1];
+              const showEllipsis = prevPage && page - prevPage > 1;
+              return (
+                <span key={page} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  {showEllipsis && <span style={{ padding: '0 4px', fontSize: '12px', color: 'var(--text-muted)' }}>...</span>}
+                  <button onClick={() => setCurrentPage(page)} style={{ height: '30px', width: '30px', borderRadius: 'var(--radius-sm)', fontSize: '12px', fontWeight: '750', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', backgroundColor: currentPage === page ? 'var(--primary)' : 'transparent', color: currentPage === page ? '#ffffff' : 'var(--text)', border: currentPage === page ? '1px solid var(--primary)' : '1px solid var(--border)', transition: 'all 0.15s ease' }}>{page}</button>
+                </span>
+              );
+            })}
+            <button onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} disabled={currentPage === totalPages} className="btn btn-ghost" style={{ height: '30px', padding: '0 10px', fontSize: '11px', opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}>
+              Next <Icon icon="chevron-right" size="10px" />
+            </button>
+          </div>
+        </div>
       </div>
+
+      {/* ── Combined Case Detail + Agent Actions Modal ── */}
+      {selectedCase && (
+        <div onClick={() => setSelectedCase(null)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15,10,20,0.55)', backdropFilter: 'blur(3px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--surface)', borderRadius: 'var(--radius-xl)', width: '100%', maxWidth: 920, maxHeight: '90vh', boxShadow: '0 24px 64px rgba(0,0,0,0.22)', border: '0.5px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '18px 24px', borderBottom: '1.5px solid var(--border)', flexShrink: 0, background: 'linear-gradient(135deg,rgba(194,24,91,0.04) 0%,transparent 60%)' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', letterSpacing: -0.4 }}>{selectedCase.id} — {selectedCase.type}</span>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <Badge status={selectedCase.status} />
+                  <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', padding: '3px 8px', borderRadius: 12, backgroundColor: selectedCase.priority === 'urgent' ? 'var(--sos-light)' : selectedCase.priority === 'high' ? 'rgba(230,81,0,0.08)' : 'rgba(0,105,92,0.08)', color: selectedCase.priority === 'urgent' ? 'var(--sos)' : selectedCase.priority === 'high' ? 'var(--warn)' : 'var(--safe)', border: `0.5px solid ${selectedCase.priority === 'urgent' ? 'rgba(198,40,40,0.2)' : selectedCase.priority === 'high' ? 'rgba(230,81,0,0.2)' : 'rgba(0,105,92,0.2)'}` }}>
+                    <Icon icon="flag" size="9px" style={{ marginRight: 4 }} />{selectedCase.priority || "normal"} Priority
+                  </span>
+                </div>
+              </div>
+              <button onClick={() => setSelectedCase(null)} style={{ background: 'var(--bg)', border: '0.5px solid var(--border)', borderRadius: 8, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-muted)', flexShrink: 0 }}>
+                <Icon icon="xmark" size="14px" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+
+              {/* LEFT — Case Details */}
+              <div style={{ flex: 1, padding: '20px 24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14, borderRight: '1px solid var(--border)' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)' }}>Case Details</div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 12, padding: 14, backgroundColor: 'var(--bg)', borderRadius: 'var(--radius-lg)', border: '0.5px solid var(--border)' }}>
+                  {[{ icon: 'user', bg: 'var(--primary-light)', color: 'var(--primary)', label: 'Reporter', val: selectedCase.reporter },
+                  { icon: 'calendar', bg: 'var(--accent-light)', color: 'var(--accent)', label: 'Date Filed', val: selectedCase.date },
+                  { icon: 'location-dot', bg: 'var(--sos-light)', color: 'var(--sos)', label: 'Location', val: selectedCase.location },
+                  { icon: 'user-tie', bg: 'var(--safe-light)', color: 'var(--safe)', label: 'Assigned To', val: assignedOfficer || 'Unassigned' }
+                  ].map(item => (
+                    <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: item.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: item.color, flexShrink: 0 }}><Icon icon={item.icon} size="13px" /></div>
+                      <div><div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)', fontWeight: 700 }}>{item.label}</div><div style={{ fontSize: 13, fontWeight: 650, color: 'var(--text)' }}>{item.val}</div></div>
+                    </div>
+                  ))}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, gridColumn: 'span 2' }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: 'var(--warn-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--warn)', flexShrink: 0 }}><Icon icon="clock" size="13px" /></div>
+                    <div><div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)', fontWeight: 700 }}>Date &amp; Time of Incident</div><div style={{ fontSize: 13, fontWeight: 650, color: 'var(--text)' }}>{selectedCase.incidentDateTime || 'Not recorded'}</div></div>
+                  </div>
+                </div>
+
+                {[{ icon: 'file-lines', accent: selectedCase.priority === 'urgent' ? 'var(--sos)' : 'var(--primary)', label: 'Incident Description', val: selectedCase.description },
+                { icon: 'user-secret', accent: 'var(--accent)', label: 'Suspect Description', val: selectedCase.suspectDescription }
+                ].map(b => (
+                  <div key={b.label} style={{ borderLeft: `4px solid ${b.accent}`, backgroundColor: 'var(--bg)', borderRadius: 'var(--radius-md)', padding: '12px 14px', border: '0.5px solid var(--border)', borderLeftWidth: 4 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}><Icon icon={b.icon} size="12px" color="var(--text-muted)" /><div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)' }}>{b.label}</div></div>
+                    <div style={{ fontSize: 12.5, color: 'var(--text)', lineHeight: 1.6 }}>{b.val || <span style={{ fontStyle: 'italic', color: 'var(--text-muted)' }}>None provided</span>}</div>
+                  </div>
+                ))}
+
+                {evidence.length > 0 && (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}><Icon icon="paperclip" size="12px" color="var(--text-muted)" /><div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)' }}>Evidence ({evidence.length})</div></div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 10 }}>
+                      {evidence.map(file => {
+                        const isImage = file.fileName?.match(/\.(jpeg|jpg|gif|png|webp)/i);
+                        return (
+                          <div key={file.id} style={{ display: 'flex', alignItems: 'center', padding: 10, backgroundColor: 'var(--bg)', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--border)', gap: 10 }}>
+                            <div style={{ width: 34, height: 34, borderRadius: 6, backgroundColor: isImage ? 'rgba(0,105,92,0.08)' : 'rgba(194,24,91,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: isImage ? 'var(--safe)' : 'var(--primary)', flexShrink: 0 }}><Icon icon={isImage ? 'image' : 'file-lines'} size="15px" /></div>
+                            <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{file.fileName}</div><div style={{ fontSize: 10, color: 'var(--text-muted)' }}>by {file.uploadedBy || 'System'}</div></div>
+                            <a href={file.fileUrl} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm" style={{ padding: '4px 8px', fontSize: 11, height: 'auto', borderRadius: 4, textDecoration: 'none' }}>View</a>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {messages.length > 0 && (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}><Icon icon="comments" size="12px" color="var(--text-muted)" /><div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)' }}>Communications ({messages.length})</div></div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 260, overflowY: 'auto', backgroundColor: 'var(--bg)', borderRadius: 'var(--radius-lg)', padding: 12, border: '0.5px solid var(--border)' }}>
+                      {messages.map(msg => {
+                        const isReporter = msg.from === 'reporter' || msg.reporterName?.toLowerCase()?.includes('reporter') || msg.reporterName?.toLowerCase()?.includes('anonymous');
+                        const msgDate = msg.timestamp?.toDate ? msg.timestamp.toDate() : (msg.timestamp ? new Date(msg.timestamp) : null);
+                        return (
+                          <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '8px 10px', backgroundColor: isReporter ? 'rgba(194,24,91,0.02)' : 'rgba(0,105,92,0.02)', borderRadius: 8, border: `0.5px solid ${isReporter ? 'rgba(194,24,91,0.08)' : 'rgba(0,105,92,0.08)'}` }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4, backgroundColor: isReporter ? 'var(--primary-light)' : 'var(--safe-light)', color: isReporter ? 'var(--primary)' : 'var(--safe)', textTransform: 'uppercase' }}>{isReporter ? 'Reporter' : 'Officer'}: {msg.reporterName}</span>
+                              {msgDate && <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{msgDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} {msgDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}</span>}
+                            </div>
+                            <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{msg.text}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                <button className="btn btn-ghost btn-sm" style={{ display: 'flex', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginTop: 4 }}>
+                  <Icon icon="right-from-bracket" size="12px" /> Refer External Case
+                </button>
+              </div>
+
+              {/* RIGHT — Agent Actions */}
+              <div style={{ width: 290, flexShrink: 0, padding: '20px 20px', display: 'flex', flexDirection: 'column', gap: 0, overflowY: 'auto' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)', marginBottom: 12 }}>Agent Actions</div>
+                <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: 16, gap: 12 }}>
+                  {[{ key: 'update', icon: 'pen-to-square', label: 'Settings' }, { key: 'resolution', icon: 'circle-check', label: 'Resolution' }].map(tab => (
+                    <button key={tab.key} onClick={() => setActionMode(tab.key)} style={{ padding: '10px 4px', background: 'none', border: 'none', borderBottom: actionMode === tab.key ? '2.5px solid var(--primary)' : '2.5px solid transparent', color: actionMode === tab.key ? 'var(--primary)' : 'var(--text-muted)', fontWeight: actionMode === tab.key ? 700 : 500, cursor: 'pointer', fontSize: 12.5, transition: 'all 0.15s ease', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Icon icon={tab.icon} size="12px" />{tab.label}
+                      {tab.key === 'resolution' && pendingResolution && <span style={{ width: 8, height: 8, backgroundColor: 'var(--sos)', borderRadius: '50%', display: 'inline-block' }} />}
+                    </button>
+                  ))}
+                </div>
+
+                {pendingResolution && actionMode !== 'resolution' && (
+                  <div style={{ backgroundColor: 'var(--sos-light)', border: '0.5px solid rgba(198,40,40,0.2)', color: 'var(--sos)', borderRadius: 'var(--radius-md)', padding: '10px 12px', fontSize: 11, fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Icon icon="circle-exclamation" size="13px" /><span>Pending resolution available</span>
+                    <button onClick={() => setActionMode('resolution')} style={{ marginLeft: 'auto', background: 'var(--sos)', color: 'white', border: 'none', padding: '3px 8px', borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: 'pointer' }}>View</button>
+                  </div>
+                )}
+
+                {actionMode === 'update' && (
+                  <>
+                    {[{ icon: 'circle-info', label: 'Case Status', ctrl: <select className="form-select" value={status} onChange={e => setStatus(e.target.value)} style={{ fontSize: 12.5 }}><option value="pending">Pending</option><option value="reviewing">Under Review</option><option value="referred">Referred</option><option value="resolved">Resolved</option><option value="closed">Case Closed</option></select> },
+                    { icon: 'user-shield', label: 'Assign Officer', ctrl: <><select className="form-select" value={assignedOfficer} onChange={e => setAssignedOfficer(e.target.value)} disabled={status === 'pending'} style={status === 'pending' ? { opacity: 0.5, cursor: 'not-allowed', backgroundColor: 'var(--bg)', fontSize: 12.5 } : { fontSize: 12.5 }}><option value="">-- Unassigned --</option>{officers.map(o => <option key={o.id} value={o.name}>{o.name}</option>)}</select>{status === 'pending' && <div style={{ fontSize: 10, color: 'var(--text-muted)', fontStyle: 'italic' }}>Change status first to assign</div>}</> },
+                    { icon: 'triangle-exclamation', label: 'Priority Level', ctrl: <select className="form-select" value={priorityLevel} onChange={e => setPriorityLevel(e.target.value)} style={{ fontSize: 12.5 }}><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select> }
+                    ].map(f => (
+                      <div key={f.label} className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)' }}><Icon icon={f.icon} size="11px" style={{ marginRight: 4 }} />{f.label}</label>
+                        {f.ctrl}
+                      </div>
+                    ))}
+                    <button className="btn btn-primary" style={{ width: '100%', marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }} onClick={handleSaveChanges}>
+                      <Icon icon="floppy-disk" size="13px" /> Save Changes
+                    </button>
+                  </>
+                )}
+
+                {actionMode === 'resolution' && (
+                  !pendingResolution ? (
+                    <div style={{ color: 'var(--text-muted)', fontSize: 12.5, textAlign: 'center', padding: '30px 20px', lineHeight: 1.5 }}>
+                      <Icon icon="circle-check" size="28px" color="var(--text-muted)" style={{ marginBottom: 10, display: 'block', marginLeft: 'auto', marginRight: 'auto', opacity: 0.5 }} />
+                      No pending resolution request.<br />Resolutions are submitted by the assigned officer.
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10, backgroundColor: 'var(--bg)', padding: '10px 12px', borderRadius: 8, border: '0.5px solid var(--border)' }}>
+                        <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: 'var(--safe-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--safe)', flexShrink: 0 }}><Icon icon="user-check" size="12px" /></div>
+                        <div>
+                          <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)', fontWeight: 700 }}>Submitted By</div>
+                          <div style={{ fontSize: 12.5, fontWeight: 650, color: 'var(--text)' }}>{pendingResolution.submittedByName}</div>
+                          <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{pendingResolution.submittedAt?.toDate ? pendingResolution.submittedAt.toDate().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'N/A'}</div>
+                        </div>
+                      </div>
+                      <div style={{ marginBottom: 14, padding: '12px 14px', backgroundColor: 'var(--bg)', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--border)' }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)', marginBottom: 6 }}>Officer's Summary</div>
+                        <div style={{ fontSize: 12.5, lineHeight: 1.6, whiteSpace: 'pre-wrap', color: 'var(--text)' }}>{pendingResolution.notes}</div>
+                      </div>
+                      <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)' }}>Review Comments (Optional)</label>
+                        <textarea className="form-input" placeholder="Feedback or reasons for rejection..." value={approvalComments} onChange={(e) => setApprovalComments(e.target.value)} style={{ minHeight: 70, resize: 'vertical', fontFamily: 'inherit', fontSize: 12.5 }} />
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                        <button className="btn btn-primary" style={{ flex: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} onClick={handleApproveResolution} disabled={approving}>
+                          <Icon icon="check" size="14px" />{approving ? 'Approving...' : 'Approve & Close'}
+                        </button>
+                        <button className="btn btn-ghost" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, color: 'var(--sos)', backgroundColor: 'var(--sos-light)', border: '0.5px solid rgba(198,40,40,0.2)' }} onClick={handleRejectResolution} disabled={rejecting}>
+                          <Icon icon="xmark" size="14px" />{rejecting ? 'Rejecting...' : 'Reject'}
+                        </button>
+                      </div>
+                    </>
+                  )
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
