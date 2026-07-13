@@ -715,8 +715,6 @@ export default function CasesPage() {
             <option value="all">All</option>
             <option value="pending">Pending</option>
             <option value="reviewing">Reviewing</option>
-            <option value="in_progress">In Progress</option>
-            <option value="pending_admin_review">Pending Review</option>
             <option value="referred">Referred</option>
             <option value="resolved">Resolved</option>
             <option value="closed">Closed</option>
