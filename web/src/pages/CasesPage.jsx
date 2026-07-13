@@ -92,6 +92,7 @@ export default function CasesPage() {
   const [referralCaseId, setReferralCaseId] = useState("");
   const [referralTo, setReferralTo] = useState("Social Worker");
   const [referralReason, setReferralReason] = useState("");
+  const currentCaseStatus = status || selectedCase?.status || "pending";
 
   // Sorting and Pagination states
   const [sortField, setSortField] = useState("date");
@@ -965,16 +966,11 @@ export default function CasesPage() {
                   </div>
                 )}
 
-                {!showReferralModal ? (
+                {!showReferralModal && currentCaseStatus !== 'referred' ? (
                   <button className="btn btn-ghost btn-sm" style={{ display: 'flex', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginTop: 4 }} onClick={openReferralModal}>
                     <Icon icon="right-from-bracket" size="12px" /> Refer External Case
                   </button>
-                ) : (
-                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                    <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => setShowReferralModal(false)}>Create Referral</button>
-                    <button className="btn btn-ghost" onClick={() => setShowReferralModal(false)}>Back to Case</button>
-                  </div>
-                )}
+                ) : null}
               </>
             )}
               </div>
@@ -983,13 +979,13 @@ export default function CasesPage() {
               <div style={{ width: 290, flexShrink: 0, padding: '20px 20px', display: showReferralModal ? 'none' : 'flex', flexDirection: 'column', gap: 0, overflowY: 'auto' }}>
                 <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)', marginBottom: 12 }}>Agent Actions</div>
                 <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: 16, gap: 12 }}>
-                  {(selectedCase?.status === 'referred' ? 
+                  {(currentCaseStatus === 'referred' ? 
                     [{ key: 'update', icon: 'pen-to-square', label: 'Settings' }, { key: 'resolution', icon: 'message-lines', label: 'Reason for Referral' }]
                     : [{ key: 'update', icon: 'pen-to-square', label: 'Settings' }, { key: 'resolution', icon: 'circle-check', label: 'Resolution' }]
                   ).map(tab => (
                     <button key={tab.key} onClick={() => setActionMode(tab.key)} style={{ padding: '10px 4px', background: 'none', border: 'none', borderBottom: actionMode === tab.key ? '2.5px solid var(--primary)' : '2.5px solid transparent', color: actionMode === tab.key ? 'var(--primary)' : 'var(--text-muted)', fontWeight: actionMode === tab.key ? 700 : 500, cursor: 'pointer', fontSize: 12.5, transition: 'all 0.15s ease', display: 'flex', alignItems: 'center', gap: 6 }}>
                       <Icon icon={tab.icon} size="12px" />{tab.label}
-                      {tab.key === 'resolution' && selectedCase?.status !== 'referred' && pendingResolution && <span style={{ width: 8, height: 8, backgroundColor: 'var(--sos)', borderRadius: '50%', display: 'inline-block' }} />}
+                      {tab.key === 'resolution' && currentCaseStatus !== 'referred' && pendingResolution && <span style={{ width: 8, height: 8, backgroundColor: 'var(--sos)', borderRadius: '50%', display: 'inline-block' }} />}
                     </button>
                   ))}
                 </div>
@@ -1042,7 +1038,7 @@ export default function CasesPage() {
                 )}
 
                 {actionMode === 'resolution' && (
-                  selectedCase?.status === 'referred' ? (
+                  currentCaseStatus === 'referred' ? (
                     <div style={{ color: 'var(--text)', fontSize: 12.5, lineHeight: 1.6 }}>
                       <div style={{ marginBottom: 14, padding: '12px 14px', backgroundColor: 'var(--bg)', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--border)' }}>
                         <div style={{ fontSize: 12.5, lineHeight: 1.6, whiteSpace: 'pre-wrap', color: 'var(--text)' }}>{selectedCase?.referralReason || 'Not specified'}</div>
