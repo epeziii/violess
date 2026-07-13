@@ -26,6 +26,19 @@ service cloud.firestore {
       allow delete: if request.auth.uid == uid;
     }
 
+    // ─── REFERRALS COLLECTION ────────────────────────────────────────
+    // Staff can view and create referral records from the web app
+    match /referrals/{referralId} {
+      allow read: if exists(/databases/$(database)/documents/staff/$(request.auth.uid)) &&
+                     get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.role in ['admin', 'officer'];
+      allow create: if exists(/databases/$(database)/documents/staff/$(request.auth.uid)) &&
+                       get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.role in ['admin', 'officer'] &&
+                       request.resource.data.keys().hasAll(['caseId', 'caseNumber', 'referredTo', 'reason', 'status', 'createdAt', 'createdBy', 'createdByName']);
+      allow update: if exists(/databases/$(database)/documents/staff/$(request.auth.uid)) &&
+                       get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.role in ['admin', 'officer'];
+      allow delete: if false;
+    }
+
     // ─── REPORTS COLLECTION ────────────────────────────────────────────
     // Only backend (admin) can create reports
     // Staff (web) can read all reports and update case management fields
@@ -69,10 +82,10 @@ service cloud.firestore {
         allow delete: if false;
       }
 
-      // Staff can update case management fields (including new statuses)
+      // Staff can update case management fields (including new statuses and referrals)
       allow update: if exists(/databases/$(database)/documents/staff/$(request.auth.uid)) &&
                        get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.role in ['admin', 'officer'] &&
-                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'priorityLevel', 'assignedOfficer', 'updatedAt']);
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'priorityLevel', 'assignedOfficer', 'updatedAt', 'referredTo', 'referralReason']);
       // Only backend with Admin SDK can create reports
       allow create: if false;
       // Reports cannot be deleted

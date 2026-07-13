@@ -6,7 +6,6 @@ import LoginPage from "./pages/auth/LoginPage";
 import {
   DashboardPage,
   CasesPage,
-  ReferralPage,
   CommunicationsPage,
   AnalyticsPage,
 } from "./pages";
@@ -22,7 +21,6 @@ const NAV = [
   { id: "cases",      icon: "", label: "Case Management", permission: "cases", adminOnly: true },
   { id: "comms",      icon: "", label: "Communications",  permission: "communications" },
   { id: "evidence",   icon: "", label: "Evidence",        permission: "evidence" },
-  { id: "referrals",  icon: "",  label: "Referrals",       permission: "referrals" },
   { id: "accounts",   icon: "", label: "Accounts",        permission: "accountManagement", adminOnly: true },
 ];
 
@@ -50,7 +48,6 @@ function Shell() {
   const visibleNav = NAV.filter(n => can(n.permission));
   const pages = {
     cases:     <ProtectedRoute permission="cases"><CasesPage /></ProtectedRoute>,
-    referrals: <ReferralPage />,
     comms:     <CommunicationsPage initialSelectedCaseId={pendingCommunicationsCaseId} />,
     analytics: <AnalyticsPage />,
     evidence:  <EvidenceStoragePage />,

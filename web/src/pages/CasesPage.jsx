@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import Badge from "./Badge";
 import { db } from "../firebase";
-import { collection, query, orderBy, limit, onSnapshot, where } from "firebase/firestore";
+import { collection, query, orderBy, limit, onSnapshot, where, addDoc, serverTimestamp, getDocs, updateDoc, doc } from "firebase/firestore";
 import { useAuth } from "../AuthContext";
 import API_BASE_URL from "../config/api";
 import Icon from "../components/Icon";
@@ -65,6 +65,7 @@ export default function CasesPage() {
     resolved: 0
   });
   const [reports, setReports] = useState([]);
+  const [referrals, setReferrals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCase, setSelectedCase] = useState(null);
   const [status, setStatus] = useState("reviewing");
@@ -86,6 +87,11 @@ export default function CasesPage() {
   const [actionMode, setActionMode] = useState("update"); // default to "update" (settings tab)
   const [evidence, setEvidence] = useState([]);
   const [messages, setMessages] = useState([]);
+  const [showReferralModal, setShowReferralModal] = useState(false);
+  const [referralCase, setReferralCase] = useState(null);
+  const [referralCaseId, setReferralCaseId] = useState("");
+  const [referralTo, setReferralTo] = useState("Social Worker");
+  const [referralReason, setReferralReason] = useState("");
 
   // Sorting and Pagination states
   const [sortField, setSortField] = useState("date");
@@ -130,6 +136,8 @@ export default function CasesPage() {
           priority: doc.data().priorityLevel || "normal",
           assignedOfficer: doc.data().assignedOfficer || "",
           assignedOfficerUid: doc.data().assignedOfficerUid || "",
+          referredTo: doc.data().referredTo || "",
+          referralReason: doc.data().referralReason || "",
           description: doc.data().description || "",
           suspectDescription: doc.data().suspectDescription || "",
           createdAt: doc.data().createdAt,
@@ -164,6 +172,38 @@ export default function CasesPage() {
 
   useEffect(() => {
     try {
+      const q = query(
+        collection(db, "referrals"),
+        orderBy("createdAt", "desc")
+      );
+
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const referralsData = snapshot.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: data.caseNumber || data.caseId || doc.id,
+            caseId: data.caseId || data.caseNumber || "",
+            to: data.referredTo || "",
+            status: getStatusFromString(data.status),
+            date: formatDate(data.createdAt),
+            createdAt: data.createdAt,
+            reason: data.reason || "",
+            reportDocId: data.reportDocId || "",
+            docId: doc.id,
+          };
+        });
+        setReferrals(referralsData);
+      });
+
+      return () => unsubscribe();
+    } catch (error) {
+      console.error("Error fetching referrals:", error);
+      setReferrals([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
       // Fetch active officers from staff collection
       const q = query(
         collection(db, "staff"),
@@ -194,6 +234,15 @@ export default function CasesPage() {
 
   const displayReports = loading ? SAMPLE_CASES : (reports.length > 0 ? reports : SAMPLE_CASES);
 
+  const filteredReferrals = referrals.filter((referral) => {
+    const searchTerm = searchInput.toLowerCase();
+    return !searchTerm ||
+      referral.id.toLowerCase().includes(searchTerm) ||
+      referral.to.toLowerCase().includes(searchTerm) ||
+      referral.status.toLowerCase().includes(searchTerm) ||
+      referral.date.toLowerCase().includes(searchTerm);
+  });
+
   const filteredReports = displayReports.filter(c => {
     // Search filter
     const searchTerm = searchInput.toLowerCase();
@@ -220,12 +269,37 @@ export default function CasesPage() {
     return matchesSearch && matchesFilter;
   });
 
-  const handleViewCase = (caseData) => {
+  const handleViewCase = async (caseData) => {
     setSelectedCase(caseData);
     setStatus(caseData.status);
     setAssignedOfficer(caseData.assignedOfficer || "");
     setAssignedOfficerUid(caseData.assignedOfficerUid || "");
     setPriorityLevel(caseData.priority || "normal");
+
+    // If case is referred, fetch referral details
+    if (caseData.status === "referred") {
+      try {
+        const referralsRef = collection(db, "referrals");
+        const q = query(referralsRef, where("reportDocId", "==", caseData.docId));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          const referralData = snap.docs[0].data();
+          setSelectedCase(prev => ({
+            ...prev,
+            referredTo: referralData.referredTo || prev.referredTo || "",
+            referralReason: referralData.reason || prev.referralReason || ""
+          }));
+        } else {
+          setSelectedCase(prev => ({
+            ...prev,
+            referredTo: prev.referredTo || "",
+            referralReason: prev.referralReason || ""
+          }));
+        }
+      } catch (error) {
+        console.error("Error fetching referral details:", error);
+      }
+    }
   };
 
   const handleSort = (field) => {
@@ -548,6 +622,63 @@ export default function CasesPage() {
     }
   };
 
+  const openReferralModal = () => {
+    setReferralCase(selectedCase);
+    setReferralTo("Social Worker");
+    setReferralReason("");
+    setSelectedCase(null);
+    setShowReferralModal(true);
+  };
+
+  const handleCreateReferral = async () => {
+    if (!referralCase) {
+      alert("No case selected for referral.");
+      return;
+    }
+
+    try {
+      // Create referral record
+      await addDoc(collection(db, "referrals"), {
+        caseId: referralCase.id || referralCase.caseId || "",
+        caseNumber: referralCase.id || referralCase.caseId || "",
+        reportDocId: referralCase.docId || "",
+        referredTo: referralTo,
+        reason: referralReason,
+        status: "reviewing",
+        createdAt: serverTimestamp(),
+        createdBy: user?.uid || "",
+        createdByName: user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() : "",
+      });
+
+      // Update case status to "referred" and store the referralTo info
+      if (referralCase.docId) {
+        const caseDocRef = doc(db, "reports", referralCase.docId);
+        await updateDoc(caseDocRef, {
+          status: "referred",
+          referredTo: referralTo,
+          referralReason: referralReason,
+          updatedAt: serverTimestamp()
+        });
+      }
+
+      setShowReferralModal(false);
+      setReferralCase(null);
+      setReferralTo("Social Worker");
+      setReferralReason("");
+      setStatus("referred");
+      setSelectedCase(prev => prev ? {
+        ...prev,
+        status: "referred",
+        referredTo: referralTo,
+        referralReason: referralReason
+      } : prev);
+      alert("Referral created successfully. Case status updated to Referred.");
+    } catch (error) {
+      console.error("Error creating referral:", error);
+      alert("Failed to create referral.");
+    }
+  };
+
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
@@ -577,7 +708,7 @@ export default function CasesPage() {
           <span className="card-title">Reports</span>
           <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>Click a row to view details</span>
         </div>
-        <div style={{ padding: '6px 16px 0', display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div style={{ padding: '6px 16px 0', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <input className="form-input" placeholder="Search cases..." style={{ maxWidth: 220, height: 34 }} value={searchInput} onChange={(e) => setSearchInput(e.target.value)} />
           <select className="form-select" style={{ width: 128, height: 34 }} value={filterType} onChange={(e) => setFilterType(e.target.value)}>
             <option value="all">All</option>
@@ -600,8 +731,7 @@ export default function CasesPage() {
                 {renderSortHeader("Case ID", "id")}
                 {renderSortHeader("Type", "type")}
                 {renderSortHeader("Reporter", "reporter")}
-                {renderSortHeader("Assigned to", "assignedOfficer")}
-
+                {renderSortHeader("Assigned/Referred To", "assignedOfficer")}
                 {renderSortHeader("Status", "status")}
                 {renderSortHeader("Priority", "priority")}
                 {renderSortHeader("Date Filed", "date")}
@@ -627,7 +757,7 @@ export default function CasesPage() {
                     <td className="bold">{c.id}</td>
                     <td>{c.type}</td>
                     <td>{c.reporter}</td>
-                    <td>{c.assignedOfficer || "Unassigned"}</td>
+                    <td>{c.status === 'referred' ? c.referredTo || 'Pending' : (c.assignedOfficer || "Unassigned")}</td>
 
                     <td><Badge status={c.status} /></td>
                     <td>
@@ -655,7 +785,7 @@ export default function CasesPage() {
             <span>entries</span>
           </div>
           <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-            {sortedReports.length > 0 ? `Showing ${startIndex + 1} to ${endIndex} of ${sortedReports.length} entries` : 'Showing 0 to 0 of 0 entries'}
+            {sortedReports.length > 0 ? `Showing ${startIndex + 1} to ${Math.min(endIndex, sortedReports.length)} of ${sortedReports.length} entries` : 'Showing 0 to 0 of 0 entries'}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <button onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} disabled={currentPage === 1} className="btn btn-ghost" style={{ height: '30px', padding: '0 10px', fontSize: '11px', opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}>
@@ -678,8 +808,42 @@ export default function CasesPage() {
         </div>
       </div>
 
+      {showReferralModal && (
+        <div onClick={() => { setShowReferralModal(false); setReferralCase(null); }} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15,10,20,0.6)', backdropFilter: 'blur(3px)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--surface)', borderRadius: 'var(--radius-xl)', width: '100%', maxWidth: 640, boxShadow: '0 24px 64px rgba(0,0,0,0.22)', border: '0.5px solid var(--border)', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 24px', borderBottom: '1.5px solid var(--border)' }}>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>New Referral</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Create an external referral for {referralCase?.id || 'this case'}</div>
+              </div>
+              <button onClick={() => { setShowReferralModal(false); setReferralCase(null); }} style={{ background: 'var(--bg)', border: '0.5px solid var(--border)', borderRadius: 8, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                <Icon icon="xmark" size="14px" />
+              </button>
+            </div>
+            <div className="card-body" style={{ padding: '20px 24px' }}>
+              <div className="form-group">
+                <label className="form-label">Refer to</label>
+                <select className="form-select" value={referralTo} onChange={(e) => setReferralTo(e.target.value)}>
+                  <option>Social Worker</option>
+                  <option>PNP Station</option>
+                  <option>DSWD</option>
+                  <option>Hospital / Medical</option>
+                  <option>Counselor</option>
+                  <option>Legal Aid</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Reason for Referral</label>
+                <textarea className="form-textarea" value={referralReason} onChange={(e) => setReferralReason(e.target.value)} placeholder="Explain why this case is being referred..." />
+              </div>
+              <button className="btn btn-primary" style={{ width: '100%' }} onClick={handleCreateReferral}>Create Referral</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Combined Case Detail + Agent Actions Modal ── */}
-      {selectedCase && (
+      {selectedCase && !showReferralModal && (
         <div onClick={() => setSelectedCase(null)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15,10,20,0.55)', backdropFilter: 'blur(3px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--surface)', borderRadius: 'var(--radius-xl)', width: '100%', maxWidth: 920, maxHeight: '90vh', boxShadow: '0 24px 64px rgba(0,0,0,0.22)', border: '0.5px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
@@ -704,13 +868,43 @@ export default function CasesPage() {
 
               {/* LEFT — Case Details */}
               <div style={{ flex: 1, padding: '20px 24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14, borderRight: '1px solid var(--border)' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)' }}>Case Details</div>
+                {showReferralModal ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)' }}>External Referral</div>
+                    <div style={{ padding: 16, backgroundColor: 'var(--bg)', borderRadius: 'var(--radius-lg)', border: '0.5px solid var(--border)' }}>
+                      <div className="form-group">
+                        <label className="form-label">Case</label>
+                        <select className="form-select" value={referralCaseId} onChange={(e) => setReferralCaseId(e.target.value)}>
+                          <option value="">Select a case</option>
+                          <option value={selectedCase?.id || '#VIO-000'}>{selectedCase?.id || '#VIO-000'} — {selectedCase?.type || 'Selected case'}</option>
+                        </select>
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Refer to</label>
+                        <select className="form-select" value={referralTo} onChange={(e) => setReferralTo(e.target.value)}>
+                          <option>Social Worker</option>
+                          <option>PNP Station</option>
+                          <option>DSWD</option>
+                          <option>Hospital / Medical</option>
+                          <option>Counselor</option>
+                          <option>Legal Aid</option>
+                        </select>
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Reason for Referral</label>
+                        <textarea className="form-textarea" value={referralReason} onChange={(e) => setReferralReason(e.target.value)} placeholder="Explain why this case is being referred..." />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)' }}>Case Details</div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 12, padding: 14, backgroundColor: 'var(--bg)', borderRadius: 'var(--radius-lg)', border: '0.5px solid var(--border)' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 12, padding: 14, backgroundColor: 'var(--bg)', borderRadius: 'var(--radius-lg)', border: '0.5px solid var(--border)' }}>
                   {[{ icon: 'user', bg: 'var(--primary-light)', color: 'var(--primary)', label: 'Reporter', val: selectedCase.reporter },
                   { icon: 'calendar', bg: 'var(--accent-light)', color: 'var(--accent)', label: 'Date Filed', val: selectedCase.date },
 { icon: 'location-dot', bg: 'var(--sos-light)', color: 'var(--sos)', label: 'Incident Location', val: selectedCase.location },
-                  { icon: 'user-tie', bg: 'var(--safe-light)', color: 'var(--safe)', label: 'Assigned To', val: assignedOfficer || 'Unassigned' }
+                  { icon: 'user-tie', bg: 'var(--safe-light)', color: 'var(--safe)', label: selectedCase.status === 'referred' ? 'Referred To' : 'Assigned To', val: selectedCase.status === 'referred' ? (selectedCase.referredTo || 'Pending') : (assignedOfficer || 'Unassigned') }
                   ].map(item => (
                     <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <div style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: item.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: item.color, flexShrink: 0 }}><Icon icon={item.icon} size="13px" /></div>
@@ -771,19 +965,31 @@ export default function CasesPage() {
                   </div>
                 )}
 
-                <button className="btn btn-ghost btn-sm" style={{ display: 'flex', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginTop: 4 }}>
-                  <Icon icon="right-from-bracket" size="12px" /> Refer External Case
-                </button>
+                {!showReferralModal ? (
+                  <button className="btn btn-ghost btn-sm" style={{ display: 'flex', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginTop: 4 }} onClick={openReferralModal}>
+                    <Icon icon="right-from-bracket" size="12px" /> Refer External Case
+                  </button>
+                ) : (
+                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                    <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => setShowReferralModal(false)}>Create Referral</button>
+                    <button className="btn btn-ghost" onClick={() => setShowReferralModal(false)}>Back to Case</button>
+                  </div>
+                )}
+              </>
+            )}
               </div>
 
               {/* RIGHT — Agent Actions */}
-              <div style={{ width: 290, flexShrink: 0, padding: '20px 20px', display: 'flex', flexDirection: 'column', gap: 0, overflowY: 'auto' }}>
+              <div style={{ width: 290, flexShrink: 0, padding: '20px 20px', display: showReferralModal ? 'none' : 'flex', flexDirection: 'column', gap: 0, overflowY: 'auto' }}>
                 <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)', marginBottom: 12 }}>Agent Actions</div>
                 <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: 16, gap: 12 }}>
-                  {[{ key: 'update', icon: 'pen-to-square', label: 'Settings' }, { key: 'resolution', icon: 'circle-check', label: 'Resolution' }].map(tab => (
+                  {(selectedCase?.status === 'referred' ? 
+                    [{ key: 'update', icon: 'pen-to-square', label: 'Settings' }, { key: 'resolution', icon: 'message-lines', label: 'Reason for Referral' }]
+                    : [{ key: 'update', icon: 'pen-to-square', label: 'Settings' }, { key: 'resolution', icon: 'circle-check', label: 'Resolution' }]
+                  ).map(tab => (
                     <button key={tab.key} onClick={() => setActionMode(tab.key)} style={{ padding: '10px 4px', background: 'none', border: 'none', borderBottom: actionMode === tab.key ? '2.5px solid var(--primary)' : '2.5px solid transparent', color: actionMode === tab.key ? 'var(--primary)' : 'var(--text-muted)', fontWeight: actionMode === tab.key ? 700 : 500, cursor: 'pointer', fontSize: 12.5, transition: 'all 0.15s ease', display: 'flex', alignItems: 'center', gap: 6 }}>
                       <Icon icon={tab.icon} size="12px" />{tab.label}
-                      {tab.key === 'resolution' && pendingResolution && <span style={{ width: 8, height: 8, backgroundColor: 'var(--sos)', borderRadius: '50%', display: 'inline-block' }} />}
+                      {tab.key === 'resolution' && selectedCase?.status !== 'referred' && pendingResolution && <span style={{ width: 8, height: 8, backgroundColor: 'var(--sos)', borderRadius: '50%', display: 'inline-block' }} />}
                     </button>
                   ))}
                 </div>
@@ -797,8 +1003,8 @@ export default function CasesPage() {
 
                 {actionMode === 'update' && (
                   <>
-                    {[{ icon: 'circle-info', label: 'Case Status', ctrl: <select className="form-select" value={status} onChange={e => setStatus(e.target.value)} style={{ fontSize: 12.5 }}><option value="pending">Pending</option><option value="reviewing">Under Review</option><option value="referred">Referred</option><option value="resolved">Resolved</option><option value="closed">Case Closed</option></select> },
-                    { icon: 'user-shield', label: 'Assign Officer', ctrl: <><select className="form-select" value={assignedOfficer} onChange={e => setAssignedOfficer(e.target.value)} disabled={status === 'pending'} style={status === 'pending' ? { opacity: 0.5, cursor: 'not-allowed', backgroundColor: 'var(--bg)', fontSize: 12.5 } : { fontSize: 12.5 }}><option value="">-- Unassigned --</option>{officers.map(o => <option key={o.id} value={o.name}>{o.name}</option>)}</select>{status === 'pending' && <div style={{ fontSize: 10, color: 'var(--text-muted)', fontStyle: 'italic' }}>Change status first to assign</div>}</> },
+                    {[{ icon: 'circle-info', label: 'Case Status', ctrl: <select className="form-select" value={status} onChange={e => setStatus(e.target.value)} style={{ fontSize: 12.5 }}><option value="pending">Pending</option><option value="reviewing">Under Review</option><option value="resolved">Resolved</option><option value="closed">Case Closed</option><option value="referred">Referred</option></select> }, 
+                    { icon: status === 'referred' ? 'arrow-right-long' : 'user-shield', label: status === 'referred' ? 'Referred To' : 'Assign Officer', ctrl: <><select className="form-select" value={status === 'referred' ? selectedCase?.referredTo || assignedOfficer : assignedOfficer} onChange={e => status === 'referred' ? null : setAssignedOfficer(e.target.value)} disabled={status === 'pending' || status === 'referred'} style={status === 'pending' || status === 'referred' ? { opacity: 0.5, cursor: 'not-allowed', backgroundColor: 'var(--bg)', fontSize: 12.5 } : { fontSize: 12.5 }}><option value="">-- Unassigned --</option>{officers.map(o => <option key={o.id} value={o.name}>{o.name}</option>)}</select>{status === 'pending' && <div style={{ fontSize: 10, color: 'var(--text-muted)', fontStyle: 'italic' }}>Change status first to assign</div>}{status === 'referred' && <div style={{ fontSize: 10, color: 'var(--text-muted)', fontStyle: 'italic' }}>Case referred - cannot reassign</div>}</> },
                     { icon: 'triangle-exclamation', label: 'Priority Level', ctrl: <select className="form-select" value={priorityLevel} onChange={e => setPriorityLevel(e.target.value)} style={{ fontSize: 12.5 }}><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select> }
                     ].map(f => (
                       <div key={f.label} className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -813,38 +1019,46 @@ export default function CasesPage() {
                 )}
 
                 {actionMode === 'resolution' && (
-                  !pendingResolution ? (
-                    <div style={{ color: 'var(--text-muted)', fontSize: 12.5, textAlign: 'center', padding: '30px 20px', lineHeight: 1.5 }}>
-                      <Icon icon="circle-check" size="28px" color="var(--text-muted)" style={{ marginBottom: 10, display: 'block', marginLeft: 'auto', marginRight: 'auto', opacity: 0.5 }} />
-                      No pending resolution request.<br />Resolutions are submitted by the assigned officer.
+                  selectedCase?.status === 'referred' ? (
+                    <div style={{ color: 'var(--text)', fontSize: 12.5, lineHeight: 1.6 }}>
+                      <div style={{ marginBottom: 14, padding: '12px 14px', backgroundColor: 'var(--bg)', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--border)' }}>
+                        <div style={{ fontSize: 12.5, lineHeight: 1.6, whiteSpace: 'pre-wrap', color: 'var(--text)' }}>{selectedCase?.referralReason || 'Not specified'}</div>
+                      </div>
                     </div>
                   ) : (
-                    <>
-                      <div style={{ marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10, backgroundColor: 'var(--bg)', padding: '10px 12px', borderRadius: 8, border: '0.5px solid var(--border)' }}>
-                        <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: 'var(--safe-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--safe)', flexShrink: 0 }}><Icon icon="user-check" size="12px" /></div>
-                        <div>
-                          <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)', fontWeight: 700 }}>Submitted By</div>
-                          <div style={{ fontSize: 12.5, fontWeight: 650, color: 'var(--text)' }}>{pendingResolution.submittedByName}</div>
-                          <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{pendingResolution.submittedAt?.toDate ? pendingResolution.submittedAt.toDate().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'N/A'}</div>
+                    !pendingResolution ? (
+                      <div style={{ color: 'var(--text-muted)', fontSize: 12.5, textAlign: 'center', padding: '30px 20px', lineHeight: 1.5 }}>
+                        <Icon icon="circle-check" size="28px" color="var(--text-muted)" style={{ marginBottom: 10, display: 'block', marginLeft: 'auto', marginRight: 'auto', opacity: 0.5 }} />
+                        No pending resolution request.<br />Resolutions are submitted by the assigned officer.
+                      </div>
+                    ) : (
+                      <>
+                        <div style={{ marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10, backgroundColor: 'var(--bg)', padding: '10px 12px', borderRadius: 8, border: '0.5px solid var(--border)' }}>
+                          <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: 'var(--safe-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--safe)', flexShrink: 0 }}><Icon icon="user-check" size="12px" /></div>
+                          <div>
+                            <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)', fontWeight: 700 }}>Submitted By</div>
+                            <div style={{ fontSize: 12.5, fontWeight: 650, color: 'var(--text)' }}>{pendingResolution.submittedByName}</div>
+                            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{pendingResolution.submittedAt?.toDate ? pendingResolution.submittedAt.toDate().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'N/A'}</div>
+                          </div>
                         </div>
-                      </div>
-                      <div style={{ marginBottom: 14, padding: '12px 14px', backgroundColor: 'var(--bg)', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--border)' }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)', marginBottom: 6 }}>Officer's Summary</div>
-                        <div style={{ fontSize: 12.5, lineHeight: 1.6, whiteSpace: 'pre-wrap', color: 'var(--text)' }}>{pendingResolution.notes}</div>
-                      </div>
-                      <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)' }}>Review Comments (Optional)</label>
-                        <textarea className="form-input" placeholder="Feedback or reasons for rejection..." value={approvalComments} onChange={(e) => setApprovalComments(e.target.value)} style={{ minHeight: 70, resize: 'vertical', fontFamily: 'inherit', fontSize: 12.5 }} />
-                      </div>
-                      <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                        <button className="btn btn-primary" style={{ flex: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} onClick={handleApproveResolution} disabled={approving}>
-                          <Icon icon="check" size="14px" />{approving ? 'Approving...' : 'Approve & Close'}
-                        </button>
-                        <button className="btn btn-ghost" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, color: 'var(--sos)', backgroundColor: 'var(--sos-light)', border: '0.5px solid rgba(198,40,40,0.2)' }} onClick={handleRejectResolution} disabled={rejecting}>
-                          <Icon icon="xmark" size="14px" />{rejecting ? 'Rejecting...' : 'Reject'}
-                        </button>
-                      </div>
-                    </>
+                        <div style={{ marginBottom: 14, padding: '12px 14px', backgroundColor: 'var(--bg)', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--border)' }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)', marginBottom: 6 }}>Officer's Summary</div>
+                          <div style={{ fontSize: 12.5, lineHeight: 1.6, whiteSpace: 'pre-wrap', color: 'var(--text)' }}>{pendingResolution.notes}</div>
+                        </div>
+                        <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)' }}>Review Comments (Optional)</label>
+                          <textarea className="form-input" placeholder="Feedback or reasons for rejection..." value={approvalComments} onChange={(e) => setApprovalComments(e.target.value)} style={{ minHeight: 70, resize: 'vertical', fontFamily: 'inherit', fontSize: 12.5 }} />
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                          <button className="btn btn-primary" style={{ flex: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} onClick={handleApproveResolution} disabled={approving}>
+                            <Icon icon="check" size="14px" />{approving ? 'Approving...' : 'Approve & Close'}
+                          </button>
+                          <button className="btn btn-ghost" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, color: 'var(--sos)', backgroundColor: 'var(--sos-light)', border: '0.5px solid rgba(198,40,40,0.2)' }} onClick={handleRejectResolution} disabled={rejecting}>
+                            <Icon icon="xmark" size="14px" />{rejecting ? 'Rejecting...' : 'Reject'}
+                          </button>
+                        </div>
+                      </>
+                    )
                   )
                 )}
               </div>

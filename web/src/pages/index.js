@@ -2,7 +2,6 @@
 
 import DashboardPage from "./DashboardPage"; // default export
 import CasesPage from "./CasesPage";          // default export
-import ReferralPage from "./ReferralPage";    // default export
 import CommunicationsPage from "./CommunicationsPage"; // default export
 import AnalyticsPage from "./AnalyticsPage";  // default export
 import EvidencePage from "./EvidencePage";    // default export
@@ -12,7 +11,6 @@ export {
   LoginPage,
   DashboardPage,
   CasesPage,
-  ReferralPage,
   CommunicationsPage,
   AnalyticsPage,
   EvidencePage
