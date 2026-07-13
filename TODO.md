@@ -1,4 +1,6 @@
-- [x] Remove "Full name" input from Edit Staff Account modal in web/src/pages/AccountManagementPage.jsx
-- [x] Update edit submission payload to no longer send fullName/firstName/lastName
-- [x] Keep UI consistent (modal fields: role + status only)
-- [x] Run web lint/build to verify no errors
+# TODO
+
+- [x] Identify where “Know Your Rights” resources are rendered (mobile/src/screens/ResourcesScreen.js).
+- [x] Increase icon contrast for those resource cards by adding a white border around the colored icon circle and forcing white icon color.
+the i- [ ] (Optional) Verify on device/emulator and adjust colors/sizes if any icon is still hard to see.
+

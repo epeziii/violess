@@ -554,6 +554,8 @@ export default function ResourcesScreen({ navigation }) {
   // Keep this string strictly valid JS (escape backticks inside embedded HTML)
   const leafletHTML = `
 
+
+
     <!DOCTYPE html>
     <!-- Markers are sourced either from Overpass (runtime) or fallback hardcoded POIs -->
     <html>
@@ -580,11 +582,13 @@ export default function ResourcesScreen({ navigation }) {
           if (map) return;
           try {
             map = L.map('map', {
+
               zoomControl: true,
               attributionControl: false,
               zoom: 13,
               center: [14.8450, 120.2870]
             });
+
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
               maxZoom: 19,
@@ -724,6 +728,16 @@ export default function ResourcesScreen({ navigation }) {
           }
         });
 
+        // Expose stable global recenter function for React Native calls
+        window.__recenterToOlongapo = function () {
+          try {
+            if (!map) initMap();
+            map.setView([14.8450, 120.2870], 13, { animate: true });
+          } catch (e) {
+            console.error('Recentering error:', e);
+          }
+        };
+
         // Initialize on load
         if (document.readyState === 'loading') {
           document.addEventListener('DOMContentLoaded', initMap);
@@ -847,9 +861,42 @@ export default function ResourcesScreen({ navigation }) {
     },
   ];
 
+  const recenterMapToOlongapo = () => {
+    mapRef.current?.injectJavaScript(`
+      (function () {
+        try {
+          // Always attempt in the current WebView instance.
+          if (typeof window.__recenterToOlongapo === 'function') {
+            window.__recenterToOlongapo();
+            return;
+          }
+
+          // Fallback: if initMap exists but recenter was not wired yet,
+          // initialize then recenter.
+          if (typeof window.initMap === 'function') {
+            window.initMap();
+            if (typeof window.__recenterToOlongapo === 'function') {
+              window.__recenterToOlongapo();
+            } else {
+              // Last resort: directly set view.
+              if (typeof map !== 'undefined' && map && typeof map.setView === 'function') {
+                map.setView([14.8450, 120.2870], 13, { animate: true });
+              }
+            }
+            return;
+          }
+        } catch (err) {
+          console.error('Recentering error:', err);
+        }
+      })();
+      true;
+    `);
+  };
+
   return (
     <View style={[s.root, { backgroundColor: colors.surface }]}>
       <StatusBar barStyle="light-content" backgroundColor={colors.primaryDark} />
+
 
       <View style={s.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
@@ -875,8 +922,15 @@ export default function ResourcesScreen({ navigation }) {
               >
                 <Card>
                   <View style={r2.resRow}>
-                    <View style={[r2.resIcon, { backgroundColor: r.color }]}>
-                      <FontAwesome6 name={r.icon} size={22} color={'#fff'} />
+                    <View
+                      style={[
+                        r2.resIcon,
+                        {
+                          backgroundColor: r.color,
+                        },
+                      ]}
+                    >
+                      <FontAwesome6 name={r.icon} size={24} color={r.accent} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={r2.resTitle}>{r.title}</Text>
@@ -888,7 +942,7 @@ export default function ResourcesScreen({ navigation }) {
               </TouchableOpacity>
             ))}
 
-            <Text style={s.sectionLabel}>Nearby Help Centers</Text>
+            <Text style={s.sectionLabel}>Nearby Help Centers in Olongapo</Text>
 
             <TouchableOpacity
               onPress={() => setFilterModalVisible(true)}
@@ -919,36 +973,52 @@ export default function ResourcesScreen({ navigation }) {
         data={[{ id: 'map' }]}
         renderItem={() => (
           <Card style={{ overflow: 'hidden' }}>
-            {!poiLoading ? (
-              <WebView
-                key={selectedFilter}
-                ref={mapRef}
-                source={{ html: leafletHTML }}
-                style={styles.map}
-                scrollEnabled={true}
-                nestedScrollEnabled={true}
-                javaScriptEnabled={true}
-                onLoadEnd={() => {
-                  setTimeout(() => {
-                    console.log('Map loaded, sending POIs:', pois.length);
-                    mapRef.current?.injectJavaScript(`
-                      window.__USER_LOCATION__ = ${JSON.stringify(userLocation)};
-                      renderMap(${JSON.stringify(pois)});
-                    `);
+            <View>
+              {!poiLoading ? (
+                <>
+                  <TouchableOpacity
+                    onPress={recenterMapToOlongapo}
+                    style={styles.centerButton}
+                    activeOpacity={0.85}
+                    accessibilityLabel="Center map on Olongapo"
+                    testID="center-map-button"
+                  >
+                    <FontAwesome6 name="location-crosshairs" size={16} color="#fff" />
+                    <Text style={styles.centerButtonText}>Center</Text>
+                  </TouchableOpacity>
 
-                  }, 300);
-                }}
-              />
-            ) : (
-              <View style={r2.mapPlaceholder}>
-                <ActivityIndicator size="large" color={colors.safe} />
-                <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: spacing.sm }}>
-                  Loading help centers…
-                </Text>
-              </View>
-            )}
+                  <WebView
+                    key={selectedFilter}
+                    ref={mapRef}
+                    source={{ html: leafletHTML }}
+                    style={styles.map}
+                    scrollEnabled={true}
+                    nestedScrollEnabled={true}
+                    javaScriptEnabled={true}
+                    onLoadEnd={() => {
+                      setTimeout(() => {
+                        console.log('Map loaded, sending POIs:', pois.length);
+                        mapRef.current?.injectJavaScript(`
+                          window.__USER_LOCATION__ = ${JSON.stringify(userLocation)};
+                          renderMap(${JSON.stringify(pois)});
+                        `);
+
+                      }, 300);
+                    }}
+                  />
+                </>
+              ) : (
+                <View style={r2.mapPlaceholder}>
+                  <ActivityIndicator size="large" color={colors.safe} />
+                  <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: spacing.sm }}>
+                    Loading help centers…
+                  </Text>
+                </View>
+              )}
+            </View>
           </Card>
         )}
+
         keyExtractor={(item) => item.id}
         ListFooterComponent={
           <Text style={styles.attribution}>Olongapo City Help Centers Directory</Text>
@@ -1008,10 +1078,25 @@ export default function ResourcesScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   map: {
-    height: 420,
+    height: 480,
     borderRadius: 12,
     marginBottom: spacing.md,
   },
+
+  centerButton: {
+    position: 'absolute',
+    right: 14,
+    top: 14,
+    zIndex: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(26,26,46,0.92)',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 999,
+  },
+  centerButtonText: { color: '#fff', fontSize: 12, fontWeight: '800' },
   filterTrigger: {
     flexDirection: 'row',
     alignItems: 'center',

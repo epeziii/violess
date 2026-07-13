@@ -40,8 +40,10 @@ const TAB_ICON_MAP = {
   Report: 'file-circle-plus',
   SOS: 'triangle-exclamation',
   Resources: 'book',
-  Privacy: 'shield',
+  Settings: 'gear',
 };
+
+const TAB_ICON_MAP_KEYS = Object.keys(TAB_ICON_MAP);
 const RootStack = createNativeStackNavigator();
 const AuthStack = createNativeStackNavigator();
 const AppStack = createNativeStackNavigator();
@@ -130,11 +132,14 @@ function MainTabs() {
         )}}
       />
       <Tab.Screen
-        name="Privacy"
+        name="Settings"
         component={PrivacyScreen}
-        options={{ tabBarLabel: 'Privacy', tabBarIcon: ({ color, size }) => (
-          <FontAwesome6 name={TAB_ICON_MAP.Privacy} size={size} color={color} />
-        )}}
+        options={{
+          tabBarLabel: 'Settings',
+          tabBarIcon: ({ color, size }) => (
+            <FontAwesome6 name={TAB_ICON_MAP.Settings} size={size} color={color} />
+          ),
+        }}
       />
     </Tab.Navigator>
   );

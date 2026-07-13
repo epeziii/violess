@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet,
-  TouchableOpacity, StatusBar, Animated, Dimensions
+  TouchableOpacity, StatusBar, Animated, Dimensions, ActivityIndicator
 } from 'react-native';
 import { colors, spacing, radius, shadow } from '../theme';
 import { Card, StatusBadge, QuickCard, SectionHeader } from '../components';
@@ -16,6 +16,9 @@ export default function HomeScreen({ navigation }) {
   const slideAnim = useRef(new Animated.Value(30)).current;
   const [userData, setUserData] = useState(null);
   const [activeCasesCount, setActiveCasesCount] = useState(0);
+  const [recentCases, setRecentCases] = useState([]);
+  const [recentCasesLoading, setRecentCasesLoading] = useState(true);
+  const [recentCasesError, setRecentCasesError] = useState(null);
 
   useEffect(() => {
     Animated.parallel([
@@ -78,34 +81,89 @@ export default function HomeScreen({ navigation }) {
       }
     };
 
-    const fetchActiveCases = async () => {
+    const fetchHomeData = async () => {
       try {
+        setRecentCasesLoading(true);
+        setRecentCasesError(null);
+
         const currentUser = auth.currentUser;
-        if (!currentUser) return;
+        if (!currentUser) {
+          setRecentCases([]);
+          setActiveCasesCount(0);
+          return;
+        }
 
         console.log('🔍 [Home] Fetching cases for uid:', currentUser.uid);
         console.log('🔗 [Home] Using API:', API_BASE_URL);
-        
+
         const data = await fetchWithRetry(`${API_BASE_URL}/user/${currentUser.uid}/cases`);
-        
+
         console.log('📱 [Home] Backend response:', data);
-        
-        if (data?.success && data.cases) {
+
+        if (data?.success && Array.isArray(data.cases)) {
           const activeCount = data.cases.filter(
             c => c.status !== 'resolved' && c.status !== 'closed'
           ).length;
           console.log('✅ [Home] Active cases count:', activeCount);
           setActiveCasesCount(activeCount);
+
+          const recentActivities = data.cases
+            .flatMap((item) => {
+              const caseId = item.caseId || item.id || '—';
+              const submissionEvent = {
+                id: `${caseId}-submitted`,
+                caseId,
+                incidentType: item.incidentType || 'Report',
+                status: item.status || 'pending',
+                title: 'Report submitted',
+                subtitle: 'Report received and logged',
+                timestamp: item.createdAt || item.updatedAt,
+              };
+
+              const progressEvent = (() => {
+                const details = getActivityDetails(item);
+                const progressStatuses = ['reviewing', 'referred', 'resolved', 'closed'];
+
+                if (!progressStatuses.includes(item.status)) {
+                  return null;
+                }
+
+                return {
+                  id: `${caseId}-${item.status}`,
+                  caseId,
+                  incidentType: item.incidentType || 'Report',
+                  status: item.status || 'pending',
+                  title: details.title,
+                  subtitle: details.subtitle,
+                  timestamp: item.updatedAt || item.createdAt,
+                };
+              })();
+
+              return [submissionEvent, progressEvent].filter(Boolean);
+            })
+            .sort((a, b) => {
+              const aTime = new Date(a.timestamp || 0).getTime();
+              const bTime = new Date(b.timestamp || 0).getTime();
+              return bTime - aTime;
+            })
+            .slice(0, 4);
+
+          setRecentCases(recentActivities);
         } else {
           console.warn('⚠️ [Home] No success data or no cases:', data);
+          setRecentCases([]);
+          setRecentCasesError('Unable to load recent activity');
         }
       } catch (error) {
-        console.error('❌ [Home] Error fetching active cases:', error.message || error);
+        console.error('❌ [Home] Error fetching home data:', error.message || error);
         console.error('🔗 [Home] Full error:', error);
+        setRecentCasesError('Unable to load recent activity');
+      } finally {
+        setRecentCasesLoading(false);
       }
     };
 
-    fetchActiveCases();
+    fetchHomeData();
   }, []);
 
   // Generate initials from first and last name
@@ -118,6 +176,65 @@ export default function HomeScreen({ navigation }) {
 
   const firstName = userData?.firstName || 'User';
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
+  };
+
+  const formatCaseDate = (value) => {
+    if (!value) return 'Recently updated';
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'Recently updated';
+
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  };
+
+  const getActivityDetails = (item) => {
+    const officerName = item.assignedOfficer?.trim();
+    const timestamp = item.updatedAt || item.createdAt;
+
+    switch (item.status) {
+      case 'reviewing':
+        return {
+          title: officerName ? `Assigned to ${officerName}` : 'Assigned to officer',
+          subtitle: 'Case is now being reviewed',
+          timestamp,
+        };
+      case 'referred':
+        return {
+          title: 'Referred to social worker',
+          subtitle: 'Case moved to the next step',
+          timestamp,
+        };
+      case 'resolved':
+        return {
+          title: 'Case resolved',
+          subtitle: 'The case has been resolved',
+          timestamp,
+        };
+      case 'closed':
+        return {
+          title: 'Case closed',
+          subtitle: 'The case has been closed',
+          timestamp,
+        };
+      default:
+        return {
+          title: 'Report submitted',
+          subtitle: 'Report received and logged',
+          timestamp: item.createdAt || timestamp,
+        };
+    }
+  };
+
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor={colors.primaryDark} />
@@ -127,7 +244,7 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.heroInner}>
           <View style={styles.heroTop}>
             <View>
-              <Text style={styles.heroGreet}>Good morning </Text>
+              <Text style={styles.heroGreet}>{getGreeting()} </Text>
               <Text style={styles.heroName}>{firstName}</Text>
             </View>
             <TouchableOpacity
@@ -142,7 +259,6 @@ export default function HomeScreen({ navigation }) {
           <View style={styles.statsRow}>
             {[
               { value: activeCasesCount.toString(), label: 'Active case' },
-              { value: 'Safe', label: 'Status' },
             ].map((s, i) => (
               <View key={i} style={styles.statItem}>
                 <Text style={styles.statValue}>{s.value}</Text>
@@ -191,26 +307,54 @@ export default function HomeScreen({ navigation }) {
             onAction={() => navigation.navigate('Track')}
           />
           <Card variant="elevated">
-            <View style={styles.caseRow}>
-              <View style={styles.caseLeft}>
-                <View style={[styles.caseIndicator, { backgroundColor: colors.primary }]} />
-                <View>
-                  <Text style={styles.caseName}>Case #001 — Harassment</Text>
-                  <Text style={styles.caseDate}>Submitted Feb 12, 2025</Text>
-                </View>
+            {recentCasesLoading ? (
+              <View style={styles.emptyState}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={styles.emptyText}>Loading recent activity...</Text>
               </View>
-              <StatusBadge status="reviewing" />
-            </View>
-            <View style={[styles.caseRow, { borderTopWidth: 0.5, borderTopColor: colors.borderLight, marginTop: spacing.sm, paddingTop: spacing.sm }]}>
-              <View style={styles.caseLeft}>
-                <View style={[styles.caseIndicator, { backgroundColor: colors.warn }]} />
-                <View>
-                  <Text style={styles.caseName}>Case #003 — Bullying</Text>
-                  <Text style={styles.caseDate}>Submitted Feb 14, 2025</Text>
-                </View>
+            ) : recentCasesError ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyText}>{recentCasesError}</Text>
               </View>
-              <StatusBadge status="pending" />
-            </View>
+            ) : recentCases.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyText}>No recent activity yet</Text>
+                <Text style={styles.emptySubText}>Your latest reports will appear here.</Text>
+              </View>
+            ) : (
+              <ScrollView
+                style={styles.activityList}
+                contentContainerStyle={styles.activityListContent}
+                showsVerticalScrollIndicator={false}
+                nestedScrollEnabled
+              >
+                {recentCases.map((item, index) => (
+                  <View
+                    key={item.id || item.caseId || `${item.incidentType}-${index}`}
+                    style={[
+                      styles.caseRow,
+                      index > 0 && {
+                        borderTopWidth: 0.5,
+                        borderTopColor: colors.borderLight,
+                        marginTop: spacing.sm,
+                        paddingTop: spacing.sm,
+                      },
+                    ]}
+                  >
+                    <View style={styles.caseLeft}>
+                      <View style={[styles.caseIndicator, { backgroundColor: index % 2 === 0 ? colors.primary : colors.warn }]} />
+                      <View style={styles.caseTextWrap}>
+                        <Text style={styles.caseName}>
+                          {`Case ${item.caseId || '—'} — ${item.title}`}
+                        </Text>
+                        <Text style={styles.caseDate}>{item.subtitle} • {formatCaseDate(item.timestamp)}</Text>
+                      </View>
+                    </View>
+                    <StatusBadge status={item.status || 'pending'} />
+                  </View>
+                ))}
+              </ScrollView>
+            )}
           </Card>
 
           {/* ── Safety Reminder ── */}
@@ -244,7 +388,7 @@ const styles = StyleSheet.create({
   heroAvatarText:{ color: '#fff', fontWeight: '800', fontSize: 16 },
   statsRow:      { flexDirection: 'row', gap: spacing.md },
   statItem: {
-    flex: 1,
+    width: '48%',
     backgroundColor: 'rgba(255,255,255,0.12)',
     borderRadius: radius.md,
     paddingVertical: spacing.sm + 2,
@@ -299,4 +443,31 @@ const styles = StyleSheet.create({
   reminderTitle: { fontSize: 13, fontWeight: '700', color: colors.primaryDark, marginBottom: 2 },
   reminderSub:   { fontSize: 11, color: colors.textSecondary, lineHeight: 15 },
   reminderLink:  { fontSize: 12, fontWeight: '700', color: colors.primary },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+  },
+  emptyText: {
+    marginTop: spacing.sm,
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+    textAlign: 'center',
+  },
+  emptySubText: {
+    marginTop: 4,
+    fontSize: 12,
+    color: colors.textMuted,
+    textAlign: 'center',
+  },
+  caseTextWrap: {
+    flex: 1,
+  },
+  activityList: {
+    maxHeight: 180,
+  },
+  activityListContent: {
+    paddingBottom: spacing.xs,
+  },
 });

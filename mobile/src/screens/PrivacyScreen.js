@@ -1,6 +1,14 @@
-// ─── PrivacyScreen.js ─────────────────────────────────────────────────────────
+// ─── PrivacyScreen.js (Settings) ──────────────────────────────────────────
 import React, { useState } from 'react';
-import { View, Text, ScrollView, StatusBar, Switch, TouchableOpacity, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  ScrollView,
+  StatusBar,
+  Switch,
+  TouchableOpacity,
+  Alert,
+} from 'react-native';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { colors, spacing } from '../theme';
 import { Card } from '../components';
@@ -9,13 +17,11 @@ import { signOut } from 'firebase/auth';
 import { auth } from '../config/firebase';
 
 export default function PrivacyScreen({ navigation }) {
-const [settings, setSettings] = useState({
-    disguise: true,
-    quickExit: true,
-    clearHistory: true,
+  const [settings, setSettings] = useState({
+    officerChatNotifications: true,
   });
 
-  const toggle = key => setSettings(s => ({ ...s, [key]: !s[key] }));
+  const toggle = (key) => setSettings((prev) => ({ ...prev, [key]: !prev[key] }));
 
   const handleLogout = async () => {
     Alert.alert(
@@ -39,43 +45,42 @@ const [settings, setSettings] = useState({
     );
   };
 
-const SETTINGS = [
-    { key: 'disguise',     icon: 'eye-slash', title: 'Disguised app name',  desc: 'Shows as "Weather App" on home screen' },
-    { key: 'quickExit',    icon: 'bolt', title: 'Quick exit',   desc: 'Shake phone to close app instantly' },
-    { key: 'clearHistory', icon: 'trash', title: 'Clear history on exit', desc: 'Delete activity when app closes' },
+  const SETTINGS = [
+    {
+      key: 'officerChatNotifications',
+      icon: 'bell',
+      title: "Don't get notified when an officer chats you",
+      desc: 'You will not receive in-app notifications for officer chat messages.',
+    },
   ];
 
   return (
-    <View style={[s.root, { backgroundColor: colors.surface }]}>
+    <View style={[s.root, { backgroundColor: colors.surface }]}> 
       <StatusBar barStyle="light-content" backgroundColor={colors.primaryDark} />
+
       <View style={s.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
           <FontAwesome6 name="arrow-left" size={20} color="#fff" />
         </TouchableOpacity>
-        <Text style={s.headerTitle}>Privacy & Safety</Text>
+        <Text style={s.headerTitle}>Settings</Text>
         <View style={{ width: 36 }} />
       </View>
-      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-        <Card variant="tinted">
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={{ fontSize: 20, marginRight: spacing.sm }}></Text>
-            <View>
-              <Text style={[s.sectionLabel, { marginBottom: 2 }]}>Your safety is our priority</Text>
-              <Text style={{ fontSize: 12, color: colors.textSecondary }}>These settings hide your app usage from others.</Text>
-            </View>
-          </View>
-        </Card>
 
-        {SETTINGS.map(item => (
+      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+        <Text style={s.sectionLabel}>Preferences</Text>
+
+        {SETTINGS.map((item) => (
           <Card key={item.key}>
             <View style={pv.row}>
               <View style={[pv.icon, { backgroundColor: colors.primaryLight }]}>
                 <FontAwesome6 name={item.icon} size={18} color={colors.primary} />
               </View>
+
               <View style={{ flex: 1 }}>
                 <Text style={pv.title}>{item.title}</Text>
                 <Text style={pv.desc}>{item.desc}</Text>
               </View>
+
               <Switch
                 value={settings[item.key]}
                 onValueChange={() => toggle(item.key)}
@@ -87,10 +92,16 @@ const SETTINGS = [
         ))}
 
         <TouchableOpacity style={pv.exitBtn} onPress={handleLogout} activeOpacity={0.85}>
-          <FontAwesome6 name="right-from-bracket" size={18} color="#fff" style={{ marginRight: spacing.sm }} />
+          <FontAwesome6
+            name="right-from-bracket"
+            size={18}
+            color="#fff"
+            style={{ marginRight: spacing.sm }}
+          />
           <Text style={pv.exitBtnText}>Log out</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
   );
 }
+
