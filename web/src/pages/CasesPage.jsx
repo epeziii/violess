@@ -1003,15 +1003,38 @@ export default function CasesPage() {
 
                 {actionMode === 'update' && (
                   <>
-                    {[{ icon: 'circle-info', label: 'Case Status', ctrl: <select className="form-select" value={status} onChange={e => setStatus(e.target.value)} style={{ fontSize: 12.5 }}><option value="pending">Pending</option><option value="reviewing">Under Review</option><option value="resolved">Resolved</option><option value="closed">Case Closed</option><option value="referred">Referred</option></select> }, 
-                    { icon: status === 'referred' ? 'arrow-right-long' : 'user-shield', label: status === 'referred' ? 'Referred To' : 'Assign Officer', ctrl: <><select className="form-select" value={status === 'referred' ? selectedCase?.referredTo || assignedOfficer : assignedOfficer} onChange={e => status === 'referred' ? null : setAssignedOfficer(e.target.value)} disabled={status === 'pending' || status === 'referred'} style={status === 'pending' || status === 'referred' ? { opacity: 0.5, cursor: 'not-allowed', backgroundColor: 'var(--bg)', fontSize: 12.5 } : { fontSize: 12.5 }}><option value="">-- Unassigned --</option>{officers.map(o => <option key={o.id} value={o.name}>{o.name}</option>)}</select>{status === 'pending' && <div style={{ fontSize: 10, color: 'var(--text-muted)', fontStyle: 'italic' }}>Change status first to assign</div>}{status === 'referred' && <div style={{ fontSize: 10, color: 'var(--text-muted)', fontStyle: 'italic' }}>Case referred - cannot reassign</div>}</> },
-                    { icon: 'triangle-exclamation', label: 'Priority Level', ctrl: <select className="form-select" value={priorityLevel} onChange={e => setPriorityLevel(e.target.value)} style={{ fontSize: 12.5 }}><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select> }
-                    ].map(f => (
-                      <div key={f.label} className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)' }}><Icon icon={f.icon} size="11px" style={{ marginRight: 4 }} />{f.label}</label>
-                        {f.ctrl}
+                    <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)' }}><Icon icon="circle-info" size="11px" style={{ marginRight: 4 }} />Change Case Status</label>
+                      <div>
+                        <select className="form-select" value={status === 'referred' ? 'referred' : status} onChange={e => setStatus(e.target.value)} style={{ fontSize: 12.5 }}>
+                          <option value="pending">Pending</option>
+                          <option value="reviewing">Under Review</option>
+                          <option value="resolved">Resolved</option>
+                          <option value="closed">Case Closed</option>
+                          {status === 'referred' && <option value="referred">Referred</option>}
+                        </select>
                       </div>
-                    ))}
+                    </div>
+
+                    <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)' }}><Icon icon={status === 'referred' ? 'arrow-right-long' : 'user-shield'} size="11px" style={{ marginRight: 4 }} />{status === 'referred' ? 'Referred To' : 'Assign Officer'}</label>
+                      <select className="form-select" value={status === 'referred' ? selectedCase?.referredTo || assignedOfficer : assignedOfficer} onChange={e => status === 'referred' ? null : setAssignedOfficer(e.target.value)} disabled={status === 'pending' || status === 'referred'} style={status === 'pending' || status === 'referred' ? { opacity: 0.5, cursor: 'not-allowed', backgroundColor: 'var(--bg)', fontSize: 12.5 } : { fontSize: 12.5 }}>
+                        <option value="">-- Unassigned --</option>
+                        {officers.map(o => <option key={o.id} value={o.name}>{o.name}</option>)}
+                      </select>
+                      {status === 'pending' && <div style={{ fontSize: 10, color: 'var(--text-muted)', fontStyle: 'italic' }}>Change status first to assign</div>}
+                      {status === 'referred' && <div style={{ fontSize: 10, color: 'var(--text-muted)', fontStyle: 'italic' }}>Case referred - cannot reassign</div>}
+                    </div>
+
+                    <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)' }}><Icon icon="triangle-exclamation" size="11px" style={{ marginRight: 4 }} />Priority Level</label>
+                      <select className="form-select" value={priorityLevel} onChange={e => setPriorityLevel(e.target.value)} style={{ fontSize: 12.5 }}>
+                        <option value="normal">Normal</option>
+                        <option value="high">High</option>
+                        <option value="urgent">Urgent</option>
+                      </select>
+                    </div>
+
                     <button className="btn btn-primary" style={{ width: '100%', marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }} onClick={handleSaveChanges}>
                       <Icon icon="floppy-disk" size="13px" /> Save Changes
                     </button>
