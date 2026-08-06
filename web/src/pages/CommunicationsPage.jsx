@@ -108,6 +108,8 @@ export default function CommunicationsPage({ initialSelectedCaseId }) {
   const [resolutionText, setResolutionText] = useState("");
   const [resolving, setResolving] = useState(false);
   const [resolveMessage, setResolveMessage] = useState("");
+  const [submissionConfirmOpen, setSubmissionConfirmOpen] = useState(false);
+  const [submissionConfirmMessage, setSubmissionConfirmMessage] = useState("");
 
   const openScheduleModal = () => {
     if (!selectedCase) return;
@@ -337,6 +339,9 @@ export default function CommunicationsPage({ initialSelectedCaseId }) {
 
       setResolveMessage("Resolution submitted successfully.");
       setResolveModalOpen(false);
+      // Show confirmation popup to the officer (manual close only)
+      setSubmissionConfirmMessage("Your resolution was sent and is pending admin approval.");
+      setSubmissionConfirmOpen(true);
     } catch (error) {
       console.error("Error resolving case:", error);
       setResolveMessage("Failed to submit resolution. Please try again.");
@@ -866,6 +871,33 @@ Incident Location
                     {resolveMessage}
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {submissionConfirmOpen && (
+          <div
+            className="modal-backdrop"
+            role="dialog"
+            aria-modal="true"
+            onMouseDown={(e) => {
+              if (e.target === e.currentTarget) setSubmissionConfirmOpen(false);
+            }}
+          >
+            <div className="modal" style={{ width: 420, maxWidth: "90vw", position: "relative" }}>
+              <div style={{ position: "absolute", right: 8, top: 8 }}>
+                <button
+                  aria-label="Close"
+                  onClick={() => setSubmissionConfirmOpen(false)}
+                  style={{ background: "transparent", border: "none", fontSize: 18, cursor: "pointer" }}
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="modal-body" style={{ textAlign: "center", padding: 20 }}>
+                <div style={{ fontSize: 16, fontWeight: 700 }}>Resolution Sent</div>
+                <div style={{ marginTop: 8, fontSize: 13, color: "var(--text)" }}>{submissionConfirmMessage}</div>
               </div>
             </div>
           </div>
