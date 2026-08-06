@@ -493,11 +493,13 @@ app.post("/submit-resolution", async (req, res) => {
     const adminsSnapshot = await adminsQuery.get();
     const adminNotifications = adminsSnapshot.docs.map(async (adminDoc) => {
       const adminUid = adminDoc.id;
+      const caseLabel = caseData?.caseId || caseId;
+      const caseType = caseData?.incidentType ? ` (${caseData.incidentType})` : "";
       return createNotification(
         adminUid,
         "resolution_submitted",
         "New Resolution Request",
-        `${officerFullName} submitted a resolution for case ${caseId}. Review is needed.`,
+        `${officerFullName} submitted a resolution for case ${caseLabel}${caseType}. Please review and approve or reject it.`,
         caseId,
         caseData || null
       );
