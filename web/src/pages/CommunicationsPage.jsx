@@ -315,22 +315,22 @@ export default function CommunicationsPage({ initialSelectedCaseId }) {
       });
 
       await updateDoc(reportRef, {
-        status: "resolved",
+        status: "pending_admin_review",
         updatedAt: serverTimestamp(),
       });
 
       setAssignedCases((cases) =>
         cases.map((c) =>
-          c.id === selectedCaseDetails.id ? { ...c, status: "resolved" } : c
+          c.id === selectedCaseDetails.id ? { ...c, status: "pending_admin_review" } : c
         )
       );
 
-      setSelectedCase((prev) => (prev ? { ...prev, status: "resolved" } : prev));
+      setSelectedCase((prev) => (prev ? { ...prev, status: "pending_admin_review" } : prev));
       setSelectedCaseDetails((prev) =>
         prev
           ? {
               ...prev,
-              status: "resolved",
+              status: "pending_admin_review",
               resolution: resolutionText.trim(),
               resolvedAt: new Date(),
             }

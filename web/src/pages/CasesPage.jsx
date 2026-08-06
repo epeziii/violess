@@ -17,6 +17,7 @@ const SAMPLE_CASES = [
 
 const getStatusFromString = (status) => {
   if (status === "pending") return "pending";
+  if (status === "pending_admin_review") return "pending_admin_review";
   if (status === "urgent") return "urgent";
   if (status === "resolved") return "resolved";
   if (status === "reviewing") return "reviewing";
@@ -581,6 +582,10 @@ export default function CasesPage() {
         throw new Error(errorData.error || "Failed to approve");
       }
 
+      // Clear pending resolution from UI immediately and update status locally
+      setPendingResolution(null);
+      setStatus("closed");
+      setSelectedCase(prev => prev ? { ...prev, status: "closed" } : prev);
       alert("Resolution approved! Case is now closed.");
       setApprovalComments("");
     } catch (error) {
@@ -613,6 +618,10 @@ export default function CasesPage() {
         throw new Error(errorData.error || "Failed to reject");
       }
 
+      // Clear pending resolution from UI immediately and update status locally
+      setPendingResolution(null);
+      setStatus("reviewing");
+      setSelectedCase(prev => prev ? { ...prev, status: "reviewing" } : prev);
       alert("Resolution rejected! Case returned to officer for revision.");
       setApprovalComments("");
     } catch (error) {
