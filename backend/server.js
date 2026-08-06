@@ -518,19 +518,12 @@ app.post("/approve-resolution", async (req, res) => {
     const adminFullName = `${staffData.firstName} ${staffData.lastName}`.trim();
 
     // Get the resolution
-    const resolutionSnap = await db.collection("reports").doc(caseId).collection("resolutions").doc(resolutionId).get();
+    const resolutionRef = db.collection("reports").doc(caseId).collection("resolutions").doc(resolutionId);
+    const resolutionSnap = await resolutionRef.get();
     if (!resolutionSnap.exists) {
       return res.status(404).json({ error: "Resolution not found" });
     }
-
-    // Update resolution to approved
-    await db.collection("reports").doc(caseId).collection("resolutions").doc(resolutionId).update({
-      status: "approved",
-      reviewedBy: uid,
-      reviewedByName: adminFullName,
-      reviewedAt: new Date(),
-      reviewComments: comments || ""
-    });
+    const resolutionData = resolutionSnap.data();
 
     // Update case status to closed
     const caseRef = db.collection("reports").doc(caseId);
@@ -541,9 +534,7 @@ app.post("/approve-resolution", async (req, res) => {
 
     const caseSnap = await caseRef.get();
     const caseData = caseSnap.exists ? caseSnap.data() : null;
-    const pendingResolutionSnap = await db.collection("reports").doc(caseId).collection("resolutions").doc(resolutionId).get();
-    const pendingResolutionData = pendingResolutionSnap.exists ? pendingResolutionSnap.data() : null;
-    const recipientUid = pendingResolutionData?.submittedBy;
+    const recipientUid = resolutionData?.submittedBy;
 
     if (recipientUid) {
       await createNotification(
@@ -555,6 +546,9 @@ app.post("/approve-resolution", async (req, res) => {
         caseData || null
       );
     }
+
+    // Delete the resolution document from Firestore
+    await resolutionRef.delete();
 
     // Create activity log
     await createActivityLog(caseId, "resolution_approved", uid, adminFullName, "pending_admin_review", "closed", `Approved by ${adminFullName}. ${comments || ""}`);
@@ -588,19 +582,12 @@ app.post("/reject-resolution", async (req, res) => {
     const adminFullName = `${staffData.firstName} ${staffData.lastName}`.trim();
 
     // Get the resolution
-    const resolutionSnap = await db.collection("reports").doc(caseId).collection("resolutions").doc(resolutionId).get();
+    const resolutionRef = db.collection("reports").doc(caseId).collection("resolutions").doc(resolutionId);
+    const resolutionSnap = await resolutionRef.get();
     if (!resolutionSnap.exists) {
       return res.status(404).json({ error: "Resolution not found" });
     }
-
-    // Update resolution to rejected
-    await db.collection("reports").doc(caseId).collection("resolutions").doc(resolutionId).update({
-      status: "rejected",
-      reviewedBy: uid,
-      reviewedByName: adminFullName,
-      reviewedAt: new Date(),
-      reviewComments: comments || ""
-    });
+    const resolutionData = resolutionSnap.data();
 
     // Update case status back to reviewing
     const caseRef = db.collection("reports").doc(caseId);
@@ -611,9 +598,7 @@ app.post("/reject-resolution", async (req, res) => {
 
     const caseSnap = await caseRef.get();
     const caseData = caseSnap.exists ? caseSnap.data() : null;
-    const pendingResolutionSnap = await db.collection("reports").doc(caseId).collection("resolutions").doc(resolutionId).get();
-    const pendingResolutionData = pendingResolutionSnap.exists ? pendingResolutionSnap.data() : null;
-    const recipientUid = pendingResolutionData?.submittedBy;
+    const recipientUid = resolutionData?.submittedBy;
 
     if (recipientUid) {
       await createNotification(
@@ -625,6 +610,9 @@ app.post("/reject-resolution", async (req, res) => {
         caseData || null
       );
     }
+
+    // Delete the resolution document from Firestore
+    await resolutionRef.delete();
 
     // Create activity log
     await createActivityLog(caseId, "resolution_rejected", uid, adminFullName, "pending_admin_review", "in_progress", `Rejected by ${adminFullName}. Reason: ${comments || "No reason provided"}`);

@@ -314,8 +314,9 @@ export default function CommunicationsPage({ initialSelectedCaseId }) {
         reporterName: selectedCaseDetails.reporter,
       });
 
+      // Ensure resolution document exists before marking the case resolved
       await updateDoc(reportRef, {
-        status: "pending_admin_review",
+        status: "resolved",
         updatedAt: serverTimestamp(),
       });
 

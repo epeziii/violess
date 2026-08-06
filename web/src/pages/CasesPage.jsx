@@ -85,6 +85,7 @@ export default function CasesPage() {
   const [approvalComments, setApprovalComments] = useState("");
   const [approving, setApproving] = useState(false);
   const [rejecting, setRejecting] = useState(false);
+  const [pendingResolutionProcessing, setPendingResolutionProcessing] = useState(false);
   const [actionMode, setActionMode] = useState("update"); // default to "update" (settings tab)
   const [evidence, setEvidence] = useState([]);
   const [messages, setMessages] = useState([]);
@@ -565,6 +566,7 @@ export default function CasesPage() {
 
     try {
       setApproving(true);
+      setPendingResolutionProcessing(true);
 
       const res = await fetch(`${API_BASE_URL}/approve-resolution`, {
         method: "POST",
@@ -593,6 +595,7 @@ export default function CasesPage() {
       alert(`Error: ${error.message}`);
     } finally {
       setApproving(false);
+      setPendingResolutionProcessing(false);
     }
   };
 
@@ -601,6 +604,7 @@ export default function CasesPage() {
 
     try {
       setRejecting(true);
+      setPendingResolutionProcessing(true);
 
       const res = await fetch(`${API_BASE_URL}/reject-resolution`, {
         method: "POST",
@@ -629,6 +633,7 @@ export default function CasesPage() {
       alert(`Error: ${error.message}`);
     } finally {
       setRejecting(false);
+      setPendingResolutionProcessing(false);
     }
   };
 
@@ -992,12 +997,12 @@ export default function CasesPage() {
                   ).map(tab => (
                     <button key={tab.key} onClick={() => setActionMode(tab.key)} style={{ padding: '10px 4px', background: 'none', border: 'none', borderBottom: actionMode === tab.key ? '2.5px solid var(--primary)' : '2.5px solid transparent', color: actionMode === tab.key ? 'var(--primary)' : 'var(--text-muted)', fontWeight: actionMode === tab.key ? 700 : 500, cursor: 'pointer', fontSize: 12.5, transition: 'all 0.15s ease', display: 'flex', alignItems: 'center', gap: 6 }}>
                       <Icon icon={tab.icon} size="12px" />{tab.label}
-                      {tab.key === 'resolution' && currentCaseStatus !== 'referred' && pendingResolution && <span style={{ width: 8, height: 8, backgroundColor: 'var(--sos)', borderRadius: '50%', display: 'inline-block' }} />}
+                      {tab.key === 'resolution' && currentCaseStatus !== 'referred' && pendingResolution && !pendingResolutionProcessing && <span style={{ width: 8, height: 8, backgroundColor: 'var(--sos)', borderRadius: '50%', display: 'inline-block' }} />}
                     </button>
                   ))}
                 </div>
 
-                {pendingResolution && actionMode !== 'resolution' && (
+                {pendingResolution && !pendingResolutionProcessing && actionMode !== 'resolution' && (
                   <div style={{ backgroundColor: 'var(--sos-light)', border: '0.5px solid rgba(198,40,40,0.2)', color: 'var(--sos)', borderRadius: 'var(--radius-md)', padding: '10px 12px', fontSize: 11, fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                     <Icon icon="circle-exclamation" size="13px" /><span>Pending resolution available</span>
                     <button onClick={() => setActionMode('resolution')} style={{ marginLeft: 'auto', background: 'var(--sos)', color: 'white', border: 'none', padding: '3px 8px', borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: 'pointer' }}>View</button>
@@ -1052,10 +1057,10 @@ export default function CasesPage() {
                       </div>
                     </div>
                   ) : (
-                    !pendingResolution ? (
+                    (!pendingResolution || pendingResolutionProcessing) ? (
                       <div style={{ color: 'var(--text-muted)', fontSize: 12.5, textAlign: 'center', padding: '30px 20px', lineHeight: 1.5 }}>
                         <Icon icon="circle-check" size="28px" color="var(--text-muted)" style={{ marginBottom: 10, display: 'block', marginLeft: 'auto', marginRight: 'auto', opacity: 0.5 }} />
-                        No pending resolution request.<br />Resolutions are submitted by the assigned officer.
+                        {pendingResolutionProcessing ? 'Processing action... please wait.' : 'No pending resolution request.'}<br />Resolutions are submitted by the assigned officer.
                       </div>
                     ) : (
                       <>
