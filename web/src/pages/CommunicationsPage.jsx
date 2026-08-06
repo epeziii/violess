@@ -10,7 +10,6 @@ import {
   doc,
   serverTimestamp,
   query,
-  setDoc,
   updateDoc,
   where,
   onSnapshot,
@@ -18,6 +17,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebase";
 import { useAuth } from "../AuthContext";
+import API_BASE_URL from "../config/api";
 
 export default function CommunicationsPage({ initialSelectedCaseId }) {
   const { user } = useAuth();
@@ -293,45 +293,36 @@ export default function CommunicationsPage({ initialSelectedCaseId }) {
       setResolving(true);
       setResolveMessage("");
 
-      const officerName = `${user.firstName} ${user.lastName}`;
-      const reportRef = doc(db, "reports", selectedCaseDetails.docId);
-      const resolutionRef = doc(collection(db, "reports", selectedCaseDetails.docId, "resolutions"));
-
-      await setDoc(resolutionRef, {
-        resolutionId: resolutionRef.id,
-        submittedBy: user.uid,
-        submittedByName: officerName,
-        submittedAt: new Date(),
-        notes: resolutionText.trim(),
-        completionDate: null,
-        evidenceUrls: [],
-        status: "pending",
-        reviewedBy: null,
-        reviewedByName: null,
-        reviewedAt: null,
-        reviewComments: "",
-        caseId: selectedCaseDetails.docId,
-        reporterName: selectedCaseDetails.reporter,
+      const response = await fetch(`${API_BASE_URL}/submit-resolution`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          uid: user.uid,
+          caseId: selectedCaseDetails.docId,
+          notes: resolutionText.trim(),
+          completionDate: null,
+        }),
       });
 
-      // Ensure resolution document exists before marking the case resolved
-      await updateDoc(reportRef, {
-        status: "resolved",
-        updatedAt: serverTimestamp(),
-      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to submit resolution");
+      }
 
       setAssignedCases((cases) =>
         cases.map((c) =>
-          c.id === selectedCaseDetails.id ? { ...c, status: "pending_admin_review" } : c
+          c.id === selectedCaseDetails.id ? { ...c, status: "resolved" } : c
         )
       );
 
-      setSelectedCase((prev) => (prev ? { ...prev, status: "pending_admin_review" } : prev));
+      setSelectedCase((prev) => (prev ? { ...prev, status: "resolved" } : prev));
       setSelectedCaseDetails((prev) =>
         prev
           ? {
               ...prev,
-              status: "pending_admin_review",
+              status: "resolved",
               resolution: resolutionText.trim(),
               resolvedAt: new Date(),
             }

@@ -480,14 +480,32 @@ app.post("/submit-resolution", async (req, res) => {
       reporterName: caseData.reporterName
     });
 
-    // Update case status to pending_admin_review
+    // Update case status to resolved
     await caseRef.update({
-      status: "pending_admin_review",
+      status: "resolved",
       updatedAt: new Date()
     });
 
+    // Notify all admins about the new resolution request
+    const adminsQuery = db.collection("staff")
+      .where("role", "==", "admin")
+      .where("status", "==", "active");
+    const adminsSnapshot = await adminsQuery.get();
+    const adminNotifications = adminsSnapshot.docs.map(async (adminDoc) => {
+      const adminUid = adminDoc.id;
+      return createNotification(
+        adminUid,
+        "resolution_submitted",
+        "New Resolution Request",
+        `${officerFullName} submitted a resolution for case ${caseId}. Review is needed.`,
+        caseId,
+        caseData || null
+      );
+    });
+    await Promise.all(adminNotifications);
+
     // Create activity log
-    await createActivityLog(caseId, "resolution_submitted", uid, officerFullName, caseData.status, "pending_admin_review", notes);
+    await createActivityLog(caseId, "resolution_submitted", uid, officerFullName, caseData.status, "resolved", notes);
 
     res.json({ success: true, resolutionId });
   } catch (error) {
