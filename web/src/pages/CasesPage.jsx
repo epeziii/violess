@@ -1,5 +1,5 @@
 // CasesPage.jsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Badge from "./Badge";
 import { db } from "../firebase";
 import { collection, query, orderBy, limit, onSnapshot, where, addDoc, serverTimestamp, getDocs, updateDoc, doc } from "firebase/firestore";
@@ -95,6 +95,7 @@ export default function CasesPage() {
   const [referralCaseId, setReferralCaseId] = useState("");
   const [referralTo, setReferralTo] = useState("Social Worker");
   const [referralReason, setReferralReason] = useState("");
+  const selectedCaseRef = useRef(null);
   const currentCaseStatus = status || selectedCase?.status || "pending";
 
   // Sorting and Pagination states
@@ -118,6 +119,10 @@ export default function CasesPage() {
         .catch(error => console.error("[CasesPage] Error checking new cases:", error));
     }
   }, [user?.uid, user?.role]);
+
+  useEffect(() => {
+    selectedCaseRef.current = selectedCase;
+  }, [selectedCase]);
 
   useEffect(() => {
     try {
@@ -149,12 +154,11 @@ export default function CasesPage() {
         }));
         setReports(reportsData);
 
-        // Update selectedCase if it exists and matches a case in the updated reports
-        if (selectedCase) {
-          const updatedCase = reportsData.find(c => c.docId === selectedCase.docId);
+        const currentSelectedCase = selectedCaseRef.current;
+        if (currentSelectedCase) {
+          const updatedCase = reportsData.find(c => c.docId === currentSelectedCase.docId);
           if (updatedCase) {
             setSelectedCase(updatedCase);
-            // Don't overwrite user's current dropdown selections while editing.
             if (actionMode !== "update") {
               setStatus(updatedCase.status);
               setAssignedOfficer(updatedCase.assignedOfficer || "");
@@ -172,7 +176,7 @@ export default function CasesPage() {
       setReports(SAMPLE_CASES);
       setLoading(false);
     }
-  }, [selectedCase]);
+  }, []);
 
   useEffect(() => {
     try {
@@ -485,7 +489,7 @@ export default function CasesPage() {
 
   // Fetch pending resolution for selected case
   useEffect(() => {
-    if (!selectedCase) {
+    if (!selectedCase?.docId) {
       setPendingResolution(null);
       return;
     }
@@ -508,7 +512,7 @@ export default function CasesPage() {
     } catch (error) {
       console.error("Error fetching resolution:", error);
     }
-  }, [selectedCase]);
+  }, [selectedCase?.docId]);
 
   // Fetch evidence files and messages from chat
   useEffect(() => {

@@ -78,7 +78,7 @@ export default function CommunicationsPage({ initialSelectedCaseId }) {
   }, [user]);
 
   useEffect(() => {
-    if (!selectedCase) {
+    if (!selectedCase?.id) {
       setMsgs([]);
       setQuickActionOpen(false);
       return;
@@ -101,7 +101,7 @@ export default function CommunicationsPage({ initialSelectedCaseId }) {
     });
 
     return () => unsubscribe();
-  }, [selectedCase]);
+  }, [selectedCase?.id]);
 
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [resolveModalOpen, setResolveModalOpen] = useState(false);
