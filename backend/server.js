@@ -436,6 +436,8 @@ app.post("/submit-resolution", async (req, res) => {
       return res.status(403).json({ error: "Unauthorized: only officers can submit resolutions" });
     }
 
+    const officerFullName = `${staffData.firstName} ${staffData.lastName}`.trim();
+
     // Get the case
     const caseRef = db.collection("reports").doc(caseId);
     const caseSnap = await caseRef.get();
@@ -455,7 +457,6 @@ app.post("/submit-resolution", async (req, res) => {
       }
     } else {
       // Backward compat: fallback to name string match
-      const officerFullName = `${staffData.firstName} ${staffData.lastName}`.trim();
       if (caseData.assignedOfficer !== officerFullName) {
         return res.status(403).json({ error: "Unauthorized: you are not assigned to this case" });
       }
