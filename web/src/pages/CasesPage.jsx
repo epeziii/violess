@@ -22,6 +22,7 @@ const getStatusFromString = (status) => {
   if (status === "resolved") return "resolved";
   if (status === "reviewing") return "reviewing";
   if (status === "referred") return "referred";
+  if (status === "closed") return "closed";
   return "pending";
 };
 

@@ -1,4 +1,12 @@
 // Badge.jsx
+const STATUS_LABELS = {
+  closed: "Case Closed",
+  pending_admin_review: "Pending Admin Review",
+  reviewing: "Under Review",
+  referred: "Referred",
+};
+
 export default function Badge({ status }) {
-  return <span className={`badge badge-${status}`}>{status.charAt(0).toUpperCase() + status.slice(1)}</span>;
+  const label = STATUS_LABELS[status] || (status ? status.charAt(0).toUpperCase() + status.slice(1) : "Unknown");
+  return <span className={`badge badge-${status}`}>{label}</span>;
 }
