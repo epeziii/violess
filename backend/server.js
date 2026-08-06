@@ -539,6 +539,23 @@ app.post("/approve-resolution", async (req, res) => {
       updatedAt: new Date()
     });
 
+    const caseSnap = await caseRef.get();
+    const caseData = caseSnap.exists ? caseSnap.data() : null;
+    const pendingResolutionSnap = await db.collection("reports").doc(caseId).collection("resolutions").doc(resolutionId).get();
+    const pendingResolutionData = pendingResolutionSnap.exists ? pendingResolutionSnap.data() : null;
+    const recipientUid = pendingResolutionData?.submittedBy;
+
+    if (recipientUid) {
+      await createNotification(
+        recipientUid,
+        "resolution_approved",
+        "Resolution Approved",
+        `Your resolution request for case ${caseId} has been approved and the case is now closed.`,
+        caseId,
+        caseData || null
+      );
+    }
+
     // Create activity log
     await createActivityLog(caseId, "resolution_approved", uid, adminFullName, "pending_admin_review", "closed", `Approved by ${adminFullName}. ${comments || ""}`);
 
@@ -585,12 +602,29 @@ app.post("/reject-resolution", async (req, res) => {
       reviewComments: comments || ""
     });
 
-    // Update case status back to in_progress
+    // Update case status back to reviewing
     const caseRef = db.collection("reports").doc(caseId);
     await caseRef.update({
-      status: "in_progress",
+      status: "reviewing",
       updatedAt: new Date()
     });
+
+    const caseSnap = await caseRef.get();
+    const caseData = caseSnap.exists ? caseSnap.data() : null;
+    const pendingResolutionSnap = await db.collection("reports").doc(caseId).collection("resolutions").doc(resolutionId).get();
+    const pendingResolutionData = pendingResolutionSnap.exists ? pendingResolutionSnap.data() : null;
+    const recipientUid = pendingResolutionData?.submittedBy;
+
+    if (recipientUid) {
+      await createNotification(
+        recipientUid,
+        "resolution_rejected",
+        "Resolution Rejected",
+        `Your resolution request for case ${caseId} has been rejected. Please review the comments and resubmit.`,
+        caseId,
+        caseData || null
+      );
+    }
 
     // Create activity log
     await createActivityLog(caseId, "resolution_rejected", uid, adminFullName, "pending_admin_review", "in_progress", `Rejected by ${adminFullName}. Reason: ${comments || "No reason provided"}`);

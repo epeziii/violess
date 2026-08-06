@@ -1011,7 +1011,7 @@ export default function CasesPage() {
                     </div>
 
                     <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)' }}><Icon icon={status === 'referred' ? 'arrow-right-long' : 'user-shield'} size="11px" style={{ marginRight: 4 }} />{status === 'referred' ? 'Referred To' : 'Assign Officer'}</label>
+<label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)' }}><Icon icon="user-shield" size="11px" style={{ marginRight: 4 }} />Assign Officer</label>
                       <select className="form-select" value={status === 'referred' ? selectedCase?.referredTo || assignedOfficer : assignedOfficer} onChange={e => status === 'referred' ? null : setAssignedOfficer(e.target.value)} disabled={status === 'pending' || status === 'referred'} style={status === 'pending' || status === 'referred' ? { opacity: 0.5, cursor: 'not-allowed', backgroundColor: 'var(--bg)', fontSize: 12.5 } : { fontSize: 12.5 }}>
                         <option value="">-- Unassigned --</option>
                         {officers.map(o => <option key={o.id} value={o.name}>{o.name}</option>)}

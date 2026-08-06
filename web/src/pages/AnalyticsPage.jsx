@@ -13,6 +13,8 @@ export default function AnalyticsPage() {
   const [monthlyCasesData, setMonthlyCasesData] = useState([]);
   const [loadingMonthlyCases, setLoadingMonthlyCases] = useState(true);
 
+  const [selectedDate, setSelectedDate] = useState(() => new Date());
+
   const [abuseTypeData, setAbuseTypeData] = useState([]);
   const [loadingAbuseType, setLoadingAbuseType] = useState(true);
 
@@ -25,7 +27,10 @@ export default function AnalyticsPage() {
     totalCount: 0
   });
 
+  const monthOrder = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const currentYear = new Date().getFullYear();
+  const selectedYear = currentYear;
+  const selectedMonth = monthOrder[selectedDate.getMonth()];
 
   // Fetch real-time general page stats from Firestore
   useEffect(() => {
@@ -122,7 +127,7 @@ export default function AnalyticsPage() {
     async function loadMonthlyCases() {
       setLoadingMonthlyCases(true);
       try {
-        const res = await fetch(`${API_BASE_URL}/analytics/monthly-cases?year=${currentYear}`, {
+        const res = await fetch(`${API_BASE_URL}/analytics/monthly-cases?year=${selectedYear}`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'omit',
@@ -147,12 +152,11 @@ export default function AnalyticsPage() {
         if (!cancelled) setLoadingMonthlyCases(false);
       }
     }
-
     loadMonthlyCases();
     return () => {
       cancelled = true;
     };
-  }, [currentYear]);
+  }, [selectedYear]);
 
   useEffect(() => {
     let cancelled = false;
@@ -323,7 +327,7 @@ export default function AnalyticsPage() {
       <div className="grid-2" style={{ alignItems: 'stretch' }}>
         <div className="card analytics-card--stretch" style={{ width: '100%', minWidth: 0 }}>
           <div className="card-header">
-            <span className="card-title">Monthly Cases ({new Date().getFullYear()})</span>
+            <span className="card-title">Monthly Cases ({selectedYear})</span>
           </div>
           <div className="card-body analytics-chart-body" style={{ minHeight: 280, padding: '16px 8px 8px 0' }}>
             {loadingMonthlyCases ? (
@@ -354,7 +358,14 @@ export default function AnalyticsPage() {
                     }}
                   />
                   <Tooltip content={<CustomBarTooltip />} cursor={{ fill: 'rgba(194,24,91,0.02)' }} />
-                  <Bar dataKey="cases" fill="url(#casesBarGrad)" radius={[6, 6, 0, 0]} maxBarSize={36} />
+                  <Bar dataKey="cases" radius={[6, 6, 0, 0]} maxBarSize={36}>
+                    {monthlyCasesData.map((d) => (
+                      <Cell
+                        key={d.month}
+                        fill={d.month === selectedMonth ? 'var(--primary)' : 'url(#casesBarGrad)'}
+                      />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             )}

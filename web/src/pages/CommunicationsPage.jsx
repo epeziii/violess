@@ -7,8 +7,11 @@ import { format } from "date-fns";
 import {
   addDoc,
   collection,
+  doc,
   serverTimestamp,
   query,
+  setDoc,
+  updateDoc,
   where,
   onSnapshot,
   orderBy,
@@ -45,25 +48,28 @@ export default function CommunicationsPage({ initialSelectedCaseId }) {
     const q = query(collection(db, "reports"), where("assignedOfficer", "==", officerName));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-        const cases = snapshot.docs.map((doc) => {
-        const data = doc.data();
-        return {
-          id: data.caseId,
-          type: data.incidentType,
-          reporter: data.reporterName,
-          status: data.status || "pending",
-          priority: data.priorityLevel || "normal",
-          docId: doc.id,
-          uid: data.uid,
-          location: data.location || "N/A",
-          datetime: data.datetime || "",
-          description: data.description || "",
-          suspectDescription: data.suspectDescription || "",
-          assignedOfficer: data.assignedOfficer || "",
-          createdAt: data.createdAt || "",
-          assignedAt: data.assignedAt || null,
-        };
-      });
+      const cases = snapshot.docs
+        .map((doc) => {
+          const data = doc.data();
+          return {
+            id: data.caseId,
+            type: data.incidentType,
+            reporter: data.reporterName,
+            status: data.status || "pending",
+            priority: data.priorityLevel || "normal",
+            docId: doc.id,
+            uid: data.uid,
+            location: data.location || "N/A",
+            datetime: data.datetime || "",
+            description: data.description || "",
+            suspectDescription: data.suspectDescription || "",
+            assignedOfficer: data.assignedOfficer || "",
+            createdAt: data.createdAt || "",
+            assignedAt: data.assignedAt || null,
+          };
+        })
+        .filter((caseItem) => caseItem.status !== "referred");
+
       setAssignedCases(cases);
       setLoadingCases(false);
     });
@@ -98,6 +104,10 @@ export default function CommunicationsPage({ initialSelectedCaseId }) {
   }, [selectedCase]);
 
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
+  const [resolveModalOpen, setResolveModalOpen] = useState(false);
+  const [resolutionText, setResolutionText] = useState("");
+  const [resolving, setResolving] = useState(false);
+  const [resolveMessage, setResolveMessage] = useState("");
 
   const openScheduleModal = () => {
     if (!selectedCase) return;
@@ -107,6 +117,17 @@ export default function CommunicationsPage({ initialSelectedCaseId }) {
   const closeScheduleModal = () => {
     setScheduleModalOpen(false);
     // keep selections as-is, so user can reopen without losing work
+  };
+
+  const openResolveModal = () => {
+    if (!selectedCaseDetails) return;
+    setResolveMessage("");
+    setResolutionText("");
+    setResolveModalOpen(true);
+  };
+
+  const closeResolveModal = () => {
+    setResolveModalOpen(false);
   };
 
   const scheduleInterview = async () => {
@@ -257,6 +278,72 @@ export default function CommunicationsPage({ initialSelectedCaseId }) {
       setDetailTab("messages");
     }
   }, [initialSelectedCaseId, assignedCases]);
+
+  const resolveCase = async () => {
+    if (!selectedCaseDetails || resolving) return;
+
+    if (!resolutionText.trim()) {
+      setResolveMessage("Resolution details are required.");
+      return;
+    }
+
+    try {
+      setResolving(true);
+      setResolveMessage("");
+
+      const officerName = `${user.firstName} ${user.lastName}`;
+      const reportRef = doc(db, "reports", selectedCaseDetails.docId);
+      const resolutionRef = doc(collection(db, "reports", selectedCaseDetails.docId, "resolutions"));
+
+      await setDoc(resolutionRef, {
+        resolutionId: resolutionRef.id,
+        submittedBy: user.uid,
+        submittedByName: officerName,
+        submittedAt: new Date(),
+        notes: resolutionText.trim(),
+        completionDate: null,
+        evidenceUrls: [],
+        status: "pending",
+        reviewedBy: null,
+        reviewedByName: null,
+        reviewedAt: null,
+        reviewComments: "",
+        caseId: selectedCaseDetails.docId,
+        reporterName: selectedCaseDetails.reporter,
+      });
+
+      await updateDoc(reportRef, {
+        status: "resolved",
+        updatedAt: serverTimestamp(),
+      });
+
+      setAssignedCases((cases) =>
+        cases.map((c) =>
+          c.id === selectedCaseDetails.id ? { ...c, status: "resolved" } : c
+        )
+      );
+
+      setSelectedCase((prev) => (prev ? { ...prev, status: "resolved" } : prev));
+      setSelectedCaseDetails((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: "resolved",
+              resolution: resolutionText.trim(),
+              resolvedAt: new Date(),
+            }
+          : prev
+      );
+
+      setResolveMessage("Resolution submitted successfully.");
+      setResolveModalOpen(false);
+    } catch (error) {
+      console.error("Error resolving case:", error);
+      setResolveMessage("Failed to submit resolution. Please try again.");
+    } finally {
+      setResolving(false);
+    }
+  };
 
   const closeCaseDetailsModal = () => {
     setCaseDetailsModalOpen(false);
@@ -473,6 +560,17 @@ Incident Location
                   {selectedCaseDetails.suspectDescription || "Not recorded"}
                 </div>
               </div>
+
+              <div style={{ marginBottom: 16, display: "flex", justifyContent: "flex-end", gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={openResolveModal}
+                  className="btn btn-primary"
+                  style={{ minWidth: 140, padding: "10px 14px", fontSize: 12 }}
+                >
+                  Mark as Resolved
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -686,7 +784,7 @@ Incident Location
                       e.currentTarget.style.background = "var(--primary)";
                     }}
                   >
-                    View Details
+                    View Case
                   </button>
                 </div>
               ))
@@ -705,6 +803,73 @@ Incident Location
           minHeight: 0,
         }}
       >
+
+        {resolveModalOpen && (
+          <div
+            className="modal-backdrop"
+            role="dialog"
+            aria-modal="true"
+            onMouseDown={(e) => {
+              if (e.target === e.currentTarget) closeResolveModal();
+            }}
+          >
+            <div className="modal" style={{ width: 520, maxWidth: "92vw" }}>
+              <div className="modal-header">
+                <div className="modal-title">Resolve Case</div>
+                <button type="button" className="modal-close" onClick={closeResolveModal} aria-label="Close">
+                  ✕
+                </button>
+              </div>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label className="form-label">Resolution details</label>
+                  <textarea
+                    className="form-input"
+                    rows={5}
+                    value={resolutionText}
+                    onChange={(e) => setResolutionText(e.target.value)}
+                    placeholder="Describe how the case was resolved..."
+                    style={{ minHeight: 120, resize: "vertical" }}
+                  />
+                </div>
+
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 }}>
+                  <button
+                    className="btn btn-primary"
+                    style={{ flex: 1, minWidth: 120 }}
+                    onClick={resolveCase}
+                    disabled={!resolutionText.trim() || resolving}
+                  >
+                    {resolving ? "Resolving..." : "Resolve Case"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    style={{ flex: 1, minWidth: 120 }}
+                    onClick={closeResolveModal}
+                  >
+                    Cancel
+                  </button>
+                </div>
+
+                {resolveMessage && (
+                  <div
+                    style={{
+                      marginTop: 14,
+                      padding: "10px 12px",
+                      borderRadius: "var(--radius-md)",
+                      fontSize: 13,
+                      backgroundColor: resolveMessage.includes("successfully") ? "#d4edda" : "#f8d7da",
+                      color: resolveMessage.includes("successfully") ? "#155724" : "#721c24",
+                    }}
+                  >
+                    {resolveMessage}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {scheduleModalOpen && (
           <div
