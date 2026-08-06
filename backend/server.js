@@ -570,6 +570,11 @@ app.post("/approve-resolution", async (req, res) => {
 
     // Delete the resolution document from Firestore
     await resolutionRef.delete();
+    const deletedResolutionSnap = await resolutionRef.get();
+    if (deletedResolutionSnap.exists) {
+      console.warn(`Resolution document ${resolutionId} still exists after delete attempt for case ${caseId}`);
+      await resolutionRef.delete();
+    }
 
     // Create activity log
     await createActivityLog(caseId, "resolution_approved", uid, adminFullName, "pending_admin_review", "closed", `Approved by ${adminFullName}. ${comments || ""}`);
@@ -634,6 +639,11 @@ app.post("/reject-resolution", async (req, res) => {
 
     // Delete the resolution document from Firestore
     await resolutionRef.delete();
+    const deletedResolutionSnap = await resolutionRef.get();
+    if (deletedResolutionSnap.exists) {
+      console.warn(`Resolution document ${resolutionId} still exists after delete attempt for case ${caseId}`);
+      await resolutionRef.delete();
+    }
 
     // Create activity log
     await createActivityLog(caseId, "resolution_rejected", uid, adminFullName, "pending_admin_review", "in_progress", `Rejected by ${adminFullName}. Reason: ${comments || "No reason provided"}`);
