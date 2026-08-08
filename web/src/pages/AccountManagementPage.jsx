@@ -243,6 +243,7 @@ function ChangePasswordModal({ account, onClose, refreshAccounts }) {
 
       setPasswordForm({ password: "", confirmPassword: "" });
       refreshAccounts();
+      alert("Password changed successfully.");
       onClose();
     } catch (err) {
       console.error(err);
@@ -313,6 +314,7 @@ function EditModal({ account, onClose, refreshAccounts }) {
       if (!res.ok) throw new Error(data.error || "Failed to update staff");
 
       refreshAccounts();
+      alert("Staff account updated successfully.");
       onClose();
     } catch (err) {
       console.error(err);
