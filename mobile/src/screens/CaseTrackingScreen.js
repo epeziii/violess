@@ -91,6 +91,8 @@ export default function CaseTrackingScreen({ navigation }) {
           status: c.status,
           date: new Date(c.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }),
           officer: c.assignedOfficer || "Unassigned",
+          referredTo: c.referredTo || "",
+          referralReason: c.referralReason || "",
           // Use first letter of first and last names only (e.g., Juan Dela Cruz -> JDC should be JC)
           initials: c.assignedOfficer
             ? (() => {
@@ -124,6 +126,78 @@ export default function CaseTrackingScreen({ navigation }) {
 
     fetchUserCases();
   }, []);
+
+  const getTimelineProgress = (caseItem) => {
+    const st = caseItem?.status || 'pending';
+    const officerAssigned = caseItem?.officer && caseItem.officer !== 'Unassigned';
+    const destination = caseItem?.referredTo?.trim();
+
+    const isAssignedState = st === 'reviewing' || st === 'assigned';
+    const isReferredState = st === 'referred';
+
+    const assignmentStep = {
+      label:
+        isReferredState
+          ? `Referred to ${destination || 'External Service'}`
+          : officerAssigned
+            ? `Assigned to ${caseItem.officer}`
+            : 'Barangay Reviewing',
+      sub:
+        isReferredState
+          ? caseItem?.referralReason || 'Case is being handled externally'
+          : officerAssigned
+            ? `${caseItem.officer} is assigned to this case`
+            : 'Awaiting assignment',
+      status:
+        st === 'pending'
+          ? 'active'
+          : officerAssigned || isReferredState
+            ? 'done'
+            : 'pending',
+    };
+
+    const actionStep = {
+      label: 'Action Taken',
+      sub:
+        st === 'resolved' || st === 'closed'
+          ? 'Follow-up completed'
+          : 'This is the next step in the case progress',
+      status:
+        st === 'resolved' || st === 'closed'
+          ? 'done'
+          : isAssignedState
+            ? 'active'
+            : 'pending',
+    };
+
+    const closedStep = {
+      label: 'Case Closed',
+      sub: st === 'closed' ? 'Case resolved and closed' : 'Pending closure',
+      status: st === 'closed' ? 'done' : 'pending',
+    };
+
+    if (isReferredState) {
+      return [
+        {
+          label: 'Report Submitted',
+          sub: caseItem?.date || 'Submitted',
+          status: 'done',
+        },
+        assignmentStep,
+      ];
+    }
+
+    return [
+      {
+        label: 'Report Submitted',
+        sub: caseItem?.date || 'Submitted',
+        status: 'done',
+      },
+      assignmentStep,
+      actionStep,
+      closedStep,
+    ];
+  };
 
   return (
     <View style={s.root}>
@@ -180,15 +254,19 @@ export default function CaseTrackingScreen({ navigation }) {
             {/* Case Progress */}
             <Text style={s.sectionLabel}>Case Progress</Text>
             <Card>
-              <TimelineStep label="Report Submitted"          sub={`${selected.date}, 9:00 AM`} status="done" />
-              <TimelineStep
-                label="Barangay Reviewing"
-                sub={selected.status === 'reviewing' ? `${selected.officer} assigned` : 'Pending'}
-                status={selected.status === 'reviewing' ? 'active' : 'pending'}
-              />
-              <TimelineStep label="Referred to Social Worker" sub="Pending assignment" status="pending" />
-              <TimelineStep label="Action Taken"              sub="—" status="pending" />
-              <TimelineStep label="Case Closed"               sub="—" status="pending" last />
+              {(() => {
+                const progress = getTimelineProgress(selected);
+
+                return progress.map((item, index) => (
+                  <TimelineStep
+                    key={item.label}
+                    label={item.label}
+                    sub={item.sub}
+                    status={item.status}
+                    last={index === progress.length - 1}
+                  />
+                ));
+              })()}
             </Card>
 
             {/* Assigned Officer */}

@@ -4,7 +4,7 @@ import {
   TouchableOpacity, StatusBar, Animated, Dimensions, ActivityIndicator
 } from 'react-native';
 import { colors, spacing, radius, shadow } from '../theme';
-import { Card, StatusBadge, QuickCard, SectionHeader } from '../components';
+import { Card, QuickCard, SectionHeader } from '../components';
 import { auth } from '../config/firebase';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { API_BASE_URL } from '../config/api';
@@ -118,35 +118,76 @@ export default function HomeScreen({ navigation }) {
                 title: 'Report submitted',
                 subtitle: 'Report received and logged',
                 timestamp: item.createdAt || item.updatedAt,
+                order: 0,
               };
 
-              const progressEvent = (() => {
-                const details = getActivityDetails(item);
-                const progressStatuses = ['reviewing', 'referred', 'resolved', 'closed'];
+              const events = [submissionEvent];
+              const status = item.status || 'pending';
+              const hasAssigned = Boolean(item.assignedOfficer);
+              const hasReferred = Boolean(item.referredTo);
 
-                if (!progressStatuses.includes(item.status)) {
-                  return null;
-                }
-
-                return {
-                  id: `${caseId}-${item.status}`,
+              if (hasAssigned) {
+                events.push({
+                  id: `${caseId}-assigned`,
                   caseId,
                   incidentType: item.incidentType || 'Report',
-                  status: item.status || 'pending',
-                  title: details.title,
-                  subtitle: details.subtitle,
+                  status: 'reviewing',
+                  title: `Assigned to ${item.assignedOfficer}`,
+                  subtitle: status === 'reviewing'
+                    ? 'Case is now being reviewed'
+                    : 'Case was assigned to an officer',
                   timestamp: item.updatedAt || item.createdAt,
-                };
-              })();
+                  order: 1,
+                });
+              }
 
-              return [submissionEvent, progressEvent].filter(Boolean);
+              if (hasReferred) {
+                events.push({
+                  id: `${caseId}-referred`,
+                  caseId,
+                  incidentType: item.incidentType || 'Report',
+                  status: 'referred',
+                  title: `Referred to ${item.referredTo}`,
+                  subtitle: item.referralReason ? item.referralReason : 'Case moved to the next step',
+                  timestamp: item.updatedAt || item.createdAt,
+                  order: 2,
+                });
+              }
+
+              if (status === 'resolved' || status === 'closed') {
+                events.push({
+                  id: `${caseId}-resolved`,
+                  caseId,
+                  incidentType: item.incidentType || 'Report',
+                  status: 'resolved',
+                  title: 'Case resolved',
+                  subtitle: 'The case has been resolved',
+                  timestamp: item.updatedAt || item.createdAt,
+                  order: 3,
+                });
+              }
+
+              if (status === 'closed') {
+                events.push({
+                  id: `${caseId}-closed`,
+                  caseId,
+                  incidentType: item.incidentType || 'Report',
+                  status: 'closed',
+                  title: 'Case closed',
+                  subtitle: 'The case has been closed',
+                  timestamp: item.updatedAt || item.createdAt,
+                  order: 4,
+                });
+              }
+
+              return events.filter(Boolean);
             })
             .sort((a, b) => {
               const aTime = new Date(a.timestamp || 0).getTime();
               const bTime = new Date(b.timestamp || 0).getTime();
-              return bTime - aTime;
-            })
-            .slice(0, 4);
+              if (bTime !== aTime) return bTime - aTime;
+              return (b.order || 0) - (a.order || 0);
+            });
 
           setRecentCases(recentActivities);
         } else {
@@ -164,7 +205,9 @@ export default function HomeScreen({ navigation }) {
     };
 
     fetchHomeData();
-  }, []);
+    const unsubscribe = navigation.addListener('focus', fetchHomeData);
+    return unsubscribe;
+  }, [navigation]);
 
   // Generate initials from first and last name
   const getInitials = () => {
@@ -190,10 +233,13 @@ export default function HomeScreen({ navigation }) {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return 'Recently updated';
 
-    return date.toLocaleDateString('en-US', {
+    return date.toLocaleString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
     });
   };
 
@@ -210,8 +256,8 @@ export default function HomeScreen({ navigation }) {
         };
       case 'referred':
         return {
-          title: 'Referred to social worker',
-          subtitle: 'Case moved to the next step',
+          title: item.referredTo ? `Referred to ${item.referredTo}` : 'Referred to social worker',
+          subtitle: item.referralReason ? item.referralReason : 'Case moved to the next step',
           timestamp,
         };
       case 'resolved':
@@ -273,11 +319,7 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.heroCircle2} />
       </View>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={styles.scroll}>
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
 
           {/* ── SOS Panic Button ── */}
@@ -350,7 +392,6 @@ export default function HomeScreen({ navigation }) {
                         <Text style={styles.caseDate}>{item.subtitle} • {formatCaseDate(item.timestamp)}</Text>
                       </View>
                     </View>
-                    <StatusBadge status={item.status || 'pending'} />
                   </View>
                 ))}
               </ScrollView>
@@ -361,7 +402,7 @@ export default function HomeScreen({ navigation }) {
           
 
         </Animated.View>
-      </ScrollView>
+      </View>
     </View>
   );
 }
@@ -408,7 +449,7 @@ const styles = StyleSheet.create({
     width: 80, height: 80, borderRadius: 40,
     backgroundColor: 'rgba(255,255,255,0.05)',
   },
-  scroll:        { flex: 1, marginTop: -18 },
+  scroll:        { flex: 1, marginTop: -10, paddingHorizontal: spacing.lg, paddingTop: spacing.md },
   scrollContent: { paddingHorizontal: spacing.lg, paddingTop: spacing.xl, paddingBottom: 100 },
   sosCard: {
     backgroundColor: colors.sos,
@@ -465,7 +506,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   activityList: {
-    maxHeight: 180,
+    maxHeight: 360,
   },
   activityListContent: {
     paddingBottom: spacing.xs,
