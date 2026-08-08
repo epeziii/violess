@@ -1,15 +1,13 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../AuthContext";
-import { getAuth, sendPasswordResetEmail } from "firebase/auth";
 import app from "../../firebase";
-import { getFirestore, collection, query, where, getDocs } from "firebase/firestore";
+import API_BASE_URL from "../../config/api";
 import "./../../styles/auth.css";
 
 export default function LoginPage() {
   const { login, user, loading } = useAuth(); // include user & loading
   const navigate = useNavigate();
-  const auth = getAuth(app);
 
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -69,30 +67,28 @@ export default function LoginPage() {
     setInfo("");
 
     if (!identifier.trim()) {
-      setError("Please enter your username to reset your password.");
+      setError("Please enter your username to request a password reset.");
       identifierRef.current?.focus();
       return;
     }
 
     try {
-      // Username-only: resolve username to email
       if (identifier.includes("@")) {
         throw new Error("Please enter your username only (not email)." );
       }
 
-      const db = getFirestore(app);
-      const q = query(collection(db, "staff"), where("username", "==", identifier));
-      const snap = await getDocs(q);
-      if (snap.empty) throw new Error("No account found for that username.");
+      const res = await fetch(`${API_BASE_URL}/request-password-reset`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: identifier.trim() }),
+      });
 
-      const profile = snap.docs[0].data();
-      const emailToSend = profile.email;
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to request password reset");
 
-
-      await sendPasswordResetEmail(auth, emailToSend);
-      setInfo("Password reset email sent. Check your inbox.");
+      setInfo("Your request has been sent to the admin team.");
     } catch (err) {
-      setError(err.message || "Failed to send reset email. Try again.");
+      setError(err.message || "Failed to request password reset. Try again.");
     }
   };
 

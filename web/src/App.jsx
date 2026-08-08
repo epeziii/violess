@@ -11,6 +11,7 @@ import {
 } from "./pages";
 import EvidenceStoragePage from "./pages/EvidenceStoragePage";
 import AccountManagementPage from "./pages/AccountManagementPage";
+import SettingsPage from "./pages/SettingsPage";
 import NotificationDropdown from "./components/NotificationDropdown";
 import { useNotifications } from "./hooks/useNotifications";
 import Icon from "./components/Icon";
@@ -22,6 +23,7 @@ const NAV = [
   { id: "comms",      icon: "", label: "Communications",  permission: "communications" },
   { id: "evidence",   icon: "", label: "Evidence",        permission: "evidence" },
   { id: "accounts",   icon: "", label: "Accounts",        permission: "accountManagement", adminOnly: true },
+  { id: "settings",   icon: "", label: "Settings",        permission: "systemSettings" },
 ];
 
 
@@ -46,12 +48,14 @@ function Shell() {
   if (!user) return <LoginPage />;
 
   const visibleNav = NAV.filter(n => can(n.permission));
+
   const pages = {
     cases:     <ProtectedRoute permission="cases"><CasesPage /></ProtectedRoute>,
     comms:     <CommunicationsPage initialSelectedCaseId={pendingCommunicationsCaseId} />,
     analytics: <AnalyticsPage />,
     evidence:  <EvidenceStoragePage />,
     accounts:  <ProtectedRoute permission="accountManagement"><AccountManagementPage /></ProtectedRoute>,
+    settings:  <SettingsPage />,
   };
 
 

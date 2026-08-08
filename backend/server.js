@@ -169,7 +169,7 @@ if (!resolvedFullName) {
     const looksLikeEmail = typeof staffUsername === "string" && staffUsername.includes("@");
     const firebaseEmail = looksLikeEmail
       ? staffUsername
-      : `${staffUsername}@username.violess.local`;
+      : staffUsername;
 
     const userRecord = await admin.auth().createUser({ email: firebaseEmail, password });
     if (!userRecord?.uid) return res.status(500).json({ error: "UID missing" });
@@ -214,6 +214,77 @@ const nameFromFull = splitName(fullName || "");
   } catch (err) {
     console.error("Error updating staff:", err);
     res.status(500).json({ error: err.message || "Failed to update staff" });
+  }
+});
+
+// ─── REQUEST PASSWORD RESET FOR STAFF ─────────────────────────────────
+app.post("/request-password-reset", async (req, res) => {
+  try {
+    const { username } = req.body;
+    if (!username || !String(username).trim()) {
+      return res.status(400).json({ error: "Username is required" });
+    }
+
+    const normalizedUsername = String(username).trim();
+    const usernameQuery = await db.collection("staff")
+      .where("username", "==", normalizedUsername)
+      .limit(1)
+      .get();
+
+    if (usernameQuery.empty) {
+      return res.status(404).json({ error: "No account found for that username." });
+    }
+
+    const staffDoc = usernameQuery.docs[0];
+    const staffData = staffDoc.data();
+    const staffFullName = `${staffData.firstName || ""} ${staffData.lastName || ""}`.trim() || staffData.fullName || normalizedUsername;
+
+    const adminsSnapshot = await db.collection("staff")
+      .where("role", "==", "admin")
+      .where("status", "==", "active")
+      .get();
+
+    if (adminsSnapshot.empty) {
+      return res.status(404).json({ error: "No active admin account found to receive the password reset request." });
+    }
+
+    await Promise.all(adminsSnapshot.docs.map(async (adminDoc) => {
+      await createNotification(
+        adminDoc.id,
+        "password_reset_request",
+        "Password Reset Request",
+        `${staffFullName} (${normalizedUsername}) requested a password reset. Please update their account password.`,
+        null,
+        {
+          requestType: "password_reset",
+          username: normalizedUsername,
+          requestedUid: staffDoc.id,
+          requestedFullName: staffFullName,
+        }
+      );
+    }));
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Error requesting password reset:", err);
+    res.status(500).json({ error: err.message || "Failed to request password reset" });
+  }
+});
+
+// ─── UPDATE STAFF PASSWORD ────────────────────────────────────────────
+app.post("/change-staff-password", async (req, res) => {
+  try {
+    const { uid, password } = req.body;
+    if (!uid) return res.status(400).json({ error: "UID is required" });
+    if (!password || String(password).trim().length < 6) {
+      return res.status(400).json({ error: "A password of at least 6 characters is required" });
+    }
+
+    await admin.auth().updateUser(uid, { password: String(password) });
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Error changing staff password:", err);
+    res.status(500).json({ error: err.message || "Failed to update password" });
   }
 });
 

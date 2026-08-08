@@ -204,12 +204,97 @@ onChange={e => set("fullName", toTitleCaseName(e.target.value))}
 
 // ─── EditModal and ConfirmModal remain the same, using doc(db, "staff", account.id) ───
 
+function ChangePasswordModal({ account, onClose, refreshAccounts }) {
+  const [passwordForm, setPasswordForm] = useState({
+    password: "",
+    confirmPassword: "",
+  });
+
+  const setPassword = (k, v) => setPasswordForm(f => ({ ...f, [k]: v }));
+
+  const handleChangePassword = async () => {
+    if (!passwordForm.password || !passwordForm.confirmPassword) {
+      alert("Please enter and confirm a new password.");
+      return;
+    }
+
+    if (passwordForm.password !== passwordForm.confirmPassword) {
+      alert("Passwords do not match.");
+      return;
+    }
+
+    if (passwordForm.password.length < 6) {
+      alert("Password must be at least 6 characters long.");
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/change-staff-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uid: account.id,
+          password: passwordForm.password,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update password");
+
+      setPasswordForm({ password: "", confirmPassword: "" });
+      refreshAccounts();
+      onClose();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update password: " + err.message);
+    }
+  };
+
+  return (
+    <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={{ width: 460 }}>
+        <div className="modal-header">
+          <span className="modal-title">Change Password</span>
+          <button className="modal-close" onClick={onClose}>✕</button>
+        </div>
+        <div className="modal-body">
+          <div className="form-group">
+            <label>New password</label>
+            <input
+              className="form-input"
+              type="password"
+              placeholder="Min. 6 characters"
+              value={passwordForm.password}
+              onChange={e => setPassword("password", e.target.value)}
+            />
+          </div>
+          <div className="form-group">
+            <label>Confirm password</label>
+            <input
+              className="form-input"
+              type="password"
+              placeholder="Repeat new password"
+              value={passwordForm.confirmPassword}
+              onChange={e => setPassword("confirmPassword", e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="modal-footer">
+          <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" onClick={handleChangePassword}>Update Password</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── EditModal ───────────────────────────────────────────────────────────────
 function EditModal({ account, onClose, refreshAccounts }) {
   const [form, setForm] = useState({
     role: account.role,
     status: account.status,
   });
+  const [showChangePassword, setShowChangePassword] = useState(false);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const handleSave = async () => {
@@ -263,11 +348,20 @@ function EditModal({ account, onClose, refreshAccounts }) {
             </div>
           </div>
         </div>
-        <div className="modal-footer">
-          <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
-          <button className="btn btn-primary" onClick={handleSave}>Save Changes</button>
+        <div className="modal-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <button className="btn btn-secondary" onClick={() => setShowChangePassword(true)}>Change Password</button>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
+            <button className="btn btn-primary" onClick={handleSave}>Save Changes</button>
+          </div>
         </div>
       </div>
+
+      {showChangePassword && (
+        <ChangePasswordModal account={account} onClose={() => setShowChangePassword(false)} refreshAccounts={refreshAccounts} />
+      )}
     </div>
   );
 }

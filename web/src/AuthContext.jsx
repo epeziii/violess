@@ -26,7 +26,7 @@ export const PERMISSIONS = {
     analytics:        "view",
     evidence:         true,
     accountManagement:false,
-    systemSettings:   false,
+    systemSettings:   true,
     deleteRecords:    false,
     exportData:       false,
   },
@@ -76,7 +76,7 @@ export function AuthProvider({ children }) {
       const snap = await getDocs(q);
       if (snap.empty) throw new Error("No user found for that username");
       const profile = snap.docs[0].data();
-      emailToUse = profile.email || `${identifier}@username.violess.local`;
+      emailToUse = profile.email || identifier;
     }
 
     const cred = await signInWithEmailAndPassword(auth, emailToUse, password);
