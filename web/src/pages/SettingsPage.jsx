@@ -2,6 +2,19 @@ import { useState } from "react";
 import { useAuth } from "../AuthContext";
 import API_BASE_URL from "../config/api";
 
+function validatePasswordStrength(password) {
+  const trimmed = String(password || "");
+  const failures = [];
+
+  if (trimmed.length < 8) failures.push("at least 8 characters");
+  if (!/[A-Z]/.test(trimmed)) failures.push("one uppercase letter");
+  if (!/[a-z]/.test(trimmed)) failures.push("one lowercase letter");
+  if (!/\d/.test(trimmed)) failures.push("one number");
+  if (!/[^A-Za-z0-9]/.test(trimmed)) failures.push("one special character");
+
+  return failures;
+}
+
 function ChangePasswordModal({ uid, onClose }) {
   const [passwordForm, setPasswordForm] = useState({
     password: "",
@@ -21,8 +34,9 @@ function ChangePasswordModal({ uid, onClose }) {
       return;
     }
 
-    if (passwordForm.password.length < 6) {
-      alert("Password must be at least 6 characters long.");
+    const errors = validatePasswordStrength(passwordForm.password);
+    if (errors.length > 0) {
+      alert("Password must have " + errors.join(", ") + ".");
       return;
     }
 
@@ -75,6 +89,16 @@ function ChangePasswordModal({ uid, onClose }) {
               value={passwordForm.confirmPassword}
               onChange={e => updateField("confirmPassword", e.target.value)}
             />
+          </div>
+          <div style={{ marginTop: 12, padding: 10, borderRadius: 8, background: "var(--bg)", border: "1px solid var(--border)" }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: "var(--text)", marginBottom: 6 }}>Password must have:</div>
+            <div style={{ fontSize: 11, color: "var(--text-muted)", lineHeight: 1.6 }}>
+              • at least 8 characters<br />
+              • one uppercase letter<br />
+              • one lowercase letter<br />
+              • one number<br />
+              • one special character
+            </div>
           </div>
         </div>
         <div className="modal-footer">
