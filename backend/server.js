@@ -332,14 +332,22 @@ app.post("/update-case", async (req, res) => {
     // Canonical fields (recommended): assignedOfficerUid + assignedOfficer
     // Backward compat: if assignedOfficerUid isn't provided, we fall back to name-based assignment.
     const oldAssignedOfficerUid = caseData.assignedOfficerUid || null;
-    const newAssignedOfficerUid = assignedOfficerUid || null;
+    const oldAssignedOfficerName = caseData.assignedOfficer || null;
 
-    const oldAssignedOfficerName = caseData.assignedOfficer || "";
-    const newAssignedOfficerName = assignedOfficer || "";
+    const newAssignedOfficerUid = assignedOfficerUid !== undefined ? (assignedOfficerUid || null) : oldAssignedOfficerUid;
+    const newAssignedOfficerName = assignedOfficer !== undefined ? (assignedOfficer || null) : oldAssignedOfficerName;
 
     // Update the case
     const updateData = {};
-    if (status !== undefined) updateData.status = status;
+    if (status !== undefined) {
+      updateData.status = status;
+      if (status === "referred") {
+        updateData.referredAt = new Date();
+      }
+      if (status === "resolved" || status === "closed") {
+        updateData.resolvedAt = new Date();
+      }
+    }
     if (priorityLevel !== undefined) updateData.priorityLevel = priorityLevel;
     // Canonical assignment
     if (assignedOfficerUid !== undefined) updateData.assignedOfficerUid = assignedOfficerUid || "";
@@ -348,14 +356,15 @@ app.post("/update-case", async (req, res) => {
     if (assignedOfficer !== undefined) updateData.assignedOfficer = assignedOfficer || "";
     updateData.updatedAt = new Date();
 
-    // Handle officer assignment changes
-    // Prefer uid diff; if uid not present, fall back to name diff for old behavior.
-    const hasUidChange = oldAssignedOfficerUid !== newAssignedOfficerUid;
-    const hasNameChange = oldAssignedOfficerName !== newAssignedOfficerName;
+    // Handle officer assignment changes only when assignment info is explicitly included.
+    const hasUidChange = assignedOfficerUid !== undefined && oldAssignedOfficerUid !== newAssignedOfficerUid;
+    const hasNameChange = assignedOfficer !== undefined && oldAssignedOfficerName !== newAssignedOfficerName;
 
     if (hasUidChange || hasNameChange) {
       // When assigned officer changes, record assignment timestamp
-      const hasNewOfficer = !!(assignedOfficerUid !== undefined ? newAssignedOfficerUid : newAssignedOfficerName);
+      const hasNewOfficer = assignedOfficerUid !== undefined
+        ? newAssignedOfficerUid !== null
+        : newAssignedOfficerName !== null;
       if (hasNewOfficer) {
         updateData.assignedAt = new Date();
       } else {
@@ -552,9 +561,10 @@ app.post("/submit-resolution", async (req, res) => {
       reporterName: caseData.reporterName
     });
 
-    // Update case status to resolved
+    // Update case status to resolved and store resolution timestamp
     await caseRef.update({
       status: "resolved",
+      resolvedAt: new Date(),
       updatedAt: new Date()
     });
 

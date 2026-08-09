@@ -20,11 +20,18 @@ export default function AnalyticsPage() {
 
   // Dynamic statistics from Firestore
   const [firestoreStats, setFirestoreStats] = useState({
-    avgResponseTime: '2.4h',
+    avgResponseTime: '—',
     casesThisMonth: 0,
     resolutionRate: '0%',
     pendingReferrals: 0,
     totalCount: 0
+  });
+
+  const [timelineOverview, setTimelineOverview] = useState({
+    avgFirstResponse: '—',
+    avgReferralTime: '—',
+    avgCaseResolution: '—',
+    reopenRequests: '0',
   });
 
   const monthOrder = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -43,18 +50,35 @@ export default function AnalyticsPage() {
         let pendingReferralsCount = 0;
         let casesThisMonthCount = 0;
 
+        let firstResponseTotalMs = 0;
+        let firstResponseCount = 0;
+
+        let referralTotalMs = 0;
+        let referralCount = 0;
+
+        let caseResolutionTotalMs = 0;
+        let caseResolutionCount = 0;
+
+        let reopenCount = 0;
+
         const now = new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+        const getDate = (value) => {
+          if (!value) return null;
+          if (value?.toDate) return value.toDate();
+          const parsed = new Date(value);
+          return Number.isNaN(parsed.getTime()) ? null : parsed;
+        };
 
         snapshot.docs.forEach((doc) => {
           const data = doc.data();
           const status = data.status;
-          const createdAt = data.createdAt;
-
-          let dt = null;
-          if (createdAt) {
-            dt = createdAt.toDate ? createdAt.toDate() : new Date(createdAt);
-          }
+          const createdAt = getDate(data.createdAt);
+          const assignedAt = getDate(data.assignedAt);
+          const resolvedAt = getDate(data.resolvedAt);
+          const updatedAt = getDate(data.updatedAt);
+          const referredAt = getDate(data.referredAt);
 
           totalCount++;
 
@@ -64,19 +88,56 @@ export default function AnalyticsPage() {
           if (status === "referred") {
             pendingReferralsCount++;
           }
-          if (dt && dt >= startOfMonth) {
+          if (createdAt && createdAt >= startOfMonth) {
             casesThisMonthCount++;
+          }
+
+          if (createdAt && assignedAt && assignedAt >= createdAt) {
+            firstResponseTotalMs += assignedAt - createdAt;
+            firstResponseCount += 1;
+          }
+
+          if (referredAt && assignedAt && referredAt >= assignedAt) {
+            referralTotalMs += referredAt - assignedAt;
+            referralCount += 1;
+          }
+
+          if (createdAt && resolvedAt && resolvedAt >= createdAt) {
+            caseResolutionTotalMs += resolvedAt - createdAt;
+            caseResolutionCount += 1;
+          }
+
+          if (Array.isArray(data.statusHistory)) {
+            reopenCount += data.statusHistory.filter((entry) => entry === "reopened" || entry === "reopen").length;
+          }
+          if (data.reopenRequests && Number.isFinite(data.reopenRequests)) {
+            reopenCount += Number(data.reopenRequests);
           }
         });
 
         const rate = totalCount > 0 ? Math.round((resolvedCount / totalCount) * 100) : 0;
 
+        const formatDuration = (ms) => {
+          if (!Number.isFinite(ms) || ms <= 0) return '—';
+          const hours = ms / 1000 / 3600;
+          if (hours < 24) return `${hours.toFixed(1)}h`;
+          const days = hours / 24;
+          return `${days.toFixed(1)}d`;
+        };
+
         setFirestoreStats({
-          avgResponseTime: '2.4h', // Standard fallback target
+          avgResponseTime: formatDuration(firstResponseCount > 0 ? firstResponseTotalMs / firstResponseCount : NaN),
           casesThisMonth: casesThisMonthCount,
           resolutionRate: `${rate}%`,
           pendingReferrals: pendingReferralsCount,
           totalCount: totalCount
+        });
+
+        setTimelineOverview({
+          avgFirstResponse: formatDuration(firstResponseCount > 0 ? firstResponseTotalMs / firstResponseCount : NaN),
+          avgReferralTime: formatDuration(referralCount > 0 ? referralTotalMs / referralCount : NaN),
+          avgCaseResolution: formatDuration(caseResolutionCount > 0 ? caseResolutionTotalMs / caseResolutionCount : NaN),
+          reopenRequests: String(reopenCount),
         });
       });
 
@@ -494,49 +555,38 @@ export default function AnalyticsPage() {
         <div className="card-body">
           <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
             {[
-              ['1.2d', 'Avg. first response', 'var(--primary)'],
-              ['4.5d', 'Avg. referral time', 'var(--info)'],
-              ['12d', 'Avg. case resolution', 'var(--safe)'],
-              ['3', 'Reopen requests', 'var(--warn)'],
-            ].map(([value, label]) => {
-              const color = ['1.2d', '4.5d', '12d', '3'].includes(value)
-                ? label === 'Avg. first response'
-                  ? 'var(--primary)'
-                  : label === 'Avg. referral time'
-                    ? 'var(--info)'
-                    : label === 'Avg. case resolution'
-                      ? 'var(--safe)'
-                      : 'var(--warn)'
-                : 'var(--text)';
-              return (
-                <div
-                  key={label}
-                  style={{
-                    textAlign: 'center',
-                    flex: 1,
-                    minWidth: 100,
-                    padding: '16px 12px',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'rgba(194, 24, 91, 0.02)',
-                    border: '0.5px solid var(--border)',
-                    transition: 'all 0.22s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'var(--surface)';
-                    e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(194, 24, 91, 0.02)';
-                    e.currentTarget.style.boxShadow = 'none';
-                    e.currentTarget.style.transform = 'none';
-                  }}
-                >
-                  <div style={{ fontSize: 26, fontWeight: 800, color }}>{value}</div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', marginTop: 4 }}>{label}</div>
-                </div>
-              );
-            })}
+              [timelineOverview.avgFirstResponse, 'Avg. first response', 'var(--primary)'],
+              [timelineOverview.avgReferralTime, 'Avg. referral time', 'var(--info)'],
+              [timelineOverview.avgCaseResolution, 'Avg. case resolution', 'var(--safe)'],
+              [timelineOverview.reopenRequests, 'Reopen requests', 'var(--warn)'],
+            ].map(([value, label, color]) => (
+              <div
+                key={label}
+                style={{
+                  textAlign: 'center',
+                  flex: 1,
+                  minWidth: 100,
+                  padding: '16px 12px',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'rgba(194, 24, 91, 0.02)',
+                  border: '0.5px solid var(--border)',
+                  transition: 'all 0.22s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--surface)';
+                  e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(194, 24, 91, 0.02)';
+                  e.currentTarget.style.boxShadow = 'none';
+                  e.currentTarget.style.transform = 'none';
+                }}
+              >
+                <div style={{ fontSize: 26, fontWeight: 800, color }}>{value}</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', marginTop: 4 }}>{label}</div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
