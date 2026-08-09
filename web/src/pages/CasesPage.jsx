@@ -423,17 +423,25 @@ export default function CasesPage() {
     }
 
     try {
+      const payload = {
+        uid: user.uid,
+        caseId: selectedCase.docId,
+        status: status,
+        priorityLevel: priorityLevel,
+      };
+
+      // Include assignedOfficer name when present
+      if (assignedOfficer !== undefined) payload.assignedOfficer = assignedOfficer || "";
+
+      // Only include assignedOfficerUid when a value is provided.
+      // Sending an empty string caused the server to prefer UID-based logic
+      // and skip name-based assignment handling which sets `assignedAt`.
+      if (assignedOfficerUid) payload.assignedOfficerUid = assignedOfficerUid;
+
       const res = await fetch(`${API_BASE_URL}/update-case`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          uid: user.uid,
-          caseId: selectedCase.docId,
-          status: status,
-          priorityLevel: priorityLevel,
-          assignedOfficer: assignedOfficer || "",
-          assignedOfficerUid: assignedOfficerUid || "",
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import violessIcon from './assets/violessicon.png';
 
 // Custom Simple Inline SVG Icons
 const ApkIcon = () => (
@@ -74,7 +75,7 @@ export default function App() {
         <div className="container navbar-content">
           <div className="logo-container">
             <div className="logo-icon">
-              <span>V</span>
+              <img src={violessIcon} alt="Violess logo" />
             </div>
             Violess
           </div>

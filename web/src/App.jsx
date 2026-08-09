@@ -15,6 +15,7 @@ import SettingsPage from "./pages/SettingsPage";
 import NotificationDropdown from "./components/NotificationDropdown";
 import { useNotifications } from "./hooks/useNotifications";
 import Icon from "./components/Icon";
+import violessIcon from "./assets/violessicon.png";
 import "./styles/global.css";
 
 const NAV = [
@@ -63,7 +64,9 @@ function Shell() {
     <div className="app-shell">
       <aside className={`sidebar ${sidebarOpen ? "open" : "collapsed"}`}>
         <div className="sidebar-brand">
-          <div className="brand-icon"></div>
+          <div className="brand-icon">
+            <img src={violessIcon} alt="Violess logo" />
+          </div>
           {sidebarOpen && (
             <div className="brand-text">
               <span className="brand-name">Vio-less</span>

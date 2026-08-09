@@ -1,10 +1,11 @@
 import React, { useEffect, useRef } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity,
+  View, Text, Image, StyleSheet, TouchableOpacity,
   StatusBar, Animated, Dimensions,
 } from 'react-native';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { colors, spacing, radius, shadow } from '../../theme';
+import violessIcon from '../../../assets/images/violessicon.png';
 
 const { width, height } = Dimensions.get('window');
 
@@ -33,9 +34,9 @@ export default function WelcomeScreen({ navigation }) {
       <View style={[styles.circle, styles.circle3]} />
 
       {/* Logo area */}
-      <Animated.View style={[styles.logoWrap, { transform: [{ scale: scaleAnim }] }]}>
+      <Animated.View style={[styles.logoWrap, { transform: [{ scale: scaleAnim }] }]}> 
         <View style={styles.logoBox}>
-          <Text style={styles.logoIcon}></Text>
+          <Image source={violessIcon} style={styles.logoImage} resizeMode="cover" />
         </View>
         <Text style={styles.appName}>Vio-less</Text>
         <Text style={styles.tagline}>Your safe space to report,{'\n'}track, and find support</Text>
@@ -105,14 +106,24 @@ const styles = StyleSheet.create({
   logoWrap:   { alignItems: 'center', marginTop: spacing.xxl },
   logoBox: {
     width: 80, height: 80,
-    backgroundColor: colors.primary,
-    borderRadius: 24,
+    backgroundColor: '#C2185B',
+    borderRadius: 20,
     alignItems: 'center', justifyContent: 'center',
     marginBottom: spacing.lg,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.18)',
+    shadowColor: '#8E44AD',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
+    elevation: 10,
+    overflow: 'hidden',
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
   },
-  logoIcon:   { fontSize: 38 },
+  logoImage: {
+    width: 80,
+    height: 80,
+  },
   appName: {
     fontSize: 36, fontWeight: '800', color: '#fff',
     letterSpacing: -1, marginBottom: spacing.sm,

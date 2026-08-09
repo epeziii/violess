@@ -1,11 +1,12 @@
 import React, { useState, useRef } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity,
+  View, Text, Image, StyleSheet, TouchableOpacity,
   StatusBar, TextInput, KeyboardAvoidingView,
   Platform, ScrollView, Animated,
 } from 'react-native';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { colors, spacing, radius, shadow } from '../../theme';
+import violessIcon from '../../../assets/images/violessicon.png';
 
 // 🔥 Firebase
 import { signInWithEmailAndPassword } from 'firebase/auth';
@@ -84,7 +85,7 @@ export default function LoginScreen({ navigation }) {
 
         <View style={styles.heroContent}>
           <View style={styles.logoBox}>
-            <Text style={{ fontSize: 26 }}></Text>
+            <Image source={violessIcon} style={styles.heroLogoImage} resizeMode="cover" />
           </View>
           <Text style={styles.heroTitle}>Welcome back</Text>
           <Text style={styles.heroSub}>Sign in to your Vio-less account</Text>
@@ -185,6 +186,11 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.2)',
+    overflow: 'hidden',
+  },
+  heroLogoImage: {
+    width: 60,
+    height: 60,
   },
   heroTitle: { fontSize: 24, fontWeight: '800', color: '#fff', letterSpacing: -0.5, marginBottom: spacing.xs },
   heroSub:   { fontSize: 13, color: 'rgba(255,255,255,0.65)' },

@@ -31,7 +31,7 @@ export default function CommunicationsPage({ initialSelectedCaseId }) {
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTimeValue, setSelectedTimeValue] = useState(null);
   const [interviewMode, setInterviewMode] = useState(
-    "Barangay Hall (private room)"
+    "Barangay Hall"
   );
   const [scheduling, setScheduling] = useState(false);
   const [scheduleMessage, setScheduleMessage] = useState("");
@@ -113,6 +113,7 @@ export default function CommunicationsPage({ initialSelectedCaseId }) {
 
   const openScheduleModal = () => {
     if (!selectedCase) return;
+    setScheduleMessage("");
     setScheduleModalOpen(true);
   };
 
@@ -133,7 +134,18 @@ export default function CommunicationsPage({ initialSelectedCaseId }) {
   };
 
   const scheduleInterview = async () => {
-    if (!selectedCase || !selectedDate || !selectedTimeValue || scheduling) return;
+    if (!selectedCase || scheduling) return;
+
+    // Validate inputs and show user-friendly message when missing
+    if (!selectedDate) {
+      setScheduleMessage("Please select a date for the interview.");
+      return;
+    }
+
+    if (!selectedTimeValue) {
+      setScheduleMessage("Please select a time for the interview.");
+      return;
+    }
 
     try {
       setScheduling(true);
@@ -169,7 +181,7 @@ export default function CommunicationsPage({ initialSelectedCaseId }) {
         interviewDateTime,
         "MMM dd, yyyy h:mm aa"
       );
-      const messageText = `📅 Interview scheduled for ${formattedDateTime} (${interviewMode}) by ${officerName}. Reply ACCEPT to confirm or state your reason:`;
+      const messageText = `Interview scheduled for ${formattedDateTime} at ${interviewMode} by ${officerName}. Reply ACCEPT to confirm or state your reason:`;
 
       await addDoc(collection(db, "messages", selectedCase.id, "messages"), {
         reporterUid: selectedCase.uid,
@@ -183,7 +195,7 @@ export default function CommunicationsPage({ initialSelectedCaseId }) {
 
       setSelectedDate(null);
       setSelectedTimeValue(null);
-      setInterviewMode("Barangay Hall (private room)");
+      setInterviewMode("Barangay Hall");
     } catch (error) {
       console.error("Error scheduling interview:", error);
       setScheduleMessage("Failed to schedule interview. Please try again.");
@@ -918,7 +930,10 @@ Incident Location
                     type="date"
                     className="form-input"
                     value={selectedDate ? format(selectedDate, "yyyy-MM-dd") : ""}
-                    onChange={(e) => setSelectedDate(e.target.valueAsDate || null)}
+                    onChange={(e) => {
+                      setSelectedDate(e.target.valueAsDate || null);
+                      setScheduleMessage("");
+                    }}
                     min={format(new Date(), "yyyy-MM-dd")}
                   />
                 </div>
@@ -929,7 +944,10 @@ Incident Location
                     <LocalizationProvider dateAdapter={AdapterDateFns}>
                       <DesktopTimePicker
                         value={selectedTimeValue}
-                        onChange={(newValue) => setSelectedTimeValue(newValue)}
+                        onChange={(newValue) => {
+                          setSelectedTimeValue(newValue);
+                          setScheduleMessage("");
+                        }}
                         sx={{ width: "100%" }}
                       />
                     </LocalizationProvider>
@@ -943,17 +961,18 @@ Incident Location
                     value={interviewMode}
                     onChange={(e) => setInterviewMode(e.target.value)}
                   >
-                    <option>Barangay Hall (private room)</option>
-                    <option>Video call (secure)</option>
+                    <option>Barangay Hall</option>
+                    <option>Video call</option>
                     <option>Home visit</option>
                   </select>
+                  
                 </div>
 
                 <button
                   className="btn btn-primary"
                   style={{ width: "100%" }}
                   onClick={scheduleInterview}
-                  disabled={!selectedDate || !selectedTimeValue || scheduling}
+                  disabled={scheduling}
                 >
                   {scheduling ? "Scheduling..." : "Schedule Interview"}
                 </button>

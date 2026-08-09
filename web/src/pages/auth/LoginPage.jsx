@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../AuthContext";
 import app from "../../firebase";
 import API_BASE_URL from "../../config/api";
+import violessIcon from "../../assets/violessicon.png";
 import "./../../styles/auth.css";
 
 export default function LoginPage() {
@@ -100,10 +101,7 @@ export default function LoginPage() {
         <div className="ll-line-h" />
         <div className="ll-brand">
           <div className="ll-brand-mark">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#C2185B" strokeWidth="1.5" strokeLinecap="round">
-              <circle cx="12" cy="12" r="9" />
-              <path d="M12 7v10M7 12h10" />
-            </svg>
+            <img src={violessIcon} alt="Violess logo" />
           </div>
           <div>
             <div className="ll-brand-name">Vio-less</div>
@@ -194,7 +192,7 @@ export default function LoginPage() {
                   tabIndex={-1}
                   aria-label={showPw ? "Hide password" : "Show password"}
                 >
-                  {showPw ? "🙈" : "👁"}
+                  <i className={showPw ? "fas fa-eye-slash" : "fas fa-eye"} aria-hidden="true" />
                 </button>
               </div>
             </div>

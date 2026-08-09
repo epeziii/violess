@@ -48,15 +48,44 @@ export default function ChatScreen({ navigation, route }) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [respondedMessages, setRespondedMessages] = useState([]);
   const [caseData, setCaseData] = useState(null);
   const [officerName, setOfficerName] = useState('Officer');
   const [sending, setSending] = useState(false);
   const [showReasonFor, setShowReasonFor] = useState(null);
   const [reasonInput, setReasonInput] = useState('');
+  const [reasonMode, setReasonMode] = useState(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [uploading, setUploading] = useState(false);
   const listRef = useRef();
   const isInitialLoadRef = useRef(true);
+
+  // Derive which interview messages have been responded to by scanning messages
+  useEffect(() => {
+    if (!messages || messages.length === 0) {
+      setRespondedMessages([]);
+      return;
+    }
+
+    const responded = new Set();
+
+    messages.forEach((m, idx) => {
+      const isInterviewMsg = typeof m.text === 'string' && /Interview scheduled.*Reply ACCEPT/i.test(m.text);
+      if (!isInterviewMsg) return;
+
+      // Look for any later reporter message indicating ACCEPT or DECLINE
+      for (let i = idx + 1; i < messages.length; i++) {
+        const later = messages[i];
+        if (!later || later.from !== 'reporter' || typeof later.text !== 'string') continue;
+        if (/^ACCEPT -|^DECLINE -/i.test(later.text.trim())) {
+          responded.add(m.id);
+          break;
+        }
+      }
+    });
+
+    setRespondedMessages(Array.from(responded));
+  }, [messages]);
 
   // Handle keyboard show/hide
   useEffect(() => {
@@ -452,22 +481,31 @@ export default function ChatScreen({ navigation, route }) {
               </View>
             }
             renderItem={({ item }) => {
-              const isInterviewMsg = item.text.match(/📅 Interview scheduled.*Reply ACCEPT/i);
+              const isInterviewMsg = item.text.match(/Interview scheduled.*Reply ACCEPT/i);
               const isFileMsg = item.fileUrl && item.text.includes('📎');
               const isMyReason = showReasonFor === item.id;
 
-              const handleAccept = () => {
-                quickSend(`ACCEPT - Confirmed for ${item.text.match(/📅 Interview scheduled for (.*?)\(/)?.[1] || 'scheduled interview'}`);
+              const handleAccept = async () => {
+                await quickSend(`ACCEPT - Confirmed for ${item.text.match(/Interview scheduled for (.*?) at /)?.[1] || 'scheduled interview'}`);
+                setRespondedMessages((prev) => (prev.includes(item.id) ? prev : [...prev, item.id]));
               };
 
-              const handleReasonSend = () => {
-                quickSend(reasonInput || 'Reason for unavailability');
+              const handleReasonSend = async () => {
+                if (reasonMode === 'decline') {
+                  await quickSend(`DECLINE - ${reasonInput.trim() || 'Unable to attend'}`);
+                } else {
+                  await quickSend(reasonInput.trim() || 'Reason for unavailability');
+                }
                 setReasonInput('');
+                setShowReasonFor(null);
+                setReasonMode(null);
+                setRespondedMessages((prev) => (prev.includes(item.id) ? prev : [...prev, item.id]));
               };
 
               const handleReasonCancel = () => {
                 setReasonInput('');
                 setShowReasonFor(null);
+                setReasonMode(null);
               };
 
               const handleViewEvidence = () => {
@@ -499,7 +537,7 @@ export default function ChatScreen({ navigation, route }) {
                     )}
                     <Text style={[ch.timeText, item.from === 'reporter' && { color: 'rgba(255,255,255,0.65)' }]}>{item.time}</Text>
                   </View>
-                  {isInterviewMsg && item.from === 'officer' && !isMyReason && (
+                    {isInterviewMsg && item.from === 'officer' && !isMyReason && !respondedMessages.includes(item.id) && (
                     <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, paddingHorizontal: 4 }}>
                       <TouchableOpacity
                         style={{ flex: 1, backgroundColor: colors.safe, padding: 10, borderRadius: 8, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 }}
@@ -509,13 +547,17 @@ export default function ChatScreen({ navigation, route }) {
                         <FontAwesome6 name="check" size={16} color="white" />
                         <Text style={{ color: 'white', fontWeight: '600' }}>Accept</Text>
                       </TouchableOpacity>
+
                       <TouchableOpacity
-                        style={{ flex: 1, backgroundColor: colors.warning, padding: 10, borderRadius: 8, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 }}
-                        onPress={() => setShowReasonFor(item.id)}
+                        style={{ flex: 1, backgroundColor: colors.sos, padding: 10, borderRadius: 8, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 }}
+                        onPress={() => {
+                          setShowReasonFor(item.id);
+                          setReasonMode('decline');
+                        }}
                         disabled={sending}
                       >
                         <FontAwesome6 name="xmark" size={16} color="white" />
-                        <Text style={{ color: 'white', fontWeight: '600' }}>Reason</Text>
+                        <Text style={{ color: 'white', fontWeight: '600' }}>Decline</Text>
                       </TouchableOpacity>
                     </View>
                   )}
