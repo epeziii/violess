@@ -91,6 +91,21 @@ export default function CaseTrackingScreen({ navigation }) {
           status: c.status,
           date: new Date(c.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }),
           officer: c.assignedOfficer || "Unassigned",
+          assignedAt: c.assignedAt
+            ? (() => {
+                const assignedDate = c.assignedAt.toDate ? c.assignedAt.toDate() : new Date(c.assignedAt);
+                return Number.isNaN(assignedDate.getTime())
+                  ? null
+                  : assignedDate.toLocaleString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                      hour: 'numeric',
+                      minute: '2-digit',
+                      hour12: true,
+                    });
+              })()
+            : null,
           referredTo: c.referredTo || "",
           referralReason: c.referralReason || "",
           // Use first letter of first and last names only (e.g., Juan Dela Cruz -> JDC should be JC)
@@ -146,7 +161,9 @@ export default function CaseTrackingScreen({ navigation }) {
         isReferredState
           ? caseItem?.referralReason || 'Case is being handled externally'
           : officerAssigned
-            ? `${caseItem.officer} is assigned to this case`
+            ? caseItem.assignedAt
+              ? `Assigned on ${caseItem.assignedAt}`
+              : `${caseItem.officer} is assigned to this case`
             : 'Awaiting assignment',
       status:
         st === 'pending'

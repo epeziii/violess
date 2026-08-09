@@ -983,12 +983,18 @@ app.get("/user/:uid/cases", async (req, res) => {
       return res.json({ success: true, cases: [] });
     }
 
-    const cases = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt,
-      updatedAt: doc.data().updatedAt?.toDate?.() || doc.data().updatedAt,
-    }));
+    const cases = snapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate?.() || data.createdAt,
+        updatedAt: data.updatedAt?.toDate?.() || data.updatedAt,
+        assignedAt: data.assignedAt?.toDate?.() || data.assignedAt || null,
+        resolvedAt: data.resolvedAt?.toDate?.() || data.resolvedAt || null,
+        referredAt: data.referredAt?.toDate?.() || data.referredAt || null,
+      };
+    });
 
     res.json({ success: true, cases });
   } catch (err) {
