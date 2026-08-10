@@ -1223,7 +1223,7 @@ app.post("/notify-new-case", async (req, res) => {
         adminDoc.id,
         "new_case",
         "New Case Filed",
-        `A new ${incidentType} case has been filed`,
+        `A new ${incidentType} case has been filed: ${caseId}`,
         caseId,
         {
           caseId,
@@ -1306,7 +1306,7 @@ app.post("/check-and-notify-new-cases", async (req, res) => {
           uid,
           "new_case",
           "New Case Filed",
-          `A new ${caseData.incidentType} case has been filed`,
+          `A new ${caseData.incidentType} case has been filed: ${caseData.caseId}`,
           caseId,
           {
             caseId: caseData.caseId,
