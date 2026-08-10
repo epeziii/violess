@@ -973,6 +973,27 @@ app.post("/submit-report", async (req, res) => {
 
     await reportsRef.add(reportData);
 
+    // Notify all active admins immediately when a new case is filed.
+    const adminsSnapshot = await db.collection("staff")
+      .where("role", "==", "admin")
+      .where("status", "==", "active")
+      .get();
+
+    for (const adminDoc of adminsSnapshot.docs) {
+      await createNotification(
+        adminDoc.id,
+        "new_case",
+        "New Case Filed",
+        `A new ${incidentType} case has been filed: ${caseId}`,
+        caseId,
+        {
+          caseId,
+          incidentType,
+          priorityLevel: reportData.priorityLevel
+        }
+      );
+    }
+
     res.json({
       success: true,
       caseId,
