@@ -116,9 +116,7 @@ export default function LoginPage() {
             at a time.
           </h1>
           <p className="ll-desc">
-            The official management system for violence reporting,
-            case tracking, and community support coordination
-            in barangay mabayuan.
+            Management system for violence reporting, case tracking, and community support coordination in barangay mabayuan.
           </p>
         </div>
         <footer className="ll-footer">
