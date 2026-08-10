@@ -58,7 +58,7 @@ const formatIncidentDateTime = (value) => {
   });
 };
 
-export default function CasesPage() {
+export default function CasesPage({ initialSelectedCaseId, initialSelectedCaseKey }) {
   const { user } = useAuth();
   const [stats, setStats] = useState({
     total: 0,
@@ -276,6 +276,58 @@ export default function CasesPage() {
 
     return matchesSearch && matchesFilter;
   });
+
+  useEffect(() => {
+    if (!initialSelectedCaseId) return;
+
+    const targetCase = reports.find((c) => c.id === initialSelectedCaseId);
+    if (targetCase) {
+      handleViewCase(targetCase);
+      setFilterType("all");
+      setSearchInput("");
+      setCurrentPage(1);
+      return;
+    }
+
+    const loadSelectedCase = async () => {
+      try {
+        const reportsRef = collection(db, "reports");
+        const q = query(reportsRef, where("caseId", "==", initialSelectedCaseId), limit(1));
+        const snap = await getDocs(q);
+        if (snap.empty) return;
+
+        const doc = snap.docs[0];
+        const data = doc.data();
+        const caseData = {
+          id: data.caseId,
+          type: data.incidentType,
+          reporter: data.reporterName,
+          location: data.location || "N/A",
+          status: getStatusFromString(data.status),
+          date: formatDate(data.createdAt),
+          incidentDateTime: formatIncidentDateTime(data.datetime),
+          priority: data.priorityLevel || "normal",
+          assignedOfficer: data.assignedOfficer || "",
+          assignedOfficerUid: data.assignedOfficerUid || "",
+          referredTo: data.referredTo || "",
+          referralReason: data.referralReason || "",
+          description: data.description || "",
+          suspectDescription: data.suspectDescription || "",
+          createdAt: data.createdAt,
+          docId: doc.id,
+        };
+
+        handleViewCase(caseData);
+        setFilterType("all");
+        setSearchInput("");
+        setCurrentPage(1);
+      } catch (error) {
+        console.error("Error loading selected case by ID:", error);
+      }
+    };
+
+    loadSelectedCase();
+  }, [initialSelectedCaseId, initialSelectedCaseKey, reports]);
 
   const handleViewCase = async (caseData) => {
     setSelectedCase(caseData);

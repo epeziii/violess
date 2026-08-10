@@ -10,6 +10,7 @@ export default function NotificationDropdown({
   unreadCount,
   onMarkAsRead,
   onNavigateToCommunications,
+  onNavigateToCase,
 }) {
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
@@ -122,8 +123,14 @@ export default function NotificationDropdown({
       console.error("Error marking notification as read:", error);
     }
 
-    // Fetch case details
-    const caseId = extractCaseId(notif.message);
+    const caseId = notif.caseId || extractCaseId(notif.message);
+    if (notif.type === "new_case" && caseId && typeof onNavigateToCase === "function") {
+      setIsOpen(false);
+      onNavigateToCase(caseId);
+      return;
+    }
+
+    // Fetch case details for other notification types or fallback behavior.
     if (caseId) {
       await fetchCaseDetails(caseId);
     }

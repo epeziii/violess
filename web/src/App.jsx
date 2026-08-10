@@ -32,6 +32,8 @@ function Shell() {
   const { user, logout, can, loading } = useAuth(); // ✅ include loading
   const [page, setPage] = useState("analytics");
   const [pendingCommunicationsCaseId, setPendingCommunicationsCaseId] = useState(null);
+  const [pendingCasePageCaseId, setPendingCasePageCaseId] = useState(null);
+  const [pendingCaseSelectionKey, setPendingCaseSelectionKey] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const { notifications, unreadCount } = useNotifications(user?.uid);
@@ -51,7 +53,7 @@ function Shell() {
   const visibleNav = NAV.filter(n => can(n.permission));
 
   const pages = {
-    cases:     <ProtectedRoute permission="cases"><CasesPage /></ProtectedRoute>,
+    cases:     <ProtectedRoute permission="cases"><CasesPage initialSelectedCaseId={pendingCasePageCaseId} initialSelectedCaseKey={pendingCaseSelectionKey} /></ProtectedRoute>,
     comms:     <CommunicationsPage initialSelectedCaseId={pendingCommunicationsCaseId} />,
     analytics: <AnalyticsPage />,
     evidence:  <EvidenceStoragePage />,
@@ -187,6 +189,11 @@ function Shell() {
               onNavigateToCommunications={(caseId) => {
                 setPendingCommunicationsCaseId(caseId);
                 setPage("comms");
+              }}
+              onNavigateToCase={(caseId) => {
+                setPendingCasePageCaseId(caseId);
+                setPendingCaseSelectionKey((key) => key + 1);
+                setPage("cases");
               }}
             />
           </div>
