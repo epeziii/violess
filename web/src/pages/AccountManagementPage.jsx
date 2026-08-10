@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { getAuth, createUserWithEmailAndPassword, updatePassword } from "firebase/auth";
-import { getFirestore, collection, getDocs } from "firebase/firestore";
+import { getFirestore, collection, getDocs, onSnapshot } from "firebase/firestore";
 import { app } from "../firebase"; // Make sure your firebase.js exports initialized app
 import API_BASE_URL from "../config/api";
 
@@ -68,6 +68,19 @@ function StatCards({ accounts }) {
   );
 }
 
+function formatLastLogin(timestamp) {
+  if (!timestamp) return "—";
+  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    year: "numeric",
+  }).format(date);
+}
+
 function AccountRow({ account, onEdit, onSuspend, onActivate }) {
   const isDisabled = account.status !== "active";
   const fullName = account.fullName || `${account.firstName || ""} ${account.lastName || ""}`.trim();
@@ -98,7 +111,7 @@ function AccountRow({ account, onEdit, onSuspend, onActivate }) {
       </td>
       <td><span className={`badge ${ROLE_CLASSES[account.role]}`}>{ROLE_LABELS[account.role]}</span></td>
       <td><span className={`badge ${STATUS_CLASS[account.status]}`}>{account.status.charAt(0).toUpperCase() + account.status.slice(1)}</span></td>
-      <td style={{ color: "var(--text-muted)", fontSize: 12 }}>{account.lastLogin || "—"}</td>
+      <td style={{ color: "var(--text-muted)", fontSize: 12 }}>{formatLastLogin(account.lastLogin)}</td>
       <td style={{ fontSize: 12 }}>{account.cases !== null ? account.cases : "—"}</td>
       <td>
         <div style={{ display: "flex", gap: 6 }}>
@@ -482,7 +495,17 @@ export default function AccountManagementPage() {
     setAccounts(data);
   };
 
-  useEffect(() => { fetchAccounts(); }, []);
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, "staff"), (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setAccounts(data);
+    }, (error) => {
+      console.error("Failed to subscribe to staff accounts:", error);
+      fetchAccounts();
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const filtered = accounts.filter(a => {
     const fullName = (a.fullName || `${a.firstName || ""} ${a.lastName || ""}`).toLowerCase();

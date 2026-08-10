@@ -392,7 +392,7 @@ export default function AnalyticsPage() {
           </div>
           <div className="card-body analytics-chart-body" style={{ minHeight: 280, padding: '16px 8px 8px 0' }}>
             {loadingMonthlyCases ? (
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: '24px', textAlign: 'center' }}>Loading cases trend...</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: '24px', textAlign: 'center' }}>Loading monthly cases...</div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart

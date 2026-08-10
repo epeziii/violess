@@ -1,7 +1,7 @@
 // src/AuthContext.jsx
 import { createContext, useContext, useState, useEffect } from "react";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, getDoc, collection, query, where, getDocs, getFirestore } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, getDocs, getFirestore, updateDoc, serverTimestamp } from "firebase/firestore";
 import app from "./firebase"; // your firebase config
 
 // ─── Role permissions map ────────────────────────────────────────────────────
@@ -80,9 +80,16 @@ export function AuthProvider({ children }) {
     }
 
     const cred = await signInWithEmailAndPassword(auth, emailToUse, password);
-    const snap = await getDoc(doc(db, "staff", cred.user.uid));
+    const staffRef = doc(db, "staff", cred.user.uid);
+    const snap = await getDoc(staffRef);
     if (!snap.exists()) throw new Error("No user profile found");
-    const profile = snap.data();
+
+    await updateDoc(staffRef, {
+      lastLogin: serverTimestamp(),
+    });
+
+    const updatedSnap = await getDoc(staffRef);
+    const profile = updatedSnap.data();
     setUser({ uid: cred.user.uid, email: cred.user.email, ...profile });
     sessionStorage.setItem("violess_user", JSON.stringify({ uid: cred.user.uid, email: cred.user.email, ...profile }));
     return { uid: cred.user.uid, email: cred.user.email, ...profile };
