@@ -18,6 +18,13 @@ export default function NotificationDropdown({
   const [selectedNotificationCase, setSelectedNotificationCase] = useState(null);
   const [loadingCaseDetails, setLoadingCaseDetails] = useState(false);
   const [caseReassignedError, setCaseReassignedError] = useState(false);
+  const [localNotifications, setLocalNotifications] = useState(notifications);
+  const [localUnreadCount, setLocalUnreadCount] = useState(unreadCount);
+
+  useEffect(() => {
+    setLocalNotifications(notifications);
+    setLocalUnreadCount(unreadCount);
+  }, [notifications, unreadCount]);
 
   useEffect(() => {
     if (caseReassignedError && notificationModalOpen) {
@@ -27,8 +34,7 @@ export default function NotificationDropdown({
 
   const handleMarkAllAsRead = async () => {
     try {
-      // Will be implemented with userId from parent
-      const unreadNotifications = notifications.filter(n => !n.read);
+      const unreadNotifications = localNotifications.filter(n => !n.read);
       for (const notif of unreadNotifications) {
         await fetch(`${API_BASE_URL}/mark-notification-read`, {
           method: "POST",
@@ -36,6 +42,8 @@ export default function NotificationDropdown({
           body: JSON.stringify({ notificationId: notif.id })
         });
       }
+      setLocalNotifications((prev) => prev.map((notif) => ({ ...notif, read: true })));
+      setLocalUnreadCount(0);
       onMarkAsRead?.();
     } catch (error) {
       console.error("Error marking notifications as read:", error);
@@ -118,6 +126,8 @@ export default function NotificationDropdown({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ notificationId: notif.id })
       });
+      setLocalNotifications((prev) => prev.map((item) => item.id === notif.id ? { ...item, read: true } : item));
+      setLocalUnreadCount((count) => Math.max(0, count - (notif.read ? 0 : 1)));
       onMarkAsRead?.();
     } catch (error) {
       console.error("Error marking notification as read:", error);
@@ -342,7 +352,7 @@ export default function NotificationDropdown({
         }}
       >
         <Icon icon="bell" size="20px" />
-        {unreadCount > 0 && (
+        {localUnreadCount > 0 && (
           <span
             style={{
               position: "absolute",
@@ -360,7 +370,7 @@ export default function NotificationDropdown({
               fontWeight: "700"
             }}
           >
-            {unreadCount > 9 ? "9+" : unreadCount}
+            {localUnreadCount > 9 ? "9+" : localUnreadCount}
           </span>
         )}
       </button>
@@ -393,9 +403,9 @@ export default function NotificationDropdown({
           >
             <div style={{ padding: "12px 16px", borderBottom: "0.5px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div style={{ fontSize: "13px", fontWeight: "700", color: "var(--text)" }}>
-                Notifications {unreadCount > 0 && `(${unreadCount})`}
+                Notifications {localUnreadCount > 0 && `(${localUnreadCount})`}
               </div>
-              {unreadCount > 0 && (
+              {localUnreadCount > 0 && (
                 <button
                   onClick={handleMarkAllAsRead}
                   style={{
@@ -414,12 +424,12 @@ export default function NotificationDropdown({
             </div>
 
             <div>
-              {notifications.length === 0 ? (
+              {localNotifications.length === 0 ? (
                 <div style={{ padding: "32px 16px", textAlign: "center", color: "var(--text-muted)", fontSize: "12px" }}>
                   No notifications yet
                 </div>
               ) : (
-                notifications.map((notif) => (
+                localNotifications.map((notif) => (
                   <div
                     key={notif.id}
                     onClick={() => handleNotificationClick(notif)}

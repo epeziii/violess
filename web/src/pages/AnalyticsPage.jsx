@@ -39,6 +39,11 @@ export default function AnalyticsPage() {
   const selectedYear = currentYear;
   const selectedMonth = monthOrder[selectedDate.getMonth()];
 
+  const monthlyCaseTicks = useMemo(() => {
+    const maxCases = monthlyCasesData.reduce((max, entry) => Math.max(max, Number(entry.cases) || 0), 0);
+    return Array.from({ length: maxCases + 1 }, (_, index) => index);
+  }, [monthlyCasesData]);
+
   // Fetch real-time general page stats from Firestore
   useEffect(() => {
     try {
@@ -412,6 +417,7 @@ export default function AnalyticsPage() {
                     axisLine={false}
                     tickLine={false}
                     tick={{ fontSize: 11 }}
+                    ticks={monthlyCaseTicks}
                     tickFormatter={(value) => {
                       const n = Number(value);
                       if (!Number.isFinite(n)) return value;
