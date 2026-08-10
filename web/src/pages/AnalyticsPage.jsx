@@ -419,14 +419,7 @@ export default function AnalyticsPage() {
                     }}
                   />
                   <Tooltip content={<CustomBarTooltip />} cursor={{ fill: 'rgba(194,24,91,0.02)' }} />
-                  <Bar dataKey="cases" radius={[6, 6, 0, 0]} maxBarSize={36}>
-                    {monthlyCasesData.map((d) => (
-                      <Cell
-                        key={d.month}
-                        fill={d.month === selectedMonth ? 'var(--primary)' : 'url(#casesBarGrad)'}
-                      />
-                    ))}
-                  </Bar>
+                  <Bar dataKey="cases" radius={[6, 6, 0, 0]} maxBarSize={36} fill="url(#casesBarGrad)" />
                 </BarChart>
               </ResponsiveContainer>
             )}
