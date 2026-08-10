@@ -31,6 +31,8 @@ export function useNotifications(userId) {
         console.log("[useNotifications] Received notifications:", notifs.length, notifs);
         setNotifications(notifs);
         setUnreadCount(notifs.filter(n => !n.read).length);
+      }, (error) => {
+        console.error("[useNotifications] Firestore listener error:", error);
       });
 
       return () => unsubscribe();

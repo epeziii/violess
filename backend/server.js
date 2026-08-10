@@ -511,6 +511,7 @@ async function createNotification(recipientUid, type, title, message, caseId = n
     });
   } catch (error) {
     console.error("Error creating notification:", error);
+    throw error;
   }
 }
 
@@ -1296,7 +1297,12 @@ app.post("/check-and-notify-new-cases", async (req, res) => {
 
     const allCaseIds = new Set();
     casesSnapshot.forEach(doc => {
-      allCaseIds.add(doc.id);
+      const caseData = doc.data();
+      if (caseData?.caseId) {
+        allCaseIds.add(caseData.caseId);
+      } else {
+        allCaseIds.add(doc.id);
+      }
     });
 
     // Get all existing notifications for new cases
@@ -1318,9 +1324,10 @@ app.post("/check-and-notify-new-cases", async (req, res) => {
 
     // Create notifications for unnotified cases
     for (const caseId of unnotifiedCases) {
-      const caseSnap = await db.collection("reports").doc(caseId).get();
-      if (caseSnap.exists) {
-        const caseData = caseSnap.data();
+      const caseSnap = await db.collection("reports").where("caseId", "==", caseId).limit(1).get();
+      if (!caseSnap.empty) {
+        const caseDoc = caseSnap.docs[0];
+        const caseData = caseDoc.data();
         console.log('[check-and-notify-new-cases] Creating notification for case:', caseId, 'type:', caseData.incidentType);
 
         await createNotification(
@@ -1335,6 +1342,8 @@ app.post("/check-and-notify-new-cases", async (req, res) => {
             priorityLevel: caseData.priorityLevel
           }
         );
+      } else {
+        console.warn('[check-and-notify-new-cases] Could not find report document for caseId:', caseId);
       }
     }
 

@@ -444,6 +444,7 @@ export default function NotificationDropdown({
                         {(
                           notif.type === "case_assigned" ||
                           notif.type === "case_filed" ||
+                          notif.type === "new_case" ||
                           notif.type === "new_case_filed" ||
                           notif.type === "case_created"
                         ) ? (
