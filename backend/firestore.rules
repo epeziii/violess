@@ -8,7 +8,10 @@ service cloud.firestore {
     match /staff/{uid} {
       // Allow all reads (unauthenticated for login, authenticated for admin access)
       allow read: if true;
-      // Staff cannot write their own profiles (only backend/admin can update)
+      // Allow staff to update only their own lastLogin field.
+      allow update: if request.auth.uid == uid &&
+                    request.resource.data.keys().hasOnly(['lastLogin']);
+      // Staff cannot write other profile fields directly from the client.
       allow write: if false;
     }
 

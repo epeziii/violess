@@ -134,6 +134,23 @@ function splitName(fullName) {
 
 
 // ─── CREATE STAFF ACCOUNT ──────────────────────────────────────────────
+app.post("/record-staff-login", async (req, res) => {
+  try {
+    const { uid } = req.body;
+    if (!uid) return res.status(400).json({ error: "UID is required" });
+
+    const staffRef = db.collection("staff").doc(uid);
+    const staffSnap = await staffRef.get();
+    if (!staffSnap.exists) return res.status(404).json({ error: "Staff user not found" });
+
+    await staffRef.update({ lastLogin: new Date().toISOString() });
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Error recording staff login:", error);
+    res.status(500).json({ error: error.message || "Failed to record staff login" });
+  }
+});
+
 app.post("/create-staff", async (req, res) => {
   try {
     const { firstName, lastName, fullName, email, username, password, role } = req.body;

@@ -1,8 +1,9 @@
 // src/AuthContext.jsx
 import { createContext, useContext, useState, useEffect } from "react";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, getDoc, collection, query, where, getDocs, getFirestore, updateDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, getDocs, getFirestore } from "firebase/firestore";
 import app from "./firebase"; // your firebase config
+import API_BASE_URL from "./config/api";
 
 // ─── Role permissions map ────────────────────────────────────────────────────
 export const PERMISSIONS = {
@@ -84,9 +85,15 @@ export function AuthProvider({ children }) {
     const snap = await getDoc(staffRef);
     if (!snap.exists()) throw new Error("No user profile found");
 
-    await updateDoc(staffRef, {
-      lastLogin: serverTimestamp(),
-    });
+    try {
+      await fetch(`${API_BASE_URL}/record-staff-login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid: cred.user.uid }),
+      });
+    } catch (err) {
+      console.warn("Failed to record lastLogin via backend API:", err);
+    }
 
     const updatedSnap = await getDoc(staffRef);
     const profile = updatedSnap.data();
