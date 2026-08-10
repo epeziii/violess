@@ -53,7 +53,7 @@ function Shell() {
   const visibleNav = NAV.filter(n => can(n.permission));
 
   const pages = {
-    cases:     <ProtectedRoute permission="cases"><CasesPage initialSelectedCaseId={pendingCasePageCaseId} initialSelectedCaseKey={pendingCaseSelectionKey} /></ProtectedRoute>,
+    cases:     <ProtectedRoute key={`cases-${pendingCaseSelectionKey}`} permission="cases"><CasesPage initialSelectedCaseId={pendingCasePageCaseId} initialSelectedCaseKey={pendingCaseSelectionKey} /></ProtectedRoute>,
     comms:     <CommunicationsPage initialSelectedCaseId={pendingCommunicationsCaseId} />,
     analytics: <AnalyticsPage />,
     evidence:  <EvidenceStoragePage />,

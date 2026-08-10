@@ -123,8 +123,8 @@ export default function NotificationDropdown({
       console.error("Error marking notification as read:", error);
     }
 
-    const caseId = notif.caseId || extractCaseId(notif.message);
-    if (notif.type === "new_case" && caseId && typeof onNavigateToCase === "function") {
+    const caseId = notif.caseId || notif.caseData?.caseId || extractCaseId(notif.message);
+    if (caseId && typeof onNavigateToCase === "function") {
       setIsOpen(false);
       onNavigateToCase(caseId);
       return;
