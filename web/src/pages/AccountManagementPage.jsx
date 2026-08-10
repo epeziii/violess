@@ -81,7 +81,7 @@ function formatLastLogin(timestamp) {
   }).format(date);
 }
 
-function AccountRow({ account, onEdit, onSuspend, onActivate }) {
+function AccountRow({ account, onEdit }) {
   const isDisabled = account.status !== "active";
   const fullName = account.fullName || `${account.firstName || ""} ${account.lastName || ""}`.trim();
   const parts = fullName.split(" ").filter(Boolean);
@@ -90,7 +90,11 @@ function AccountRow({ account, onEdit, onSuspend, onActivate }) {
     : "";
 
   return (
-    <tr>
+    <tr
+      onClick={() => onEdit(account)}
+      style={{ cursor: "pointer", opacity: isDisabled ? 0.75 : 1 }}
+      className="clickable-row"
+    >
       <td>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div
@@ -113,11 +117,6 @@ function AccountRow({ account, onEdit, onSuspend, onActivate }) {
       <td><span className={`badge ${STATUS_CLASS[account.status]}`}>{account.status.charAt(0).toUpperCase() + account.status.slice(1)}</span></td>
       <td style={{ color: "var(--text-muted)", fontSize: 12 }}>{formatLastLogin(account.lastLogin)}</td>
       <td style={{ fontSize: 12 }}>{account.cases !== null ? account.cases : "—"}</td>
-      <td>
-        <div style={{ display: "flex", gap: 6 }}>
-          <button className="btn btn-ghost btn-sm" onClick={() => onEdit(account)}>Edit</button>
-        </div>
-      </td>
     </tr>
   );
 }
@@ -488,6 +487,8 @@ export default function AccountManagementPage() {
   const [tabFilter, setTabFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("");
   const [modal, setModal] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   const fetchAccounts = async () => {
     const snapshot = await getDocs(collection(db, "staff"));
@@ -514,6 +515,11 @@ export default function AccountManagementPage() {
     const matchStatus = !statusFilter || a.status === statusFilter;
     return matchSearch && matchTab && matchStatus;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / rowsPerPage));
+  const startIndex = (currentPage - 1) * rowsPerPage;
+  const endIndex = Math.min(startIndex + rowsPerPage, filtered.length);
+  const paginatedAccounts = filtered.slice(startIndex, endIndex);
 
   const TABS = [
     { id: "all", label: "All" },
@@ -581,29 +587,56 @@ export default function AccountManagementPage() {
 
         {/* Table */}
         {filtered.length > 0 ? (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Staff member</th>
-                <th>Role</th>
-                <th>Status</th>
-                <th>Last login</th>
-                <th>Cases assigned</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(a => (
-                <AccountRow
-                  key={a.id}
-                  account={a}
-                  onEdit={acc => setModal({ type: "edit", account: acc })}
-                  onSuspend={acc => setModal({ type: "suspend", account: acc })}
-                  onActivate={acc => setModal({ type: "activate", account: acc })}
-                />
-              ))}
-            </tbody>
-          </table>
+          <>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Staff member</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th>Last login</th>
+                  <th>Cases assigned</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedAccounts.map(a => (
+                  <AccountRow
+                    key={a.id}
+                    account={a}
+                    onEdit={acc => setModal({ type: "edit", account: acc })}
+                  />
+                ))}
+              </tbody>
+            </table>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', borderTop: '0.5px solid var(--border)', backgroundColor: '#FDFAFC', flexWrap: 'wrap', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-muted)' }}>
+                <span>Show</span>
+                <select value={rowsPerPage} onChange={(e) => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }} className="form-select" style={{ width: 70, padding: '4px 8px', height: 30, fontSize: 12.5 }}>
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
+                <span>entries</span>
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                {filtered.length > 0 ? `Showing ${startIndex + 1} to ${endIndex} of ${filtered.length} entries` : 'Showing 0 to 0 of 0 entries'}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <button onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} disabled={currentPage === 1} className="btn btn-ghost" style={{ height: 30, padding: '0 10px', fontSize: 11, opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}>
+                  Prev
+                </button>
+
+                <div style={{ minWidth: 88, textAlign: 'center', fontSize: 12, color: 'var(--text-muted)' }}>
+                  {filtered.length > 0 ? `Page ${currentPage} of ${totalPages}` : 'Page 0 of 0'}
+                </div>
+
+                <button onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} disabled={currentPage === totalPages} className="btn btn-ghost" style={{ height: 30, padding: '0 10px', fontSize: 11, opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}>
+                  Next
+                </button>
+              </div>
+            </div>
+          </>
         ) : (
           <div style={{ padding: "48px 24px", textAlign: "center" }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", marginBottom: 6 }}>No staff found</div>

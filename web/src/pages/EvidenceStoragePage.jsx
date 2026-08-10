@@ -24,6 +24,10 @@ export default function EvidenceStoragePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [evidence, setEvidence] = useState([]);
   const [accessLogs, setAccessLogs] = useState([]);
+  const [accessLogSearch, setAccessLogSearch] = useState('');
+  const [accessLogRoleFilter, setAccessLogRoleFilter] = useState('all');
+  const [accessLogCurrentPage, setAccessLogCurrentPage] = useState(1);
+  const [accessLogRowsPerPage, setAccessLogRowsPerPage] = useState(10);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState('all');
@@ -133,16 +137,85 @@ export default function EvidenceStoragePage() {
       orderBy('timestamp', 'desc')
     );
 
-    const unsubscribe = onSnapshot(logsQuery, (snapshot) => {
-      const logs = snapshot.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
+    const unsubscribe = onSnapshot(logsQuery, async (snapshot) => {
+      const logs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+      // Enrich logs with staff info for searchable fields (adminName, adminEmail, role)
+      const adminIds = Array.from(new Set(logs.map(l => l.adminId).filter(Boolean)));
+      const staffMap = {};
+      await Promise.all(adminIds.map(async (id) => {
+        try {
+          const snap = await getDoc(doc(db, 'staff', id));
+          if (snap.exists()) staffMap[id] = snap.data();
+        } catch (e) {
+          // ignore fetch errors for individual staff
+        }
       }));
-      setAccessLogs(logs);
+
+      const enriched = logs.map(l => {
+        const staff = l.adminId ? staffMap[l.adminId] : null;
+        return {
+          ...l,
+          adminName: staff ? `${staff.firstName || ''} ${staff.lastName || ''}`.trim() : (l.adminName || ''),
+          adminEmail: staff?.email || l.adminEmail || '',
+          role: staff?.role || l.role || '',
+          adminFirstName: staff?.firstName || '',
+          adminLastName: staff?.lastName || '',
+        };
+      });
+
+      setAccessLogs(enriched);
     });
 
     return unsubscribe;
   }, [isAdmin]);
+
+  const filteredAccessLogs = accessLogs.filter((log) => {
+    const searchValue = accessLogSearch.trim().toLowerCase();
+    const caseId = (log.caseId || '').toString().toLowerCase();
+    const action = (log.action || '').toString().toLowerCase();
+    const roleMatch = accessLogRoleFilter === 'all' || (log.role || '').toLowerCase() === accessLogRoleFilter;
+
+    if (!searchValue) {
+      return roleMatch;
+    }
+
+    const formatLogTimestamp = (timestamp) => {
+      if (!timestamp) return '';
+      const date = new Date(timestamp?.toDate?.() || timestamp);
+      return date.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+    };
+
+    const staffName = (log.adminName || `${log.adminFirstName || ''} ${log.adminLastName || ''}`).toString().toLowerCase();
+    const roleText = (log.role || '').toString().toLowerCase();
+    const timestampText = formatLogTimestamp(log.timestamp).toString().toLowerCase();
+
+    const searchable = [caseId, action, staffName, (log.adminEmail || '').toString().toLowerCase(), roleText, timestampText].join(' ');
+    return roleMatch && searchable.includes(searchValue);
+  });
+
+  const accessLogTotalPages = Math.max(1, Math.ceil(filteredAccessLogs.length / accessLogRowsPerPage));
+  const accessLogStartIndex = (accessLogCurrentPage - 1) * accessLogRowsPerPage;
+  const accessLogEndIndex = Math.min(accessLogStartIndex + accessLogRowsPerPage, filteredAccessLogs.length);
+  const paginatedAccessLogs = filteredAccessLogs.slice(accessLogStartIndex, accessLogEndIndex);
+
+  const logRoleOptions = [
+    { value: 'all', label: 'All roles' },
+    { value: 'admin', label: 'Admin' },
+    { value: 'officer', label: 'Officer' },
+  ];
+
+  const logSearchPlaceholder = 'Search by staff, case, or action...';
+
+  const handleAccessLogSearchChange = (value) => {
+    setAccessLogSearch(value);
+    setAccessLogCurrentPage(1);
+  };
+
+  const handleAccessLogRoleFilterChange = (value) => {
+    setAccessLogRoleFilter(value);
+    setAccessLogCurrentPage(1);
+  };
 
 
   const logAccess = async ({ caseDocId, caseId, action }) => {
@@ -373,6 +446,14 @@ export default function EvidenceStoragePage() {
             <div className="card-header">
               <span className="card-title">Access Logs</span>
             </div>
+            <div style={{ padding: '6px 16px 0', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <input className="form-input" placeholder={logSearchPlaceholder} style={{ maxWidth: 220, height: 34 }} value={accessLogSearch} onChange={(e) => handleAccessLogSearchChange(e.target.value)} />
+              <select className="form-select" style={{ width: 128, height: 34 }} value={accessLogRoleFilter} onChange={(e) => handleAccessLogRoleFilterChange(e.target.value)}>
+                {logRoleOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </div>
             <div className="logs-table">
               <table className="data-table">
                 <thead>
@@ -385,8 +466,8 @@ export default function EvidenceStoragePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {accessLogs.length > 0 ? (
-                    accessLogs.map((log) => (
+                  {paginatedAccessLogs.length > 0 ? (
+                    paginatedAccessLogs.map((log) => (
                       <AccessLogRow key={log.id} log={log} />
                     ))
                   ) : (
@@ -398,6 +479,49 @@ export default function EvidenceStoragePage() {
                   )}
                 </tbody>
               </table>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', borderTop: '0.5px solid var(--border)', backgroundColor: '#FDFAFC', flexWrap: 'wrap', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-muted)' }}>
+                <span>Show</span>
+                <select
+                  value={accessLogRowsPerPage}
+                  onChange={(e) => { setAccessLogRowsPerPage(Number(e.target.value)); setAccessLogCurrentPage(1); }}
+                  className="form-select"
+                  style={{ width: 70, padding: '4px 8px', height: 30, fontSize: 12.5 }}
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
+                <span>entries</span>
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                {filteredAccessLogs.length > 0 ? `Showing ${accessLogStartIndex + 1} to ${accessLogEndIndex} of ${filteredAccessLogs.length} entries` : 'Showing 0 to 0 of 0 entries'}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <button
+                  onClick={() => setAccessLogCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={accessLogCurrentPage === 1}
+                  className="btn btn-ghost"
+                  style={{ height: 30, padding: '0 10px', fontSize: 11, opacity: accessLogCurrentPage === 1 ? 0.5 : 1, cursor: accessLogCurrentPage === 1 ? 'not-allowed' : 'pointer' }}
+                >
+                  Prev
+                </button>
+
+                <div style={{ minWidth: 88, textAlign: 'center', fontSize: 12, color: 'var(--text-muted)' }}>
+                  {filteredAccessLogs.length > 0 ? `Page ${accessLogCurrentPage} of ${accessLogTotalPages}` : 'Page 0 of 0'}
+                </div>
+
+                <button
+                  onClick={() => setAccessLogCurrentPage(prev => Math.min(prev + 1, accessLogTotalPages))}
+                  disabled={accessLogCurrentPage === accessLogTotalPages}
+                  className="btn btn-ghost"
+                  style={{ height: 30, padding: '0 10px', fontSize: 11, opacity: accessLogCurrentPage === accessLogTotalPages ? 0.5 : 1, cursor: accessLogCurrentPage === accessLogTotalPages ? 'not-allowed' : 'pointer' }}
+                >
+                  Next
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -453,6 +577,16 @@ function AccessLogRow({ log }) {
   useEffect(() => {
     let mounted = true;
 
+    // If log already includes staff info (prefetched), use it instead of fetching again
+    if (log?.adminName || log?.adminEmail || log?.role) {
+      const first = log.adminFirstName || '';
+      const last = log.adminLastName || '';
+      if (mounted) {
+        setStaff({ id: log.adminId || null, firstName: first, lastName: last, email: log.adminEmail || '', role: log.role || '', status: 'active', color: log.color || 'av-pink' });
+      }
+      return () => { mounted = false; };
+    }
+
     const fetchStaff = async () => {
       if (!log?.adminId) return;
       try {
@@ -498,9 +632,6 @@ function AccessLogRow({ log }) {
             <div>
               <div style={{ fontSize: 12, fontWeight: 600, color: staff.status !== 'active' ? 'var(--text-muted)' : 'var(--text)' }}>
                 {staff.firstName} {staff.lastName}
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
-                {staff.email}
               </div>
             </div>
           </div>

@@ -817,7 +817,12 @@ export default function CasesPage() {
             <button onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} disabled={currentPage === 1} className="btn btn-ghost" style={{ height: '30px', padding: '0 10px', fontSize: '11px', opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}>
               <Icon icon="chevron-left" size="10px" /> Prev
             </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).filter(page => page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1).map((page, index, array) => {
+
+            <div style={{ minWidth: 100, textAlign: 'center', fontSize: 12, color: 'var(--text-muted)' }}>
+              {sortedReports.length > 0 ? `Page ${currentPage} of ${totalPages}` : 'Page 0 of 0'}
+            </div>
+
+            {Array.from({ length: totalPages }, (_, i) => i + 1).filter(page => (page !== 1) && (page === totalPages || Math.abs(page - currentPage) <= 1)).map((page, index, array) => {
               const prevPage = array[index - 1];
               const showEllipsis = prevPage && page - prevPage > 1;
               return (
