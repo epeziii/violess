@@ -914,7 +914,7 @@ app.post("/send-verification-email", async (req, res) => {
 // ─── SUBMIT INCIDENT REPORT ──────────────────────────────────────────────
 app.post("/submit-report", async (req, res) => {
   try {
-    const { uid, incidentType, description, location, datetime, isAnonymous, suspectDescription, evidence } = req.body;
+    const { uid, incidentType, description, location, datetime, isAnonymous, suspectDescription, evidence, contactNumber: bodyContactNumber, emergencyContact: bodyEmergencyContact } = req.body;
     if (!uid || !incidentType || !description)
       return res.status(400).json({ error: "uid, incidentType, and description are required" });
 
@@ -943,13 +943,17 @@ app.post("/submit-report", async (req, res) => {
 
     const caseId = `VIO-${currentYear}-${String(caseNumber).padStart(3, '0')}`;
 
-    // Get user info (for reporter name if not anonymous)
+    // Get user info (for reporter name, contact number, and emergency contact if not anonymous)
     let reporterName = "Anonymous";
+    let contactNumber = "";
+    let emergencyContact = "";
     if (!isAnonymous) {
       const userSnap = await db.collection("users").doc(uid).get();
       if (userSnap.exists) {
         const userData = userSnap.data();
-        reporterName = `${userData.firstName} ${userData.lastName}`;
+        reporterName = `${userData.firstName || ""} ${userData.lastName || ""}`.trim() || "Anonymous";
+        contactNumber = bodyContactNumber?.toString()?.trim() || userData.contactNumber || "";
+        emergencyContact = bodyEmergencyContact?.toString()?.trim() || userData.emergency || userData.emergencyContact || "";
       }
     }
 
@@ -965,6 +969,8 @@ app.post("/submit-report", async (req, res) => {
       datetime: datetime || "",
       isAnonymous,
       reporterName,
+      contactNumber,
+      emergencyContact,
       status: "pending",
       priorityLevel: "normal",
       assignedOfficer: "",

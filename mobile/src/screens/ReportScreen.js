@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet,
   TouchableOpacity, Switch, StatusBar, TextInput, Alert, ActivityIndicator
@@ -7,6 +7,7 @@ import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { colors, spacing, radius } from '../theme';
 import { Card, Button } from '../components';
 import { auth } from '../config/firebase';
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { API_BASE_URL } from '../config/api';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -39,6 +40,28 @@ const [showTimePicker, setShowTimePicker] = useState(false);
   const [evidenceFiles, setEvidenceFiles] = useState([]);
   const [evidenceUploadStatus, setEvidenceUploadStatus] = useState('idle');
   const [evidenceError, setEvidenceError] = useState('');
+  const [contactNumber, setContactNumber] = useState('');
+  const [emergencyContact, setEmergencyContact] = useState('');
+
+  useEffect(() => {
+    const loadReporterContactInfo = async () => {
+      try {
+        const uid = auth.currentUser?.uid;
+        if (!uid) return;
+        const db = getFirestore();
+        const userDoc = await getDoc(doc(db, 'users', uid));
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          setContactNumber(data.contactNumber || '');
+          setEmergencyContact(data.emergency || data.emergencyContact || '');
+        }
+      } catch (error) {
+        console.error('Error loading reporter contact info:', error);
+      }
+    };
+
+    loadReporterContactInfo();
+  }, []);
 
   // ✅ VALIDATION FUNCTIONS
   const validateStep1 = () => {
@@ -74,22 +97,29 @@ const [showTimePicker, setShowTimePicker] = useState(false);
         return;
       }
 
-      const response = await fetch(`${API_BASE_URL}/submit-report`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          uid,
-          incidentType: selectedType,
-          description,
-          location,
-          suspectDescription,
-          evidence: evidenceFiles,
-          datetime: `${date.toDateString()} ${time.toLocaleTimeString([], {
+      const payload = {
+        uid,
+        incidentType: selectedType,
+        description,
+        location,
+        suspectDescription,
+        evidence: evidenceFiles,
+        datetime: `${date.toDateString()} ${time.toLocaleTimeString([], {
   hour: '2-digit',
   minute: '2-digit'
 })}`,
-          isAnonymous,
-        }),
+        isAnonymous,
+      };
+
+      if (!isAnonymous) {
+        payload.contactNumber = contactNumber;
+        payload.emergencyContact = emergencyContact;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/submit-report`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();

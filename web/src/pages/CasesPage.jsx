@@ -149,6 +149,9 @@ export default function CasesPage({ initialSelectedCaseId, initialSelectedCaseKe
           referralReason: doc.data().referralReason || "",
           description: doc.data().description || "",
           suspectDescription: doc.data().suspectDescription || "",
+          isAnonymous: doc.data().isAnonymous ?? true,
+          contactNumber: doc.data().contactNumber || "",
+          emergencyContact: doc.data().emergencyContact || doc.data().emergency || "",
           createdAt: doc.data().createdAt,
           docId: doc.id,
         }));
@@ -313,6 +316,9 @@ export default function CasesPage({ initialSelectedCaseId, initialSelectedCaseKe
           referralReason: data.referralReason || "",
           description: data.description || "",
           suspectDescription: data.suspectDescription || "",
+          isAnonymous: data.isAnonymous ?? true,
+          contactNumber: data.contactNumber || "",
+          emergencyContact: data.emergencyContact || data.emergency || "",
           createdAt: data.createdAt,
           docId: doc.id,
         };
@@ -994,6 +1000,20 @@ export default function CasesPage({ initialSelectedCaseId, initialSelectedCaseKe
                       <div><div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)', fontWeight: 700 }}>{item.label}</div><div style={{ fontSize: 13, fontWeight: 650, color: 'var(--text)' }}>{item.val}</div></div>
                     </div>
                   ))}
+
+                  {!selectedCase.isAnonymous && (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: 'var(--safe-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--safe)', flexShrink: 0 }}><Icon icon="phone" size="13px" /></div>
+                        <div><div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)', fontWeight: 700 }}>Contact Number</div><div style={{ fontSize: 13, fontWeight: 650, color: 'var(--text)' }}>{selectedCase.contactNumber || 'Not provided'}</div></div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: 'var(--accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', flexShrink: 0 }}><Icon icon="user-shield" size="13px" /></div>
+                        <div><div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)', fontWeight: 700 }}>Emergency Contact</div><div style={{ fontSize: 13, fontWeight: 650, color: 'var(--text)' }}>{selectedCase.emergencyContact || 'Not provided'}</div></div>
+                      </div>
+                    </>
+                  )}
+
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, gridColumn: 'span 2' }}>
                     <div style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: 'var(--warn-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--warn)', flexShrink: 0 }}><Icon icon="clock" size="13px" /></div>
                     <div><div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)', fontWeight: 700 }}>Date &amp; Time of Incident</div><div style={{ fontSize: 13, fontWeight: 650, color: 'var(--text)' }}>{selectedCase.incidentDateTime || 'Not recorded'}</div></div>
