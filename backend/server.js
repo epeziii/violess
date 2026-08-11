@@ -952,7 +952,7 @@ app.post("/submit-report", async (req, res) => {
       if (userSnap.exists) {
         const userData = userSnap.data();
         reporterName = `${userData.firstName || ""} ${userData.lastName || ""}`.trim() || "Anonymous";
-        contactNumber = bodyContactNumber?.toString()?.trim() || userData.contactNumber || "";
+        contactNumber = bodyContactNumber?.toString()?.trim() || userData.contactNumber || userData.phone || userData.phoneNumber || "";
         emergencyContact = bodyEmergencyContact?.toString()?.trim() || userData.emergency || userData.emergencyContact || "";
       }
     }

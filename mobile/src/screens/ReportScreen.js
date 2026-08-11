@@ -97,6 +97,23 @@ const [showTimePicker, setShowTimePicker] = useState(false);
         return;
       }
 
+      if (!isAnonymous && (!contactNumber || !emergencyContact)) {
+        try {
+          const uid = auth.currentUser?.uid;
+          if (uid) {
+            const db = getFirestore();
+            const userDoc = await getDoc(doc(db, 'users', uid));
+            if (userDoc.exists()) {
+              const data = userDoc.data();
+              setContactNumber(prev => prev || data.contactNumber || data.phone || data.phoneNumber || '');
+              setEmergencyContact(prev => prev || data.emergency || data.emergencyContact || '');
+            }
+          }
+        } catch (loadError) {
+          console.error('Error loading contact data before submit:', loadError);
+        }
+      }
+
       const payload = {
         uid,
         incidentType: selectedType,
