@@ -402,7 +402,7 @@ export default function AnalyticsPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={monthlyCasesData}
-                  margin={{ top: 10, right: 10, left: -20, bottom: 10 }}
+                  margin={{ top: 0, right: 10, left: -20, bottom: 10 }}
                 >
                   <defs>
                     <linearGradient id="casesBarGrad" x1="0" y1="0" x2="0" y2="1">
@@ -418,6 +418,7 @@ export default function AnalyticsPage() {
                     tickLine={false}
                     tick={{ fontSize: 11 }}
                     ticks={monthlyCaseTicks}
+                    domain={[0, 'dataMax']}
                     tickFormatter={(value) => {
                       const n = Number(value);
                       if (!Number.isFinite(n)) return value;
