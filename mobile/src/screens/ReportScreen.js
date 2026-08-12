@@ -24,7 +24,7 @@ const INCIDENT_TYPES = [
 ];
 
 const DESCRIPTION_MAX_LENGTH = 1500;
-const LOCATION_MAX_LENGTH = 500;
+const LOCATION_MAX_LENGTH = 100;
 const SUSPECT_DESCRIPTION_MAX_LENGTH = 1000;
 
 export default function ReportScreen({ navigation }) {

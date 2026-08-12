@@ -31,9 +31,9 @@ export default function DashboardPage({ onNavigate }) {
 
           if (status === "resolved") {
             resolvedCount++;
-} else if (priorityLevel === "urgent") {
+          } else if (priorityLevel === "urgent") {
             urgentCount++;
-          } else if (status === "pending" || status === "reviewing" || status === "referred") {
+          } else if (status === "pending" || status === "reviewing") {
             activeCount++;
           }
         });

@@ -614,9 +614,12 @@ function AccessLogRow({ log }) {
     ? `${(staff.firstName || '').charAt(0)}${(staff.lastName || '').charAt(0)}`.toUpperCase()
     : '';
 
-  const role = staff?.role;
-  const roleLabel = role ? ROLE_LABELS[role] || role : '—';
-  const roleClass = role ? ROLE_CLASSES[role] || '' : '';
+  const normalizedRole = staff?.role ? staff.role.toString().toLowerCase() : '';
+  const roleLabel = normalizedRole ? ROLE_LABELS[normalizedRole] || staff.role : '—';
+  const roleClass = normalizedRole ? ROLE_CLASSES[normalizedRole] || '' : '';
+  const avatarClass = staff
+    ? (AVATAR_COLOR[staff.color] || (normalizedRole === 'admin' ? 'av-blue' : 'av-pink'))
+    : 'av-pink';
 
   return (
     <tr>
@@ -624,7 +627,7 @@ function AccessLogRow({ log }) {
         {staff ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div
-              className={`staff-avatar ${AVATAR_COLOR[staff.color] || 'av-pink'}`}
+              className={`staff-avatar ${avatarClass}`}
               style={{ opacity: staff.status !== 'active' ? 0.45 : 1 }}
             >
               {initials}

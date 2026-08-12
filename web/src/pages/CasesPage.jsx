@@ -534,7 +534,7 @@ export default function CasesPage({ initialSelectedCaseId, initialSelectedCaseKe
             resolvedCount++;
           } else if (priorityLevel === "urgent") {
             urgentCount++;
-          } else if (status === "pending" || status === "reviewing" || status === "referred") {
+          } else if (status === "pending" || status === "reviewing") {
             activeCount++;
           }
         });
@@ -989,11 +989,11 @@ export default function CasesPage({ initialSelectedCaseId, initialSelectedCaseKe
                   <>
                     <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)' }}>Case Details</div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 12, padding: 14, backgroundColor: 'var(--bg)', borderRadius: 'var(--radius-lg)', border: '0.5px solid var(--border)' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 12, padding: 14, backgroundColor: 'var(--bg)', borderRadius: 'var(--radius-lg)', border: '0.5px solid var(--border)' }}>
                   {[{ icon: 'user', bg: 'var(--primary-light)', color: 'var(--primary)', label: 'Reporter', val: selectedCase.reporter },
+                  { icon: 'user-tie', bg: 'var(--safe-light)', color: 'var(--safe)', label: selectedCase.status === 'referred' ? 'Referred To' : 'Assigned To', val: selectedCase.status === 'referred' ? (selectedCase.referredTo || 'Pending') : (assignedOfficer || 'Unassigned') },
                   { icon: 'calendar', bg: 'var(--accent-light)', color: 'var(--accent)', label: 'Date Filed', val: selectedCase.date },
-{ icon: 'location-dot', bg: 'var(--sos-light)', color: 'var(--sos)', label: 'Incident Location', val: selectedCase.location },
-                  { icon: 'user-tie', bg: 'var(--safe-light)', color: 'var(--safe)', label: selectedCase.status === 'referred' ? 'Referred To' : 'Assigned To', val: selectedCase.status === 'referred' ? (selectedCase.referredTo || 'Pending') : (assignedOfficer || 'Unassigned') }
+                  { icon: 'clock', bg: 'var(--warn-light)', color: 'var(--warn)', label: 'Date & Time of Incident', val: selectedCase.incidentDateTime || 'Not recorded' }
                   ].map(item => (
                     <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <div style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: item.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: item.color, flexShrink: 0 }}><Icon icon={item.icon} size="13px" /></div>
@@ -1015,8 +1015,8 @@ export default function CasesPage({ initialSelectedCaseId, initialSelectedCaseKe
                   )}
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, gridColumn: 'span 2' }}>
-                    <div style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: 'var(--warn-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--warn)', flexShrink: 0 }}><Icon icon="clock" size="13px" /></div>
-                    <div><div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)', fontWeight: 700 }}>Date &amp; Time of Incident</div><div style={{ fontSize: 13, fontWeight: 650, color: 'var(--text)' }}>{selectedCase.incidentDateTime || 'Not recorded'}</div></div>
+                    <div style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: 'var(--sos-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--sos)', flexShrink: 0 }}><Icon icon="location-dot" size="13px" /></div>
+                    <div><div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)', fontWeight: 700 }}>Incident Location</div><div style={{ fontSize: 13, fontWeight: 650, color: 'var(--text)' }}>{selectedCase.location || 'Not provided'}</div></div>
                   </div>
                 </div>
 
