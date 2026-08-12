@@ -32,6 +32,7 @@ function Shell() {
   const { user, logout, can, loading } = useAuth(); // ✅ include loading
   const [page, setPage] = useState("analytics");
   const [pendingCommunicationsCaseId, setPendingCommunicationsCaseId] = useState(null);
+  const [pendingCommunicationsCaseModalKey, setPendingCommunicationsCaseModalKey] = useState(0);
   const [pendingCasePageCaseId, setPendingCasePageCaseId] = useState(null);
   const [pendingCaseSelectionKey, setPendingCaseSelectionKey] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -54,7 +55,7 @@ function Shell() {
 
   const pages = {
     cases:     <ProtectedRoute key={`cases-${pendingCaseSelectionKey}`} permission="cases"><CasesPage initialSelectedCaseId={pendingCasePageCaseId} initialSelectedCaseKey={pendingCaseSelectionKey} /></ProtectedRoute>,
-    comms:     <CommunicationsPage initialSelectedCaseId={pendingCommunicationsCaseId} />,
+    comms:     <CommunicationsPage initialSelectedCaseId={pendingCommunicationsCaseId} initialCaseModalKey={pendingCommunicationsCaseModalKey} />,
     analytics: <AnalyticsPage />,
     evidence:  <EvidenceStoragePage />,
     accounts:  <ProtectedRoute permission="accountManagement"><AccountManagementPage /></ProtectedRoute>,
@@ -186,8 +187,11 @@ function Shell() {
               notifications={notifications}
               unreadCount={unreadCount}
               onMarkAsRead={() => setNotifKey(k => k + 1)}
-              onNavigateToCommunications={(caseId) => {
+              onNavigateToCommunications={(caseId, options = {}) => {
                 setPendingCommunicationsCaseId(caseId);
+                if (options.openCaseDetailsModal) {
+                  setPendingCommunicationsCaseModalKey((key) => key + 1);
+                }
                 setPage("comms");
               }}
               onNavigateToCase={(caseId) => {

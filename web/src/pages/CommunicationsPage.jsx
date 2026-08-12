@@ -19,7 +19,7 @@ import { db } from "../firebase";
 import { useAuth } from "../AuthContext";
 import API_BASE_URL from "../config/api";
 
-export default function CommunicationsPage({ initialSelectedCaseId }) {
+export default function CommunicationsPage({ initialSelectedCaseId, initialCaseModalKey }) {
   const { user } = useAuth();
   const [selectedCase, setSelectedCase] = useState(null);
   const [msgs, setMsgs] = useState([]);
@@ -279,19 +279,21 @@ export default function CommunicationsPage({ initialSelectedCaseId }) {
     setCaseDetailsModalOpen(true);
   };
 
-  // Auto-select case when navigated from Notification modal.
+  // Auto-select case when navigated from notification and optionally open the case details modal.
   useEffect(() => {
     if (!initialSelectedCaseId) return;
-
     if (!assignedCases || assignedCases.length === 0) return;
 
     const match = assignedCases.find((c) => c.id === initialSelectedCaseId);
-    if (match) {
-      setSelectedCase(match);
-      setCaseFilter("all");
-      setDetailTab("messages");
+    if (!match) return;
+
+    setSelectedCase(match);
+    setCaseFilter("all");
+    setDetailTab("messages");
+    if (initialCaseModalKey != null) {
+      openCaseDetailsModal(match);
     }
-  }, [initialSelectedCaseId, assignedCases]);
+  }, [initialSelectedCaseId, initialCaseModalKey, assignedCases]);
 
   const resolveCase = async () => {
     if (!selectedCaseDetails || resolving) return;

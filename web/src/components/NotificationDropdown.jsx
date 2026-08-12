@@ -134,10 +134,16 @@ export default function NotificationDropdown({
     }
 
     const caseId = notif.caseId || notif.caseData?.caseId || extractCaseId(notif.message);
-    if (caseId && typeof onNavigateToCase === "function") {
+    if (caseId) {
       setIsOpen(false);
-      onNavigateToCase(caseId);
-      return;
+      if (notif.type === "case_assigned" && typeof onNavigateToCommunications === "function") {
+        onNavigateToCommunications(caseId, { openCaseDetailsModal: true });
+        return;
+      }
+      if (typeof onNavigateToCase === "function") {
+        onNavigateToCase(caseId);
+        return;
+      }
     }
 
     // Fetch case details for other notification types or fallback behavior.
