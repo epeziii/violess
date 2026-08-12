@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import { AuthProvider, useAuth, PERMISSIONS } from "./AuthContext";
 import { ProtectedRoute } from "./ProtectedRoute";
@@ -32,13 +32,24 @@ function Shell() {
   const { user, logout, can, loading } = useAuth(); // ✅ include loading
   const [page, setPage] = useState("analytics");
   const [pendingCommunicationsCaseId, setPendingCommunicationsCaseId] = useState(null);
-  const [pendingCommunicationsCaseModalKey, setPendingCommunicationsCaseModalKey] = useState(0);
+  const [pendingCommunicationsCaseModalKey, setPendingCommunicationsCaseModalKey] = useState(null);
   const [pendingCasePageCaseId, setPendingCasePageCaseId] = useState(null);
   const [pendingCaseSelectionKey, setPendingCaseSelectionKey] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const { notifications, unreadCount } = useNotifications(user?.uid);
   const [notifKey, setNotifKey] = useState(0);
+
+  useEffect(() => {
+    if (page === "comms") {
+      if (pendingCommunicationsCaseModalKey != null) {
+        setPendingCommunicationsCaseModalKey(null);
+      }
+      if (pendingCommunicationsCaseId != null) {
+        setPendingCommunicationsCaseId(null);
+      }
+    }
+  }, [page, pendingCommunicationsCaseId, pendingCommunicationsCaseModalKey]);
 
   // ⚡ Wait for Firebase auth to finish initializing
   if (loading) return (
@@ -190,7 +201,9 @@ function Shell() {
               onNavigateToCommunications={(caseId, options = {}) => {
                 setPendingCommunicationsCaseId(caseId);
                 if (options.openCaseDetailsModal) {
-                  setPendingCommunicationsCaseModalKey((key) => key + 1);
+                  setPendingCommunicationsCaseModalKey((prev) => (prev || 0) + 1);
+                } else {
+                  setPendingCommunicationsCaseModalKey(null);
                 }
                 setPage("comms");
               }}

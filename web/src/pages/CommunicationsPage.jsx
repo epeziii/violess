@@ -1,5 +1,5 @@
 // CommunicationsPage.jsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { DesktopTimePicker } from "@mui/x-date-pickers/DesktopTimePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
@@ -8,12 +8,14 @@ import {
   addDoc,
   collection,
   doc,
+  getDoc,
   serverTimestamp,
   query,
   updateDoc,
   where,
   onSnapshot,
   orderBy,
+  getDocs,
 } from "firebase/firestore";
 import { db } from "../firebase";
 import { useAuth } from "../AuthContext";
@@ -41,6 +43,7 @@ export default function CommunicationsPage({ initialSelectedCaseId, initialCaseM
   const [quickActionOpen, setQuickActionOpen] = useState(false);
   const [caseDetailsModalOpen, setCaseDetailsModalOpen] = useState(false);
   const [selectedCaseDetails, setSelectedCaseDetails] = useState(null);
+  const lastOpenedCaseModalKeyRef = useRef(null);
 
   useEffect(() => {
     if (!user) return;
@@ -281,18 +284,80 @@ export default function CommunicationsPage({ initialSelectedCaseId, initialCaseM
 
   // Auto-select case when navigated from notification and optionally open the case details modal.
   useEffect(() => {
+    if (initialCaseModalKey == null) return;
+    if (initialCaseModalKey === lastOpenedCaseModalKeyRef.current) return;
     if (!initialSelectedCaseId) return;
-    if (!assignedCases || assignedCases.length === 0) return;
 
-    const match = assignedCases.find((c) => c.id === initialSelectedCaseId);
-    if (!match) return;
+    const openMatchedCase = (caseItem) => {
+      setSelectedCase(caseItem);
+      setCaseFilter("all");
+      setDetailTab("messages");
+      openCaseDetailsModal(caseItem);
+      lastOpenedCaseModalKeyRef.current = initialCaseModalKey;
+    };
 
-    setSelectedCase(match);
-    setCaseFilter("all");
-    setDetailTab("messages");
-    if (initialCaseModalKey != null) {
-      openCaseDetailsModal(match);
+    const matchByCaseId = assignedCases.find((c) => c.id === initialSelectedCaseId);
+    const matchByDocId = assignedCases.find((c) => c.docId === initialSelectedCaseId);
+    const match = matchByCaseId || matchByDocId;
+    if (match) {
+      openMatchedCase(match);
+      return;
     }
+
+    const fetchCaseByNotificationId = async () => {
+      try {
+        const q = query(collection(db, "reports"), where("caseId", "==", initialSelectedCaseId));
+        const snapshot = await getDocs(q);
+        if (!snapshot.empty) {
+          const docSnap = snapshot.docs[0];
+          const data = docSnap.data();
+          const caseItem = {
+            id: data.caseId,
+            type: data.incidentType,
+            reporter: data.reporterName,
+            status: data.status || "pending",
+            priority: data.priorityLevel || "normal",
+            docId: docSnap.id,
+            uid: data.uid,
+            location: data.location || "N/A",
+            datetime: data.datetime || "",
+            description: data.description || "",
+            suspectDescription: data.suspectDescription || "",
+            assignedOfficer: data.assignedOfficer || "",
+            createdAt: data.createdAt || "",
+            assignedAt: data.assignedAt || null,
+          };
+          openMatchedCase(caseItem);
+          return;
+        }
+
+        const docSnap = await getDoc(doc(db, "reports", initialSelectedCaseId));
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          const caseItem = {
+            id: data.caseId,
+            type: data.incidentType,
+            reporter: data.reporterName,
+            status: data.status || "pending",
+            priority: data.priorityLevel || "normal",
+            docId: docSnap.id,
+            uid: data.uid,
+            location: data.location || "N/A",
+            datetime: data.datetime || "",
+            description: data.description || "",
+            suspectDescription: data.suspectDescription || "",
+            assignedOfficer: data.assignedOfficer || "",
+            createdAt: data.createdAt || "",
+            assignedAt: data.assignedAt || null,
+          };
+          openMatchedCase(caseItem);
+        }
+      } catch (error) {
+        console.error("Error fetching case for notification modal:", error);
+      }
+    };
+
+    fetchCaseByNotificationId();
   }, [initialSelectedCaseId, initialCaseModalKey, assignedCases]);
 
   const resolveCase = async () => {
