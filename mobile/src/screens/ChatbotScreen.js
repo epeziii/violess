@@ -107,9 +107,6 @@ export default function ChatbotScreen({ navigation }) {
 
       {/* Input */}
       <View style={ch.inputRow}>
-        <TouchableOpacity style={ch.attachBtn} disabled={sending}>
-          <FontAwesome6 name="paperclip" size={18} color={colors.primary} />
-        </TouchableOpacity>
         <TextInput
           style={ch.input}
           value={input}

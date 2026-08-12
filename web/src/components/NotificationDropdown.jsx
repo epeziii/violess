@@ -401,7 +401,19 @@ export default function NotificationDropdown({
               marginTop: "8px"
             }}
           >
-            <div style={{ padding: "12px 16px", borderBottom: "0.5px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div
+              style={{
+                position: "sticky",
+                top: 0,
+                zIndex: 1,
+                padding: "12px 16px",
+                borderBottom: "0.5px solid var(--border)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                background: "white"
+              }}
+            >
               <div style={{ fontSize: "13px", fontWeight: "700", color: "var(--text)" }}>
                 Notifications {localUnreadCount > 0 && `(${localUnreadCount})`}
               </div>
@@ -436,16 +448,16 @@ export default function NotificationDropdown({
                     style={{
                       padding: "12px 16px",
                       borderBottom: "0.5px solid var(--border)",
-                      background: notif.read ? "transparent" : "rgba(194, 24, 91, 0.04)",
+                      background: notif.read ? "transparent" : "rgba(194, 24, 91, 0.16)",
                       cursor: "pointer",
                       transition: "all 0.15s"
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.background = notif.read ? "rgba(194, 24, 91, 0.06)" : "rgba(194, 24, 91, 0.10)";
-                      e.currentTarget.style.boxShadow = "inset 0 0 0 0.5px rgba(194, 24, 91, 0.1)";
+                      e.currentTarget.style.background = notif.read ? "rgba(194, 24, 91, 0.08)" : "rgba(194, 24, 91, 0.24)";
+                      e.currentTarget.style.boxShadow = "inset 0 0 0 1px rgba(194, 24, 91, 0.2)";
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.background = notif.read ? "transparent" : "rgba(194, 24, 91, 0.04)";
+                      e.currentTarget.style.background = notif.read ? "transparent" : "rgba(194, 24, 91, 0.16)";
                       e.currentTarget.style.boxShadow = "none";
                     }}
                   >
