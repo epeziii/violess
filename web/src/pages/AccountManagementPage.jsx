@@ -70,7 +70,28 @@ function StatCards({ accounts }) {
 
 function formatLastLogin(timestamp) {
   if (!timestamp) return "—";
-  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+
+  let date;
+  try {
+    if (timestamp && typeof timestamp.toDate === 'function') {
+      date = timestamp.toDate();
+    } else if (typeof timestamp === 'number') {
+      date = new Date(timestamp);
+    } else if (timestamp && typeof timestamp.seconds === 'number') {
+      // Firestore-like object with seconds/nanoseconds
+      date = new Date((timestamp.seconds || 0) * 1000 + Math.floor((timestamp.nanoseconds || 0) / 1e6));
+    } else if (typeof timestamp === 'string') {
+      const parsed = Date.parse(timestamp);
+      date = isNaN(parsed) ? null : new Date(parsed);
+    } else {
+      date = new Date(timestamp);
+    }
+  } catch (e) {
+    date = null;
+  }
+
+  if (!date || !(date instanceof Date) || isNaN(date.getTime())) return "—";
+
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
@@ -492,13 +513,45 @@ export default function AccountManagementPage() {
 
   const fetchAccounts = async () => {
     const snapshot = await getDocs(collection(db, "staff"));
-    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const data = snapshot.docs.map(d => {
+      const raw = d.data() || {};
+      return {
+        id: d.id,
+        firstName: raw.firstName || "",
+        lastName: raw.lastName || "",
+        fullName: raw.fullName || `${raw.firstName || ""} ${raw.lastName || ""}`.trim(),
+        email: raw.email || "",
+        username: raw.username || raw.email || "",
+        role: raw.role || "admin",
+        status: raw.status || "active",
+        lastLogin: raw.lastLogin || null,
+        cases: typeof raw.cases === 'number' ? raw.cases : 0,
+        color: raw.color || 'av-pink',
+        ...raw,
+      };
+    });
     setAccounts(data);
   };
 
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, "staff"), (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const data = snapshot.docs.map(d => {
+        const raw = d.data() || {};
+        return {
+          id: d.id,
+          firstName: raw.firstName || "",
+          lastName: raw.lastName || "",
+          fullName: raw.fullName || `${raw.firstName || ""} ${raw.lastName || ""}`.trim(),
+          email: raw.email || "",
+          username: raw.username || raw.email || "",
+          role: raw.role || "admin",
+          status: raw.status || "active",
+          lastLogin: raw.lastLogin || null,
+          cases: typeof raw.cases === 'number' ? raw.cases : 0,
+          color: raw.color || 'av-pink',
+          ...raw,
+        };
+      });
       setAccounts(data);
     }, (error) => {
       console.error("Failed to subscribe to staff accounts:", error);
