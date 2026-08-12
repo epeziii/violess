@@ -4,6 +4,7 @@ import {
   TouchableOpacity, StatusBar, Animated, Dimensions, ActivityIndicator
 } from 'react-native';
 import { colors, spacing, radius, shadow } from '../theme';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Card, QuickCard, SectionHeader } from '../components';
 import { auth } from '../config/firebase';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
@@ -17,6 +18,8 @@ export default function HomeScreen({ navigation }) {
   const [userData, setUserData] = useState(null);
   const [activeCasesCount, setActiveCasesCount] = useState(0);
   const [recentCases, setRecentCases] = useState([]);
+  const [unreadCounts, setUnreadCounts] = useState({});
+  const [userCaseIds, setUserCaseIds] = useState([]);
   const [recentCasesLoading, setRecentCasesLoading] = useState(true);
   const [recentCasesError, setRecentCasesError] = useState(null);
 
@@ -190,6 +193,7 @@ export default function HomeScreen({ navigation }) {
             });
 
           setRecentCases(recentActivities);
+          setUserCaseIds(data.cases.map(c => c.caseId).filter(Boolean));
         } else {
           console.warn('⚠️ [Home] No success data or no cases:', data);
           setRecentCases([]);
@@ -208,6 +212,54 @@ export default function HomeScreen({ navigation }) {
     const unsubscribe = navigation.addListener('focus', fetchHomeData);
     return unsubscribe;
   }, [navigation]);
+
+  // Poll unread officer messages across all user's cases (for Track Case badge)
+  useEffect(() => {
+    if (!userCaseIds || userCaseIds.length === 0) return;
+
+    let isMounted = true;
+
+    const updateUnread = async () => {
+      try {
+        const currentUser = auth.currentUser;
+        if (!currentUser) return;
+
+        const map = {};
+
+        for (const id of Array.from(new Set(userCaseIds))) {
+          try {
+            const resp = await fetch(`${API_BASE_URL}/case/${id}/messages`, {
+              headers: { 'x-user-id': currentUser.uid },
+            });
+            const data = await resp.json();
+            if (!data?.success || !Array.isArray(data.messages)) continue;
+
+            const lastSeenStr = await AsyncStorage.getItem(`lastSeen:${id}`);
+            const lastSeen = lastSeenStr ? new Date(lastSeenStr) : null;
+
+            let count = 0;
+            for (const m of data.messages) {
+              if (m.from !== 'officer') continue;
+              const mDate = m.timestamp && m.timestamp.toDate ? m.timestamp.toDate() : new Date(m.timestamp);
+              if (!lastSeen || mDate > lastSeen) count += 1;
+            }
+
+            if (count > 0) map[id] = count;
+          } catch (err) {
+            console.warn('Unread fetch error for case', id, err?.message || err);
+          }
+        }
+
+        if (isMounted) setUnreadCounts(map);
+      } catch (err) {
+        console.warn('Failed to update unread counts (home)', err?.message || err);
+      }
+    };
+
+    updateUnread();
+    const iv = setInterval(updateUnread, 5000);
+    return () => { isMounted = false; clearInterval(iv); };
+  }, [userCaseIds]);
 
   // Generate initials from first and last name
   const getInitials = () => {
@@ -281,6 +333,8 @@ export default function HomeScreen({ navigation }) {
     }
   };
 
+  const totalUnread = Object.values(unreadCounts || {}).reduce((a, b) => a + (b || 0), 0);
+
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor={colors.primaryDark} />
@@ -328,11 +382,20 @@ export default function HomeScreen({ navigation }) {
           {/* ── Quick Actions ── */}
           <SectionHeader title="Quick Actions" />
           <View style={styles.quickGrid}>
-            <QuickCard
-              icon="briefcase" title="Track Case" desc="View case status"
-              onPress={() => navigation.navigate('Track')}
-              accent={colors.infoLight}
-            />
+            <View style={{ position: 'relative', flex: 1 }}>
+              <QuickCard
+                icon="briefcase" title="Track Case" desc="View case status"
+                onPress={() => navigation.navigate('Track')}
+                accent={colors.infoLight}
+              />
+              {totalUnread > 0 && (
+                <TouchableOpacity onPress={() => navigation.navigate('Track')} style={{ position: 'absolute', right: 8, top: 8 }}>
+                  <View style={{ backgroundColor: colors.sos, minWidth: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 }}>
+                    <Text style={{ color: '#fff', fontWeight: '700', fontSize: 11 }}>{String(totalUnread)}</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+            </View>
             <QuickCard
               icon="message" title="Chat Support" desc="Talk to SafeTalk AI"
               onPress={() => navigation.navigate('Chatbot')}
@@ -392,6 +455,7 @@ export default function HomeScreen({ navigation }) {
                         <Text style={styles.caseDate}>{item.subtitle} • {formatCaseDate(item.timestamp)}</Text>
                       </View>
                     </View>
+                    {/* no per-item message badge in recent activity */}
                   </View>
                 ))}
               </ScrollView>

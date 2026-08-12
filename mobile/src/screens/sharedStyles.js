@@ -28,6 +28,8 @@ const s = StyleSheet.create({
   officerRole:  { fontSize: 11, color: colors.textMuted, marginTop: 2 },
   msgBtn:       { backgroundColor: colors.primaryLight, paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: radius.sm },
   msgBtnText:   { color: colors.primary, fontSize: 11, fontWeight: '700' },
+  unreadBadge:  { position: 'absolute', top: 36, right: 8, zIndex: 2, backgroundColor: colors.sos, minWidth: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  unreadBadgeText:{ color: '#fff', fontSize: 10, fontWeight: '700' },
   onlineRow:    { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
   onlineDot:    { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.safe, marginRight: 4 },
   onlineText:   { fontSize: 10, color: 'rgba(255,255,255,0.65)' },

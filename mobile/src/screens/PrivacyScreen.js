@@ -1,5 +1,5 @@
 // ─── PrivacyScreen.js (Settings) ──────────────────────────────────────────
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,19 +9,65 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { colors, spacing } from '../theme';
 import { Card } from '../components';
 import { pv, s } from './sharedStyles';
 import { signOut } from 'firebase/auth';
-import { auth } from '../config/firebase';
+import { auth, db } from '../config/firebase';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
+
+const PREFERENCE_KEY = 'muteOfficerChatNotifications';
 
 export default function PrivacyScreen({ navigation }) {
-  const [settings, setSettings] = useState({
-    officerChatNotifications: true,
-  });
+  const [muteOfficerChatNotifications, setMuteOfficerChatNotifications] = useState(false);
 
-  const toggle = (key) => setSettings((prev) => ({ ...prev, [key]: !prev[key] }));
+  useEffect(() => {
+    const loadPreference = async () => {
+      try {
+        const storedValue = await AsyncStorage.getItem(PREFERENCE_KEY);
+        if (storedValue !== null) {
+          setMuteOfficerChatNotifications(storedValue === 'true');
+        }
+
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+          const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            if (typeof userData?.muteOfficerChatNotifications === 'boolean') {
+              setMuteOfficerChatNotifications(userData.muteOfficerChatNotifications);
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to load officer chat preference', error);
+      }
+    };
+
+    loadPreference();
+  }, []);
+
+  const toggle = async () => {
+    const nextValue = !muteOfficerChatNotifications;
+    setMuteOfficerChatNotifications(nextValue);
+    try {
+      await AsyncStorage.setItem(PREFERENCE_KEY, JSON.stringify(nextValue));
+    } catch (error) {
+      console.warn('Failed to save officer chat preference', error);
+    }
+
+    try {
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        const userDoc = doc(db, 'users', currentUser.uid);
+        await updateDoc(userDoc, { muteOfficerChatNotifications: nextValue });
+      }
+    } catch (error) {
+      console.warn('Failed to persist officer chat preference to Firestore', error);
+    }
+  };
 
   const handleLogout = async () => {
     Alert.alert(
@@ -47,10 +93,10 @@ export default function PrivacyScreen({ navigation }) {
 
   const SETTINGS = [
     {
-      key: 'officerChatNotifications',
+      key: 'muteOfficerChatNotifications',
       icon: 'bell',
       title: "Don't get notified when an officer chats you",
-      desc: 'You will not receive in-app notifications for officer chat messages.',
+      desc: 'You will not receive push notifications when an officer sends you a chat message.',
     },
   ];
 
@@ -82,8 +128,8 @@ export default function PrivacyScreen({ navigation }) {
               </View>
 
               <Switch
-                value={settings[item.key]}
-                onValueChange={() => toggle(item.key)}
+                value={muteOfficerChatNotifications}
+                onValueChange={toggle}
                 trackColor={{ true: colors.primary, false: '#DDD' }}
                 thumbColor="#fff"
               />
@@ -104,4 +150,3 @@ export default function PrivacyScreen({ navigation }) {
     </View>
   );
 }
-

@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet,
-  TouchableOpacity, Switch, StatusBar, TextInput, Alert, ActivityIndicator
+  TouchableOpacity, Switch, StatusBar, TextInput, Alert, ActivityIndicator,
+  Animated, Vibration
 } from 'react-native';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { colors, spacing, radius } from '../theme';
@@ -22,10 +23,21 @@ const INCIDENT_TYPES = [
   { id: 'other', label: 'Other', icon: 'question' },
 ];
 
+const DESCRIPTION_MAX_LENGTH = 1500;
+const LOCATION_MAX_LENGTH = 500;
+const SUSPECT_DESCRIPTION_MAX_LENGTH = 1000;
+
 export default function ReportScreen({ navigation }) {
+  const scrollViewRef = useRef(null);
+  const shakeAnimations = useRef({
+    description: new Animated.Value(0),
+    location: new Animated.Value(0),
+    suspectDescription: new Animated.Value(0),
+  }).current;
   const [selectedType, setSelectedType] = useState(null);
   const [isAnonymous, setIsAnonymous] = useState(true);
   const [step, setStep] = useState(1);
+  const [limitFlashField, setLimitFlashField] = useState(null);
   const [description, setDescription] = useState('');
   const [location, setLocation] = useState('');
   const [date, setDate] = useState(new Date());
@@ -63,7 +75,78 @@ const [showTimePicker, setShowTimePicker] = useState(false);
     loadReporterContactInfo();
   }, []);
 
-  // ✅ VALIDATION FUNCTIONS
+  useEffect(() => {
+    if (!limitFlashField) return;
+
+    const timeout = setTimeout(() => {
+      setLimitFlashField(null);
+    }, 400);
+
+    return () => clearTimeout(timeout);
+  }, [limitFlashField]);
+
+  const triggerLimitFeedback = (fieldKey) => {
+    const animation = shakeAnimations[fieldKey];
+    animation.stopAnimation();
+    animation.setValue(0);
+
+    Animated.sequence([
+      Animated.timing(animation, { toValue: -6, duration: 50, useNativeDriver: true }),
+      Animated.timing(animation, { toValue: 6, duration: 50, useNativeDriver: true }),
+      Animated.timing(animation, { toValue: -4, duration: 50, useNativeDriver: true }),
+      Animated.timing(animation, { toValue: 4, duration: 50, useNativeDriver: true }),
+      Animated.timing(animation, { toValue: -2, duration: 50, useNativeDriver: true }),
+      Animated.timing(animation, { toValue: 2, duration: 50, useNativeDriver: true }),
+      Animated.timing(animation, { toValue: 0, duration: 50, useNativeDriver: true }),
+    ]).start();
+
+    Vibration.vibrate([30, 60, 30]);
+  };
+
+  const getAnimatedInputStyle = (fieldKey) => ({
+    transform: [{ translateX: shakeAnimations[fieldKey] }],
+  });
+
+  const getCounterStyle = (value, maxLength) => ({
+    ...styles.charCounter,
+    color: value >= maxLength ? '#d32f2f' : colors.textMuted,
+  });
+
+  const getInputBorderStyle = (fieldKey) => {
+    if (limitFlashField !== fieldKey) {
+      return null;
+    }
+
+    return {
+      borderColor: '#d32f2f',
+    };
+  };
+
+  const focusField = (fieldKey) => {
+    const offsetMap = {
+      description: 180,
+      location: 260,
+      suspectDescription: 420,
+    };
+
+    requestAnimationFrame(() => {
+      scrollViewRef.current?.scrollTo({
+        y: offsetMap[fieldKey] || 0,
+        animated: true,
+      });
+    });
+  };
+
+  const handleLimitedTextChange = (fieldKey, setter, maxLength, text) => {
+    const limitedText = text.slice(0, maxLength);
+    setter(limitedText);
+
+    if (text.length > maxLength) {
+      setLimitFlashField(fieldKey);
+      triggerLimitFeedback(fieldKey);
+    }
+  };
+
   const validateStep1 = () => {
     if (!selectedType) {
       Alert.alert('Missing Information', 'Please select an incident type.');
@@ -75,6 +158,10 @@ const [showTimePicker, setShowTimePicker] = useState(false);
   const validateStep2 = () => {
     if (!description.trim()) {
       Alert.alert('Missing Information', 'Please describe the incident.');
+      return false;
+    }
+    if (!location.trim()) {
+      Alert.alert('Missing Information', 'Please provide the location of the incident.');
       return false;
     }
     if (!suspectDescription.trim()) {
@@ -295,34 +382,52 @@ const [showTimePicker, setShowTimePicker] = useState(false);
               <Text style={styles.infoText}>When filing a report, you must provide clear, accurate, and precise information to ensure the issue can be properly understood and addressed.</Text>
             </View>
 
-            <Text style={styles.fieldLabel}>What happened? *</Text>
-            <TextInput
-              style={styles.textArea}
-              multiline
-              placeholder="Describe the incident in detail..."
-              placeholderTextColor={colors.placeholder}
-              value={description}
-              onChangeText={setDescription}
-            />
+            <View style={styles.labelRow}>
+              <Text style={styles.fieldLabel}>Describe what happened? *</Text>
+              <Text style={getCounterStyle(description.length, DESCRIPTION_MAX_LENGTH)}>{description.length}/{DESCRIPTION_MAX_LENGTH}</Text>
+            </View>
+            <Animated.View style={getAnimatedInputStyle('description')}>
+              <TextInput
+                style={[styles.textArea, getInputBorderStyle('description')]}
+                multiline
+                placeholder="Describe the incident in detail..."
+                placeholderTextColor={colors.placeholder}
+                value={description}
+                onFocus={() => focusField('description')}
+                onChangeText={(text) => handleLimitedTextChange('description', setDescription, DESCRIPTION_MAX_LENGTH, text)}
+              />
+            </Animated.View>
 
-            <Text style={styles.fieldLabel}>Location</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Where did it happen?"
-              placeholderTextColor={colors.placeholder}
-              value={location}
-              onChangeText={setLocation}
-            />
+            <View style={styles.labelRow}>
+              <Text style={styles.fieldLabel}>Location *</Text>
+              <Text style={getCounterStyle(location.length, LOCATION_MAX_LENGTH)}>{location.length}/{LOCATION_MAX_LENGTH}</Text>
+            </View>
+            <Animated.View style={getAnimatedInputStyle('location')}>
+              <TextInput
+                style={[styles.input, getInputBorderStyle('location')]}
+                placeholder="Where did it happen?"
+                placeholderTextColor={colors.placeholder}
+                value={location}
+                onFocus={() => focusField('location')}
+                onChangeText={(text) => handleLimitedTextChange('location', setLocation, LOCATION_MAX_LENGTH, text)}
+              />
+            </Animated.View>
 
-            <Text style={styles.fieldLabel}>Suspect Description</Text>
-            <TextInput
-              style={styles.textArea}
-              multiline
-              placeholder="Describe the suspect (appearance, clothing, behavior, etc.)..."
-              placeholderTextColor={colors.placeholder}
-              value={suspectDescription}
-              onChangeText={setSuspectDescription}
-            />
+            <View style={styles.labelRow}>
+              <Text style={styles.fieldLabel}>Suspect Description</Text>
+              <Text style={getCounterStyle(suspectDescription.length, SUSPECT_DESCRIPTION_MAX_LENGTH)}>{suspectDescription.length}/{SUSPECT_DESCRIPTION_MAX_LENGTH}</Text>
+            </View>
+            <Animated.View style={getAnimatedInputStyle('suspectDescription')}>
+              <TextInput
+                style={[styles.textArea, getInputBorderStyle('suspectDescription')]}
+                multiline
+                placeholder="Describe the suspect (appearance, clothing, behavior, etc.)..."
+                placeholderTextColor={colors.placeholder}
+                value={suspectDescription}
+                onFocus={() => focusField('suspectDescription')}
+                onChangeText={(text) => handleLimitedTextChange('suspectDescription', setSuspectDescription, SUSPECT_DESCRIPTION_MAX_LENGTH, text)}
+              />
+            </Animated.View>
 
             <Text style={styles.fieldLabel}>Date</Text>
 <TouchableOpacity
@@ -654,6 +759,15 @@ const styles = StyleSheet.create({
   content: { padding: spacing.lg, flexGrow: 1, width: '100%' },
 
   stepLabel: { marginBottom: spacing.md, fontWeight: '700' },
+
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: spacing.md,
+  },
+
+  charCounter: { fontSize: 12, color: colors.textMuted },
 
   anonRow: { flexDirection: 'row', alignItems: 'center' },
   anonLeft: { flexDirection: 'row', flex: 1 },

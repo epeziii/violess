@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { View, Text, ScrollView, TouchableOpacity, StatusBar, ActivityIndicator } from 'react-native';
 import { colors, spacing } from '../theme';
 import { Card, StatusBadge, TimelineStep, Avatar } from '../components';
@@ -11,6 +12,7 @@ export default function CaseTrackingScreen({ navigation }) {
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [unreadCounts, setUnreadCounts] = useState({});
 
   const fetchWithRetry = async (url, maxRetries = 2) => {
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -142,6 +144,54 @@ export default function CaseTrackingScreen({ navigation }) {
     fetchUserCases();
   }, []);
 
+  // Poll unread officer messages per case and store counts keyed by case id
+  useEffect(() => {
+    if (!cases || cases.length === 0) return;
+
+    let isMounted = true;
+
+    const updateUnread = async () => {
+      try {
+        const currentUser = auth.currentUser;
+        if (!currentUser) return;
+
+        const map = {};
+
+        for (const c of cases) {
+          try {
+            const resp = await fetch(`${API_BASE_URL}/case/${c.id}/messages`, {
+              headers: { 'x-user-id': currentUser.uid },
+            });
+            const data = await resp.json();
+            if (!data?.success || !Array.isArray(data.messages)) continue;
+
+            const lastSeenStr = await AsyncStorage.getItem(`lastSeen:${c.id}`);
+            const lastSeen = lastSeenStr ? new Date(lastSeenStr) : null;
+
+            let count = 0;
+            for (const m of data.messages) {
+              if (m.from !== 'officer') continue;
+              const mDate = m.timestamp && m.timestamp.toDate ? m.timestamp.toDate() : new Date(m.timestamp);
+              if (!lastSeen || mDate > lastSeen) count += 1;
+            }
+
+            if (count > 0) map[c.id] = count;
+          } catch (err) {
+            console.warn('Unread fetch error for case', c.id, err?.message || err);
+          }
+        }
+
+        if (isMounted) setUnreadCounts(map);
+      } catch (err) {
+        console.warn('Failed to update unread counts', err?.message || err);
+      }
+    };
+
+    updateUnread();
+    const iv = setInterval(updateUnread, 5000);
+    return () => { isMounted = false; clearInterval(iv); };
+  }, [cases]);
+
   const getTimelineProgress = (caseItem) => {
     const st = caseItem?.status || 'pending';
     const officerAssigned = caseItem?.officer && caseItem.officer !== 'Unassigned';
@@ -253,14 +303,25 @@ export default function CaseTrackingScreen({ navigation }) {
           cases.map(c => (
             <TouchableOpacity key={c.id} onPress={() => setSelected(c)} activeOpacity={0.85}>
               <Card style={[s.caseCard, selected?.id === c.id && s.caseCardActive]}>
-                <View style={s.caseTop}>
-                  <View>
-                    <Text style={s.caseId}>{c.id}</Text>
-                    <Text style={s.caseType}>{c.type}</Text>
+                <View style={{ position: 'relative' }}>
+                  <View style={s.caseTop}>
+                    <View>
+                      <Text style={s.caseId}>{c.id}</Text>
+                      <Text style={s.caseType}>{c.type}</Text>
+                    </View>
+                    <StatusBadge status={c.status} />
                   </View>
-                  <StatusBadge status={c.status} />
+                  <Text style={s.caseDate}>Filed: {c.date}</Text>
+
+                  {unreadCounts[c.id] > 0 && (
+                    <TouchableOpacity
+                      style={s.unreadBadge}
+                      onPress={() => navigation.navigate('Chat', { caseId: c.id })}
+                    >
+                      <Text style={s.unreadBadgeText}>{unreadCounts[c.id] > 9 ? '9+' : String(unreadCounts[c.id])}</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
-                <Text style={s.caseDate}>Filed: {c.date}</Text>
               </Card>
             </TouchableOpacity>
           ))
@@ -296,9 +357,19 @@ export default function CaseTrackingScreen({ navigation }) {
                   <Text style={s.officerRole}>VAWC Desk · Brgy. 123</Text>
                 </View>
                 {selected.officer && selected.officer !== 'Unassigned' ? (
-                  <TouchableOpacity style={s.msgBtn} onPress={() => navigation.navigate('Chat', { caseId: selected.id })}>
-                    <Text style={s.msgBtnText}>Message</Text>
-                  </TouchableOpacity>
+                  <View style={{ position: 'relative' }}>
+                    <TouchableOpacity style={s.msgBtn} onPress={() => navigation.navigate('Chat', { caseId: selected.id })}>
+                      <Text style={s.msgBtnText}>Message</Text>
+                    </TouchableOpacity>
+                    {unreadCounts[selected.id] > 0 && (
+                      <TouchableOpacity
+                        style={[s.unreadBadge, { top: -6, right: -6 }]}
+                        onPress={() => navigation.navigate('Chat', { caseId: selected.id })}
+                      >
+                        <Text style={s.unreadBadgeText}>{unreadCounts[selected.id] > 9 ? '9+' : String(unreadCounts[selected.id])}</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 ) : null}
               </View>
             </Card>

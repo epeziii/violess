@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, FlatList, TextInput, TouchableOpacity, StatusBar, KeyboardAvoidingView, Platform, ActivityIndicator, Keyboard, Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import * as DocumentPicker from 'expo-document-picker';
 import { ch, s } from './sharedStyles';
@@ -57,8 +58,10 @@ export default function ChatScreen({ navigation, route }) {
   const [reasonMode, setReasonMode] = useState(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [uploading, setUploading] = useState(false);
+  const [muteOfficerChatNotifications, setMuteOfficerChatNotifications] = useState(false);
   const listRef = useRef();
   const isInitialLoadRef = useRef(true);
+  const previousOfficerMessageIdsRef = useRef(new Set());
 
   // Derive which interview messages have been responded to by scanning messages
   useEffect(() => {
@@ -141,6 +144,21 @@ export default function ChatScreen({ navigation, route }) {
     fetchCaseDetails();
   }, [caseId]);
 
+  useEffect(() => {
+    const loadPreference = async () => {
+      try {
+        const storedValue = await AsyncStorage.getItem('muteOfficerChatNotifications');
+        if (storedValue !== null) {
+          setMuteOfficerChatNotifications(storedValue === 'true');
+        }
+      } catch (error) {
+        console.warn('Failed to load officer chat notification preference', error);
+      }
+    };
+
+    loadPreference();
+  }, []);
+
   // Set up real-time message polling (fetches from backend API)
   useEffect(() => {
     if (!caseId) {
@@ -188,13 +206,48 @@ export default function ChatScreen({ navigation, route }) {
           name: msg.from === 'officer' ? msg.officerName : undefined,
           text: msg.text,
           time: formatMessageTime(msg.timestamp),
+          timestampRaw: msg.timestamp,
           fileUrl: msg.fileUrl,
           fileName: msg.fileName,
         }));
 
+        if (!isInitialLoadRef.current && !muteOfficerChatNotifications) {
+          const previousOfficerIds = previousOfficerMessageIdsRef.current;
+          const newOfficerMessages = fetchedMessages.filter(
+            (msg) => msg.from === 'officer' && !previousOfficerIds.has(msg.id)
+          );
+
+          if (newOfficerMessages.length > 0) {
+            Alert.alert('New officer message', 'You have received a new message from your assigned officer.');
+          }
+        }
+
+        previousOfficerMessageIdsRef.current = new Set(
+          fetchedMessages.filter((msg) => msg.from === 'officer').map((msg) => msg.id)
+        );
+
         setMessages(fetchedMessages);
         setError(null);
         setLoading(false);
+
+        // Update last-seen officer message timestamp for this case
+        try {
+          if (caseId) {
+            const officerMsgs = fetchedMessages.filter(m => m.from === 'officer' && m.timestampRaw);
+            if (officerMsgs.length > 0) {
+              // find latest timestamp
+              const latest = officerMsgs.reduce((acc, cur) => {
+                const toDate = cur.timestampRaw && cur.timestampRaw.toDate ? cur.timestampRaw.toDate() : new Date(cur.timestampRaw);
+                return (!acc || toDate > acc) ? toDate : acc;
+              }, null);
+              if (latest) {
+                await AsyncStorage.setItem(`lastSeen:${caseId}`, latest.toISOString());
+              }
+            }
+          }
+        } catch (err) {
+          console.warn('Failed to update lastSeen for case', caseId, err?.message || err);
+        }
 
         // Only scroll to end on initial load
         if (isInitialLoadRef.current) {
@@ -227,7 +280,7 @@ export default function ChatScreen({ navigation, route }) {
       isMounted = false;
       clearInterval(interval);
     };
-  }, [caseId]);
+  }, [caseId, muteOfficerChatNotifications]);
 
   const quickSend = async (messageText) => {
     if (!messageText.trim() || !caseId || sending) return;
