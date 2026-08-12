@@ -5,8 +5,6 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { colors } from '../theme';
-import * as Notifications from 'expo-notifications';
-import * as Device from 'expo-device';
 
 // 🔥 Firebase
 import { auth } from '../config/firebase';
@@ -36,66 +34,6 @@ import SOSScreen from '../screens/SOSScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 
 const db = getFirestore();
-let notificationsAvailable = true;
-
-try {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: false,
-    }),
-  });
-} catch (error) {
-  notificationsAvailable = false;
-  console.warn('Notifications module not available yet:', error);
-}
-
-async function registerForPushNotificationsAsync(userUid) {
-  try {
-    if (!Device.isDevice) return null;
-
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-
-    if (finalStatus !== 'granted') {
-      return null;
-    }
-
-    const tokenData = await Notifications.getExpoPushTokenAsync();
-    const token = tokenData.data;
-    if (!token) return null;
-
-    const userRef = doc(db, 'users', userUid);
-    try {
-      const userSnap = await getDoc(userRef);
-      const existingToken = userSnap.exists() ? userSnap.data()?.expoPushToken : null;
-      if (existingToken !== token) {
-        await updateDoc(userRef, { expoPushToken: token });
-      }
-    } catch (uploadError) {
-      console.warn('Failed to update user push token:', uploadError);
-    }
-
-    if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync('default', {
-        name: 'default',
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#FF231F7C',
-      });
-    }
-
-    return token;
-  } catch (error) {
-    console.warn('Unable to register for push notifications', error);
-    return null;
-  }
-}
 
 const TAB_ICON_MAP = {
   Home: 'house',
@@ -239,10 +177,6 @@ export default function AppNavigator() {
             // Only set user if registration is complete
             if (userDoc.data().registrationComplete === true) {
               setUser(u);
-              // Register push token when authenticated
-              registerForPushNotificationsAsync(u.uid).catch((err) => {
-                console.warn('Push registration error:', err);
-              });
               // Ensure any old unsubFirestore is cleaned up
               unsubFirestore?.();
               unsubFirestore = undefined;
@@ -258,9 +192,6 @@ export default function AppNavigator() {
                   if (snap.exists() && snap.data().registrationComplete === true) {
                     console.log('Registration completed detected, logging in user');
                     setUser(u);
-                    registerForPushNotificationsAsync(u.uid).catch((err) => {
-                      console.warn('Push registration error after registration complete:', err);
-                    });
                   }
                 },
                 (error) => {
@@ -296,35 +227,6 @@ export default function AppNavigator() {
     return () => {
       unsubAuth?.();
       unsubFirestore?.();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!notificationsAvailable || typeof Notifications.addNotificationResponseReceivedListener !== 'function') {
-      return;
-    }
-
-    let subscription;
-    try {
-      subscription = Notifications.addNotificationResponseReceivedListener((response) => {
-        const payload = response?.notification?.request?.content?.data;
-        const caseId = payload?.caseId;
-        if (caseId && navigationRef?.isReady?.()) {
-          navigationRef.navigate('MainApp', {
-            screen: 'Chat',
-            params: { caseId },
-          });
-        }
-      });
-    } catch (error) {
-      console.warn('Failed to attach notification response listener:', error);
-      return;
-    }
-
-    return () => {
-      if (subscription?.remove) {
-        subscription.remove();
-      }
     };
   }, []);
 

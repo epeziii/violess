@@ -12,7 +12,7 @@ import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { API_BASE_URL } from '../config/api';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system/legacy';
+import * as FileSystem from 'expo-file-system';
 
 const INCIDENT_TYPES = [
   { id: 'domestic', label: 'Domestic Violence', icon: 'heart-crack' },
