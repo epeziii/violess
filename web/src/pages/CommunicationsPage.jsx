@@ -21,7 +21,7 @@ import { db } from "../firebase";
 import { useAuth } from "../AuthContext";
 import API_BASE_URL from "../config/api";
 
-export default function CommunicationsPage({ initialSelectedCaseId, initialCaseModalKey }) {
+export default function CommunicationsPage({ initialSelectedCaseId, initialCaseModalKey, onNotificationHandled }) {
   const { user } = useAuth();
   const [selectedCase, setSelectedCase] = useState(null);
   const [msgs, setMsgs] = useState([]);
@@ -294,6 +294,9 @@ export default function CommunicationsPage({ initialSelectedCaseId, initialCaseM
       setDetailTab("messages");
       openCaseDetailsModal(caseItem);
       lastOpenedCaseModalKeyRef.current = initialCaseModalKey;
+      if (typeof onNotificationHandled === "function") {
+        onNotificationHandled();
+      }
     };
 
     const matchByCaseId = assignedCases.find((c) => c.id === initialSelectedCaseId);

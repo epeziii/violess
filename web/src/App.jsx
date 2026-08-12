@@ -40,17 +40,6 @@ function Shell() {
   const { notifications, unreadCount } = useNotifications(user?.uid);
   const [notifKey, setNotifKey] = useState(0);
 
-  useEffect(() => {
-    if (page === "comms") {
-      if (pendingCommunicationsCaseModalKey != null) {
-        setPendingCommunicationsCaseModalKey(null);
-      }
-      if (pendingCommunicationsCaseId != null) {
-        setPendingCommunicationsCaseId(null);
-      }
-    }
-  }, [page, pendingCommunicationsCaseId, pendingCommunicationsCaseModalKey]);
-
   // ⚡ Wait for Firebase auth to finish initializing
   if (loading) return (
     <div className="auth-loading">
@@ -66,7 +55,7 @@ function Shell() {
 
   const pages = {
     cases:     <ProtectedRoute key={`cases-${pendingCaseSelectionKey}`} permission="cases"><CasesPage initialSelectedCaseId={pendingCasePageCaseId} initialSelectedCaseKey={pendingCaseSelectionKey} /></ProtectedRoute>,
-    comms:     <CommunicationsPage initialSelectedCaseId={pendingCommunicationsCaseId} initialCaseModalKey={pendingCommunicationsCaseModalKey} />,
+    comms:     <CommunicationsPage initialSelectedCaseId={pendingCommunicationsCaseId} initialCaseModalKey={pendingCommunicationsCaseModalKey} onNotificationHandled={() => { setPendingCommunicationsCaseModalKey(null); setPendingCommunicationsCaseId(null); }} />,
     analytics: <AnalyticsPage />,
     evidence:  <EvidenceStoragePage />,
     accounts:  <ProtectedRoute permission="accountManagement"><AccountManagementPage /></ProtectedRoute>,

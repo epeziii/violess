@@ -452,7 +452,7 @@ app.post("/update-case", async (req, res) => {
           await createNotification(
             newOfficerUid,
             "case_assigned",
-            "Case Assigned",
+            "New Case Assigned",
             `You have been assigned to case #${caseData.caseId}`,
             caseId,
             {
