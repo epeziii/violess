@@ -879,17 +879,6 @@ export default function CasesPage({ initialSelectedCaseId, initialSelectedCaseKe
             <div style={{ minWidth: 100, textAlign: 'center', fontSize: 12, color: 'var(--text-muted)' }}>
               {sortedReports.length > 0 ? `Page ${currentPage} of ${totalPages}` : 'Page 0 of 0'}
             </div>
-
-            {Array.from({ length: totalPages }, (_, i) => i + 1).filter(page => (page !== 1) && (page === totalPages || Math.abs(page - currentPage) <= 1)).map((page, index, array) => {
-              const prevPage = array[index - 1];
-              const showEllipsis = prevPage && page - prevPage > 1;
-              return (
-                <span key={page} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  {showEllipsis && <span style={{ padding: '0 4px', fontSize: '12px', color: 'var(--text-muted)' }}>...</span>}
-                  <button onClick={() => setCurrentPage(page)} style={{ height: '30px', width: '30px', borderRadius: 'var(--radius-sm)', fontSize: '12px', fontWeight: '750', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', backgroundColor: currentPage === page ? 'var(--primary)' : 'transparent', color: currentPage === page ? '#ffffff' : 'var(--text)', border: currentPage === page ? '1px solid var(--primary)' : '1px solid var(--border)', transition: 'all 0.15s ease' }}>{page}</button>
-                </span>
-              );
-            })}
             <button onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} disabled={currentPage === totalPages} className="btn btn-ghost" style={{ height: '30px', padding: '0 10px', fontSize: '11px', opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}>
               Next <Icon icon="chevron-right" size="10px" />
             </button>

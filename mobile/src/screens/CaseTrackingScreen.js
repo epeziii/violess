@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { View, Text, ScrollView, TouchableOpacity, StatusBar, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StatusBar, ActivityIndicator, TextInput } from 'react-native';
 import { colors, spacing } from '../theme';
-import { Card, StatusBadge, TimelineStep, Avatar } from '../components';
+import { Card, StatusBadge, TimelineStep, Avatar, Button } from '../components';
 import { s } from './sharedStyles';
 import { auth } from '../config/firebase';
 import { API_BASE_URL } from '../config/api';
@@ -10,6 +10,8 @@ import { API_BASE_URL } from '../config/api';
 export default function CaseTrackingScreen({ navigation }) {
   const [cases, setCases] = useState([]);
   const [selected, setSelected] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showUnreadOnly, setShowUnreadOnly] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [unreadCounts, setUnreadCounts] = useState({});
@@ -192,6 +194,18 @@ export default function CaseTrackingScreen({ navigation }) {
     return () => { isMounted = false; clearInterval(iv); };
   }, [cases]);
 
+  const filteredCases = cases.filter((c) => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return true;
+    const candidate = `${c.id} ${c.type} ${c.status} ${c.officer} ${c.date}`.toLowerCase();
+    return candidate.includes(query);
+  });
+
+  const visibleCases = filteredCases.filter((c) => {
+    if (!showUnreadOnly) return true;
+    return unreadCounts[c.id] > 0;
+  });
+
   const getTimelineProgress = (caseItem) => {
     const st = caseItem?.status || 'pending';
     const officerAssigned = caseItem?.officer && caseItem.officer !== 'Unassigned';
@@ -279,11 +293,33 @@ export default function CaseTrackingScreen({ navigation }) {
         <View style={{ width: 36 }} />
       </View>
 
-      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {/* Your Cases */}
         <Text style={s.sectionLabel}>Your Cases</Text>
 
-        {loading ? (
+        <View style={s.searchWrapper}>
+          <View style={s.searchRow}>
+            <TextInput
+            placeholder="Search cases"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              style={[s.searchInput, s.searchInputExpanded]}
+              autoCapitalize="none"
+              autoCorrect={false}
+              clearButtonMode="while-editing"
+            />
+
+            <Button
+              label={showUnreadOnly ? 'Unread only' : 'Show unread'}
+              variant={showUnreadOnly ? 'primary' : 'secondary'}
+              onPress={() => setShowUnreadOnly((prev) => !prev)}
+              style={s.searchButton}
+            />
+          </View>
+        </View>
+
+        <View style={s.casesList}>
+          {loading ? (
           <View style={{ paddingVertical: spacing.xl, alignItems: 'center' }}>
             <ActivityIndicator size="large" color={colors.primary} />
           </View>
@@ -299,33 +335,47 @@ export default function CaseTrackingScreen({ navigation }) {
               Submit an incident report to track cases here
             </Text>
           </View>
+        ) : visibleCases.length === 0 ? (
+          <View style={{ paddingVertical: spacing.lg, alignItems: 'center' }}>
+            <Text style={{ color: colors.textMuted }}>
+              {showUnreadOnly ? 'No unread cases found' : 'No matching cases'}
+            </Text>
+            <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 4 }}>
+              {showUnreadOnly
+                ? 'Check later when officers send new messages or clear the unread filter.'
+                : 'Try another search term or clear the filter.'}
+            </Text>
+          </View>
         ) : (
-          cases.map(c => (
-            <TouchableOpacity key={c.id} onPress={() => setSelected(c)} activeOpacity={0.85}>
-              <Card style={[s.caseCard, selected?.id === c.id && s.caseCardActive]}>
-                <View style={{ position: 'relative' }}>
-                  <View style={s.caseTop}>
-                    <View>
-                      <Text style={s.caseId}>{c.id}</Text>
-                      <Text style={s.caseType}>{c.type}</Text>
+          <ScrollView nestedScrollEnabled contentContainerStyle={{ paddingVertical: spacing.xs }} showsVerticalScrollIndicator={false}>
+            {visibleCases.map(c => (
+              <TouchableOpacity key={c.id} onPress={() => setSelected(c)} activeOpacity={0.85}>
+                <Card style={[s.caseCard, selected?.id === c.id && s.caseCardActive]}>
+                  <View style={{ position: 'relative' }}>
+                    <View style={s.caseTop}>
+                      <View>
+                        <Text style={s.caseId}>{c.id}</Text>
+                        <Text style={s.caseType}>{c.type}</Text>
+                      </View>
+                      <StatusBadge status={c.status} />
                     </View>
-                    <StatusBadge status={c.status} />
-                  </View>
-                  <Text style={s.caseDate}>Filed: {c.date}</Text>
+                    <Text style={s.caseDate}>Filed: {c.date}</Text>
 
-                  {unreadCounts[c.id] > 0 && (
-                    <TouchableOpacity
-                      style={s.unreadBadge}
-                      onPress={() => navigation.navigate('Chat', { caseId: c.id })}
-                    >
-                      <Text style={s.unreadBadgeText}>{unreadCounts[c.id] > 9 ? '9+' : String(unreadCounts[c.id])}</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </Card>
-            </TouchableOpacity>
-          ))
+                    {unreadCounts[c.id] > 0 && (
+                      <TouchableOpacity
+                        style={s.unreadBadge}
+                        onPress={() => navigation.navigate('Chat', { caseId: c.id })}
+                      >
+                        <Text style={s.unreadBadgeText}>{unreadCounts[c.id] > 9 ? '9+' : String(unreadCounts[c.id])}</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </Card>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         )}
+        </View>
 
         {selected && (
           <>
@@ -354,7 +404,7 @@ export default function CaseTrackingScreen({ navigation }) {
                 <Avatar initials={selected.initials} size={44} />
                 <View style={{ marginLeft: spacing.md, flex: 1 }}>
                   <Text style={s.officerName}>{selected.officer}</Text>
-                  <Text style={s.officerRole}>VAWC Desk · Brgy. 123</Text>
+                  <Text style={s.officerRole}>Brgy. Mabayuan Officer</Text>
                 </View>
                 {selected.officer && selected.officer !== 'Unassigned' ? (
                   <View style={{ position: 'relative' }}>

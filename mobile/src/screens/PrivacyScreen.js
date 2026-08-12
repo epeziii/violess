@@ -15,34 +15,22 @@ import { colors, spacing } from '../theme';
 import { Card } from '../components';
 import { pv, s } from './sharedStyles';
 import { signOut } from 'firebase/auth';
-import { auth, db } from '../config/firebase';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { auth } from '../config/firebase';
 
-const PREFERENCE_KEY = 'muteOfficerChatNotifications';
+const PREFERENCE_KEY = 'darkMode';
 
 export default function PrivacyScreen({ navigation }) {
-  const [muteOfficerChatNotifications, setMuteOfficerChatNotifications] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
     const loadPreference = async () => {
       try {
         const storedValue = await AsyncStorage.getItem(PREFERENCE_KEY);
         if (storedValue !== null) {
-          setMuteOfficerChatNotifications(storedValue === 'true');
-        }
-
-        const currentUser = auth.currentUser;
-        if (currentUser) {
-          const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
-            if (typeof userData?.muteOfficerChatNotifications === 'boolean') {
-              setMuteOfficerChatNotifications(userData.muteOfficerChatNotifications);
-            }
-          }
+          setDarkMode(storedValue === 'true');
         }
       } catch (error) {
-        console.warn('Failed to load officer chat preference', error);
+        console.warn('Failed to load dark mode preference', error);
       }
     };
 
@@ -50,22 +38,12 @@ export default function PrivacyScreen({ navigation }) {
   }, []);
 
   const toggle = async () => {
-    const nextValue = !muteOfficerChatNotifications;
-    setMuteOfficerChatNotifications(nextValue);
+    const nextValue = !darkMode;
+    setDarkMode(nextValue);
     try {
       await AsyncStorage.setItem(PREFERENCE_KEY, JSON.stringify(nextValue));
     } catch (error) {
-      console.warn('Failed to save officer chat preference', error);
-    }
-
-    try {
-      const currentUser = auth.currentUser;
-      if (currentUser) {
-        const userDoc = doc(db, 'users', currentUser.uid);
-        await updateDoc(userDoc, { muteOfficerChatNotifications: nextValue });
-      }
-    } catch (error) {
-      console.warn('Failed to persist officer chat preference to Firestore', error);
+      console.warn('Failed to save dark mode preference', error);
     }
   };
 
@@ -93,10 +71,10 @@ export default function PrivacyScreen({ navigation }) {
 
   const SETTINGS = [
     {
-      key: 'muteOfficerChatNotifications',
-      icon: 'bell',
-      title: "Don't get notified when an officer chats you",
-      desc: 'You will not receive push notifications when an officer sends you a chat message.',
+      key: 'darkMode',
+      icon: 'moon',
+      title: 'Dark mode',
+      desc: 'Switch the app interface to a darker color theme.',
     },
   ];
 
@@ -128,7 +106,7 @@ export default function PrivacyScreen({ navigation }) {
               </View>
 
               <Switch
-                value={muteOfficerChatNotifications}
+                value={darkMode}
                 onValueChange={toggle}
                 trackColor={{ true: colors.primary, false: '#DDD' }}
                 thumbColor="#fff"
