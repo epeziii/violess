@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import API_BASE_URL from "../config/api";
 import Icon from "./Icon";
 import { db } from "../firebase";
@@ -21,6 +21,8 @@ export default function NotificationDropdown({
   const [caseReassignedError, setCaseReassignedError] = useState(false);
   const [localNotifications, setLocalNotifications] = useState(notifications);
   const [localUnreadCount, setLocalUnreadCount] = useState(unreadCount);
+  const [sosAlertModal, setSosAlertModal] = useState(null);
+  const openedSosAlertIdsRef = useRef(new Set());
 
   useEffect(() => {
     setLocalNotifications(notifications);
@@ -128,7 +130,42 @@ export default function NotificationDropdown({
     }
   };
 
+  useEffect(() => {
+    const unreadSosAlerts = notifications
+      .filter((notif) => notif.type === "sos_alert" && !notif.read)
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
+    const nextSosAlert = unreadSosAlerts[0];
+    if (!nextSosAlert) return;
+
+    const alertId = nextSosAlert.id;
+    if (openedSosAlertIdsRef.current.has(alertId)) return;
+
+    openedSosAlertIdsRef.current.add(alertId);
+    setSosAlertModal({
+      id: alertId,
+      reporterName: nextSosAlert.caseData?.reporterName || nextSosAlert.reporterName || "Unknown victim",
+      contactNumber: nextSosAlert.caseData?.contactNumber || nextSosAlert.contactNumber || "Not provided",
+      emergencyContact: nextSosAlert.caseData?.emergencyContact || nextSosAlert.emergencyContact || "Not provided",
+      createdAt: nextSosAlert.createdAt,
+      message: nextSosAlert.message || "Emergency SOS alert"
+    });
+  }, [notifications]);
+
   const handleNotificationClick = async (notif) => {
+    if (notif.type === "sos_alert") {
+      setSosAlertModal({
+        id: notif.id,
+        reporterName: notif.caseData?.reporterName || notif.reporterName || "Unknown victim",
+        contactNumber: notif.caseData?.contactNumber || notif.contactNumber || "Not provided",
+        emergencyContact: notif.caseData?.emergencyContact || notif.emergencyContact || "Not provided",
+        createdAt: notif.createdAt,
+        message: notif.message || "Emergency SOS alert"
+      });
+      setIsOpen(false);
+      return;
+    }
+
     // Mark notification as read
     try {
       await fetch(`${API_BASE_URL}/mark-notification-read`, {
@@ -169,8 +206,81 @@ export default function NotificationDropdown({
     setCaseReassignedError(false);
   };
 
+  const closeSosAlertModal = () => {
+    setSosAlertModal(null);
+  };
+
   return (
     <div style={{ position: "relative", display: "inline-block" }}>
+      {sosAlertModal && (
+        <div
+          className="modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) closeSosAlertModal();
+          }}
+        >
+          <div className="modal" style={{ width: 440, maxHeight: "90vh", overflowY: "auto" }}>
+            <div className="modal-header">
+              <div style={{ flex: 1 }}>
+                <div className="modal-title">SOS Emergency Alert</div>
+              </div>
+              <button type="button" className="modal-close" onClick={closeSosAlertModal} aria-label="Close">
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+                <div style={{ width: 52, height: 52, borderRadius: "50%", background: "rgba(198,40,40,0.12)", color: "var(--sos)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>
+                  <i className="fas fa-triangle-exclamation"></i>
+                </div>
+                <div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text)" }}>Emergency Alert</div>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                    {new Date(sosAlertModal.createdAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gap: 12 }}>
+                <div style={{ background: "var(--bg)", border: "0.5px solid var(--border)", borderRadius: "var(--radius-md)", padding: "12px" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 6 }}>
+                    Victim Name
+                  </div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}>{sosAlertModal.reporterName}</div>
+                </div>
+
+                <div style={{ background: "var(--bg)", border: "0.5px solid var(--border)", borderRadius: "var(--radius-md)", padding: "12px" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 6 }}>
+                    Contact Number
+                  </div>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text)" }}>{sosAlertModal.contactNumber}</div>
+                </div>
+
+                <div style={{ background: "var(--bg)", border: "0.5px solid var(--border)", borderRadius: "var(--radius-md)", padding: "12px" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 6 }}>
+                    Emergency Contact
+                  </div>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text)" }}>{sosAlertModal.emergencyContact}</div>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 22 }}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={closeSosAlertModal}
+                  style={{ background: "var(--sos)", border: "none", color: "#fff" }}
+                >
+                  Acknowledge
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Notification Case Details Modal */}
       {notificationModalOpen && selectedNotificationCase && (
         <div

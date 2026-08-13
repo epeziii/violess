@@ -6,7 +6,8 @@ import {
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { colors, spacing, shadow } from '../theme';
 import { Card, Button, TimelineStep } from '../components';
-import { auth } from '../config/firebase';
+import { auth, db } from '../config/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 import { API_BASE_URL } from '../config/api';
 
 export default function SOSScreen({ navigation }) {
@@ -72,31 +73,20 @@ export default function SOSScreen({ navigation }) {
         return;
       }
 
-      let latitude = null;
-      let longitude = null;
-      let locationLabel = 'Location not available';
-
-      try {
-        const { Location } = await import('expo-location');
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status === 'granted') {
-          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-          latitude = loc.coords.latitude;
-          longitude = loc.coords.longitude;
-          locationLabel = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
-        }
-      } catch (locationError) {
-        console.warn('Location unavailable for SOS:', locationError);
-      }
+      const userSnap = await getDoc(doc(db, 'users', uid));
+      const userData = userSnap.exists() ? userSnap.data() : {};
 
       const payload = {
         uid,
-        reporterName: auth.currentUser?.displayName || 'Unknown user',
-        contactNumber: auth.currentUser?.phoneNumber || '',
-        emergencyContact: '',
-        latitude,
-        longitude,
-        locationLabel,
+        reporterName:
+          [userData.firstName, userData.lastName].filter(Boolean).join(' ') ||
+          auth.currentUser?.displayName ||
+          'Unknown user',
+        contactNumber: userData.contactNumber || userData.phoneNumber || '',
+        emergencyContact: userData.emergency || userData.emergencyContact || '',
+        latitude: null,
+        longitude: null,
+        locationLabel: 'Location not available',
         note: 'Emergency SOS raised from mobile app',
       };
 
@@ -106,7 +96,14 @@ export default function SOSScreen({ navigation }) {
         body: JSON.stringify(payload),
       });
 
-      const data = await response.json();
+      const text = await response.text();
+      let data = null;
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch {
+        throw new Error(`Invalid server response: ${text.slice(0, 180)}`);
+      }
+
       if (!response.ok) {
         throw new Error(data?.error || 'Failed to send SOS alert');
       }
