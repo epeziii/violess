@@ -916,6 +916,29 @@ app.post("/send-verification-email", async (req, res) => {
 // ─── SUBMIT INCIDENT REPORT ──────────────────────────────────────────────
 app.post("/submit-report", async (req, res) => {
   try {
+    // Simple NLP-ish priority detection based on report text
+    const detectPriorityLevel = (description = "", suspectDescription = "") => {
+      const text = (description + " " + suspectDescription).toLowerCase();
+
+      const urgentKeywords = [
+        'in danger', 'danger', 'stab', 'stabbing', 'shoot', 'gun', 'gunshot', 'shot', 'bleed', 'bleeding', 'kill', 'killed', 'hostage', 'knife', 'armed', 'fire', 'burn', 'drowning', 'unconscious', 'need immediate', 'immediate help', 'help me now', 'life-threatening', 'life threatening', 'attack', 'assault with', 'serious injury'
+      ];
+
+      const highKeywords = [
+        'injury', 'injured', 'beaten', 'hit', 'punch', 'assault', 'threaten', 'threatened', 'abuse', 'abusive', 'sexual', 'rape', 'battery', 'domestic', 'harm', 'weapon', 'violent', 'violence', 'intimidate', 'choke', 'choking'
+      ];
+
+      for (const k of urgentKeywords) {
+        if (text.includes(k)) return 'urgent';
+      }
+
+      for (const k of highKeywords) {
+        if (text.includes(k)) return 'high';
+      }
+
+      return 'normal';
+    };
+
     const { uid, incidentType, description, location, datetime, isAnonymous, suspectDescription, evidence, contactNumber: bodyContactNumber, emergencyContact: bodyEmergencyContact } = req.body;
     if (!uid || !incidentType || !description)
       return res.status(400).json({ error: "uid, incidentType, and description are required" });
@@ -960,6 +983,8 @@ app.post("/submit-report", async (req, res) => {
     }
 
     // Create report document
+    const computedPriority = detectPriorityLevel(description, suspectDescription);
+
     const reportData = {
       caseId,
       uid: uid,  // Always store uid so user can retrieve their cases (even if anonymous)
@@ -974,7 +999,7 @@ app.post("/submit-report", async (req, res) => {
       contactNumber,
       emergencyContact,
       status: "pending",
-      priorityLevel: "normal",
+      priorityLevel: computedPriority,
       assignedOfficer: "",
       createdAt: new Date(),
       updatedAt: new Date(),

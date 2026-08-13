@@ -102,7 +102,7 @@ function Shell() {
             <button
               key={n.id}
               className={`nav-item ${page===n.id?"active":""}`}
-              onClick={() => setPage(n.id)}
+              onClick={() => { setPage(n.id); setNotifKey(k => k + 1); }}
               title={!sidebarOpen ? n.label : undefined}
             >
               <span className="nav-icon">{n.icon}</span>

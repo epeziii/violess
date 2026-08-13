@@ -11,6 +11,7 @@ export default function NotificationDropdown({
   onMarkAsRead,
   onNavigateToCommunications,
   onNavigateToCase,
+  notifKey,
 }) {
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
@@ -25,6 +26,15 @@ export default function NotificationDropdown({
     setLocalNotifications(notifications);
     setLocalUnreadCount(unreadCount);
   }, [notifications, unreadCount]);
+
+  // Close any open notification detail modal when a navigation/reset signal is received
+  useEffect(() => {
+    if (notifKey !== undefined) {
+      setNotificationModalOpen(false);
+      setSelectedNotificationCase(null);
+      setCaseReassignedError(false);
+    }
+  }, [notifKey]);
 
   useEffect(() => {
     if (caseReassignedError && notificationModalOpen) {

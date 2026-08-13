@@ -178,6 +178,7 @@ function CreateModal({ onClose, refreshAccounts }) {
       if (!data.uid) throw new Error("UID missing from server response");
 
       refreshAccounts();
+      alert("Staff account created successfully.");
       onClose();
     } catch (err) {
       console.error(err);
