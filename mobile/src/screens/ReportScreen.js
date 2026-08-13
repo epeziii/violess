@@ -213,6 +213,15 @@ const [showTimePicker, setShowTimePicker] = useState(false);
   minute: '2-digit'
 })}`,
         isAnonymous,
+        // priorityLevel will be computed client-side for immediate score before backend update
+        priorityLevel: (function detectPriorityLevel(description = '', suspectDescription = '') {
+          const text = (description + ' ' + suspectDescription).toLowerCase();
+          const urgentKeywords = ['in danger','danger','stab','stabbing','shoot','gun','gunshot','shot','bleed','bleeding','kill','killed','hostage','knife','armed','fire','burn','drowning','unconscious','need immediate','immediate help','help me now','life-threatening','life threatening','attack','assault with','serious injury'];
+          const highKeywords = ['injury','injured','beaten','hit','punch','assault','threaten','threatened','abuse','abusive','sexual','rape','battery','domestic','harm','weapon','violent','violence','intimidate','choke','choking'];
+          for (const k of urgentKeywords) if (text.includes(k)) return 'urgent';
+          for (const k of highKeywords) if (text.includes(k)) return 'high';
+          return 'normal';
+        })(description, suspectDescription),
       };
 
       if (!isAnonymous) {

@@ -982,8 +982,15 @@ app.post("/submit-report", async (req, res) => {
       }
     }
 
-    // Create report document
+    // Compute priority and allow client-supplied priority if valid
     const computedPriority = detectPriorityLevel(description, suspectDescription);
+    const clientPriority = (req.body.priorityLevel || "").toString().trim().toLowerCase();
+    const allowed = new Set(['normal', 'high', 'urgent']);
+    const finalPriority = allowed.has(clientPriority) ? clientPriority : computedPriority;
+
+    console.log('[submit-report] description:', description);
+    console.log('[submit-report] suspectDescription:', suspectDescription);
+    console.log('[submit-report] clientPriority:', clientPriority, 'computedPriority:', computedPriority, 'finalPriority:', finalPriority);
 
     const reportData = {
       caseId,
@@ -999,7 +1006,7 @@ app.post("/submit-report", async (req, res) => {
       contactNumber,
       emergencyContact,
       status: "pending",
-      priorityLevel: computedPriority,
+      priorityLevel: finalPriority,
       assignedOfficer: "",
       createdAt: new Date(),
       updatedAt: new Date(),
