@@ -568,13 +568,12 @@ app.post("/send-sos-alert", async (req, res) => {
 
     const officerNotifications = officersSnapshot.docs.map(async (officerDoc) => {
       const officerUid = officerDoc.id;
-      const officerName = officerDoc.data()?.fullName || "Duty Officer";
 
       return createNotification(
         officerUid,
         "sos_alert",
         "SOS Alert",
-        `${resolvedName} triggered an SOS alert. ${officerName} should respond immediately.`,
+        `${resolvedName} has triggered an SOS alert. Immediate attention is required.`,
         null,
         {
           sosAlertId,

@@ -152,8 +152,26 @@ export default function NotificationDropdown({
     });
   }, [notifications]);
 
+  const markNotificationAsRead = async (notif) => {
+    if (!notif || notif.read) return;
+
+    try {
+      await fetch(`${API_BASE_URL}/mark-notification-read`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notificationId: notif.id })
+      });
+      setLocalNotifications((prev) => prev.map((item) => item.id === notif.id ? { ...item, read: true } : item));
+      setLocalUnreadCount((count) => Math.max(0, count - 1));
+      onMarkAsRead?.();
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+    }
+  };
+
   const handleNotificationClick = async (notif) => {
     if (notif.type === "sos_alert") {
+      await markNotificationAsRead(notif);
       setSosAlertModal({
         id: notif.id,
         reporterName: notif.caseData?.reporterName || notif.reporterName || "Unknown victim",
@@ -166,19 +184,7 @@ export default function NotificationDropdown({
       return;
     }
 
-    // Mark notification as read
-    try {
-      await fetch(`${API_BASE_URL}/mark-notification-read`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ notificationId: notif.id })
-      });
-      setLocalNotifications((prev) => prev.map((item) => item.id === notif.id ? { ...item, read: true } : item));
-      setLocalUnreadCount((count) => Math.max(0, count - (notif.read ? 0 : 1)));
-      onMarkAsRead?.();
-    } catch (error) {
-      console.error("Error marking notification as read:", error);
-    }
+    await markNotificationAsRead(notif);
 
     const caseId = notif.caseId || notif.caseData?.caseId || extractCaseId(notif.message);
     if (caseId) {
