@@ -19,7 +19,7 @@ const serviceAccount = (() => {
   }
   try {
     // eslint-disable-next-line import/no-unresolved
-    return require('./violess-4e542-firebase-adminsdk-fbsvc-78fd8f52d9.json');
+    return require('./violess1-firebase-adminsdk-fbsvc-c54918f3b2.json');
   } catch (e) {
     return {};
   }

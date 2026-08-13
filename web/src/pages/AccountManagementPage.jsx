@@ -199,7 +199,7 @@ function CreateModal({ onClose, refreshAccounts }) {
               className="form-input"
               placeholder="Enter full name"
               value={form.fullName}
-onChange={e => set("fullName", toTitleCaseName(e.target.value))}
+              onChange={e => set("fullName", e.target.value)}
             />
           </div>
           <div className="form-group">
