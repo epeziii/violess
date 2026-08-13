@@ -184,11 +184,10 @@ if (!resolvedFullName) {
     }
 
     const looksLikeEmail = typeof staffUsername === "string" && staffUsername.includes("@");
-    const firebaseEmail = looksLikeEmail
-      ? staffUsername
-      : staffUsername;
+    const createOpts = { password };
+    if (looksLikeEmail) createOpts.email = staffUsername;
 
-    const userRecord = await admin.auth().createUser({ email: firebaseEmail, password });
+    const userRecord = await admin.auth().createUser(createOpts);
     if (!userRecord?.uid) return res.status(500).json({ error: "UID missing" });
 
     const staffColor = role === "admin" ? "blue" : "pink";
