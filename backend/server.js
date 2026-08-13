@@ -184,8 +184,11 @@ if (!resolvedFullName) {
     }
 
     const looksLikeEmail = typeof staffUsername === "string" && staffUsername.includes("@");
-    const createOpts = { password };
-    if (looksLikeEmail) createOpts.email = staffUsername;
+    // Generate a synthetic email for non-email usernames so Firebase Auth always has an email value
+    const normalizedUsername = String(staffUsername || "").trim().toLowerCase().replace(/\s+/g, "");
+    const generatedEmail = looksLikeEmail ? staffUsername : `${normalizedUsername}@username.violess.local`;
+
+    const createOpts = { password, email: generatedEmail, displayName: resolvedFullName };
 
     const userRecord = await admin.auth().createUser(createOpts);
     if (!userRecord?.uid) return res.status(500).json({ error: "UID missing" });
@@ -197,7 +200,7 @@ if (!resolvedFullName) {
       lastName: resolvedLastName,
       fullName: resolvedFullName,
       username: staffUsername,
-      email: looksLikeEmail ? staffUsername : null,
+      email: generatedEmail,
       role,
       status: "active",
       lastLogin: null,
