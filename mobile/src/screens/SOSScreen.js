@@ -1,11 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, Animated,
-  TouchableOpacity, StatusBar, ScrollView, Easing
+  TouchableOpacity, StatusBar, ScrollView, Easing, Alert
 } from 'react-native';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
-import { colors, spacing, radius, shadow } from '../theme';
+import { colors, spacing, shadow } from '../theme';
 import { Card, Button, TimelineStep } from '../components';
+import { auth } from '../config/firebase';
+import { API_BASE_URL } from '../config/api';
 
 export default function SOSScreen({ navigation }) {
   const [activated, setActivated] = useState(false);
@@ -30,8 +32,12 @@ export default function SOSScreen({ navigation }) {
       ])
     );
     loop.start();
-    return () => loop.stop();
-  }, []);
+
+    return () => {
+      loop.stop();
+      clearInterval(countdownRef.current);
+    };
+  }, [pulseAnim, pulseOpacity]);
 
   // Handle hold start
   const startHold = () => {
@@ -58,6 +64,69 @@ export default function SOSScreen({ navigation }) {
     setCountdown(3);
   };
 
+  const sendSOSAlert = async () => {
+    try {
+      const uid = auth.currentUser?.uid;
+      if (!uid) {
+        Alert.alert('SOS unavailable', 'You must be signed in to send an emergency alert.');
+        return;
+      }
+
+      let latitude = null;
+      let longitude = null;
+      let locationLabel = 'Location not available';
+
+      try {
+        const { Location } = await import('expo-location');
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          latitude = loc.coords.latitude;
+          longitude = loc.coords.longitude;
+          locationLabel = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+        }
+      } catch (locationError) {
+        console.warn('Location unavailable for SOS:', locationError);
+      }
+
+      const payload = {
+        uid,
+        reporterName: auth.currentUser?.displayName || 'Unknown user',
+        contactNumber: auth.currentUser?.phoneNumber || '',
+        emergencyContact: '',
+        latitude,
+        longitude,
+        locationLabel,
+        note: 'Emergency SOS raised from mobile app',
+      };
+
+      const response = await fetch(`${API_BASE_URL}/send-sos-alert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error || 'Failed to send SOS alert');
+      }
+
+      console.log('SOS alert sent successfully:', data);
+    } catch (error) {
+      console.error('SOS alert error:', error);
+      Alert.alert('SOS failed', 'Your emergency alert could not be sent. Please try again.');
+      setActivated(false);
+      setHolding(false);
+      setCountdown(3);
+    }
+  };
+
+  useEffect(() => {
+    if (activated) {
+      sendSOSAlert();
+    }
+  }, [activated]);
+
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor="#7B0000" />
@@ -74,7 +143,7 @@ export default function SOSScreen({ navigation }) {
         {!activated ? (
           <>
             <Text style={styles.sosInstruct}>
-              Press and hold the button{'\n'}to send an emergency alert
+              Hold the SOS button for 3 seconds{'\n'}to send an emergency alert
             </Text>
 
             <View style={styles.sosCenter}>
@@ -96,10 +165,10 @@ export default function SOSScreen({ navigation }) {
 
             <Card style={{ marginHorizontal: 0 }}>
               <Text style={styles.flowTitle}>What happens when activated</Text>
-              <TimelineStep label="Your GPS location is shared" sub="Coordinates sent immediately" status="done" />
-              <TimelineStep label="Barangay is alerted" sub="Duty officer receives notification" status="done" />
-              <TimelineStep label="Emergency contacts notified" sub="3 trusted contacts are messaged" status="done" />
-              <TimelineStep label="Support response initiated" sub="Help is on the way" status="done" last />
+              <TimelineStep label="SOS Alert Sent" sub="Your SOS alert is sent to an available duty officer." status="done" />
+              <TimelineStep label="Officer Notified" sub="A duty officer receives your name and contact details." status="done" />
+              <TimelineStep label="Officer Contacts You" sub="The officer may call you to check your situation." status="done" />
+              <TimelineStep label="Help Is Coordinated" sub="Assistance will be arranged based on your needs." status="done" last />
             </Card>
 
           </>
@@ -108,10 +177,12 @@ export default function SOSScreen({ navigation }) {
             <View style={styles.activatedIcon}>
               <FontAwesome6 name="tower-broadcast" size={36} color={colors.sos} />
             </View>
-            <Text style={styles.activatedTitle}>Alert Sent!</Text>
+            <Text style={styles.activatedTitle}>SOS Alert Sent</Text>
             <Text style={styles.activatedSub}>
-              Your location has been shared.{'\n'}
-              Barangay and emergency contacts have been notified.
+              SOS Alert Sent — Your SOS alert is sent to an available duty officer.{'\n'}
+              Officer Notified — A duty officer receives your name and contact details.{'\n'}
+              Officer Contacts You — The officer may call you to check your situation.{'\n'}
+              Help Is Coordinated — Assistance will be arranged based on your needs.
             </Text>
 
             <Button

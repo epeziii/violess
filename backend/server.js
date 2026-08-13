@@ -517,6 +517,95 @@ async function createNotification(recipientUid, type, title, message, caseId = n
   }
 }
 
+app.post("/send-sos-alert", async (req, res) => {
+  try {
+    const {
+      uid,
+      reporterName,
+      contactNumber,
+      emergencyContact,
+      latitude,
+      longitude,
+      locationLabel,
+      note,
+    } = req.body;
+
+    if (!uid) {
+      return res.status(400).json({ error: "uid is required" });
+    }
+
+    const userSnap = await db.collection("users").doc(uid).get();
+    const userData = userSnap.exists ? userSnap.data() : {};
+
+    const resolvedName = reporterName ||
+      [userData.firstName, userData.lastName].filter(Boolean).join(" ") ||
+      "Unknown user";
+    const resolvedContact = contactNumber || userData.contactNumber || "Not provided";
+    const resolvedEmergency = emergencyContact || userData.emergency || userData.emergencyContact || "Not provided";
+
+    const officersSnapshot = await db.collection("staff")
+      .where("role", "==", "officer")
+      .where("status", "==", "active")
+      .get();
+
+    const sosAlertId = db.collection("sos_alerts").doc().id;
+    const sosAlertPayload = {
+      sosAlertId,
+      uid,
+      reporterName: resolvedName,
+      contactNumber: resolvedContact,
+      emergencyContact: resolvedEmergency,
+      latitude: latitude ?? null,
+      longitude: longitude ?? null,
+      locationLabel: locationLabel || null,
+      note: note || null,
+      createdAt: new Date(),
+      acknowledgedBy: null,
+      resolved: false,
+    };
+
+    await db.collection("sos_alerts").doc(sosAlertId).set(sosAlertPayload);
+
+    const officerNotifications = officersSnapshot.docs.map(async (officerDoc) => {
+      const officerUid = officerDoc.id;
+      const officerName = officerDoc.data()?.fullName || "Duty Officer";
+
+      return createNotification(
+        officerUid,
+        "sos_alert",
+        "SOS Alert",
+        `${resolvedName} triggered an SOS alert. ${officerName} should respond immediately.`,
+        null,
+        {
+          sosAlertId,
+          uid,
+          reporterName: resolvedName,
+          contactNumber: resolvedContact,
+          emergencyContact: resolvedEmergency,
+          latitude: latitude ?? null,
+          longitude: longitude ?? null,
+          locationLabel: locationLabel || null,
+          note: note || null,
+        }
+      );
+    });
+
+    await Promise.all(officerNotifications);
+
+    res.json({
+      success: true,
+      sosAlertId,
+      officersNotified: officersSnapshot.size,
+      reporterName: resolvedName,
+      contactNumber: resolvedContact,
+      emergencyContact: resolvedEmergency,
+    });
+  } catch (error) {
+    console.error("Error sending SOS alert:", error);
+    res.status(500).json({ error: error.message || "Failed to send SOS alert" });
+  }
+});
+
 // ─── SUBMIT RESOLUTION (Officer submits resolution for review) ─────────
 app.post("/submit-resolution", async (req, res) => {
   try {
