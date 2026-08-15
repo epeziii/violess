@@ -52,12 +52,20 @@ function splitFullName(fullName) {
   const normalized = titleCased.trim().replace(/\s+/g, " ");
   const parts = normalized.split(" ").filter(Boolean);
 
-  if (parts.length === 0) return { firstName: "", lastName: "", fullName: "" };
-  if (parts.length === 1) return { firstName: parts[0], lastName: "", fullName: normalized };
+  if (parts.length === 0) return { firstName: "", middleName: "", lastName: "", fullName: "" };
+  if (parts.length === 1) return { firstName: parts[0], middleName: "", lastName: "", fullName: normalized };
 
+  const firstName = parts[0];
   const lastName = parts[parts.length - 1];
-  const firstName = parts.slice(0, -1).join(" ");
-  return { firstName, lastName, fullName: normalized };
+  const middleNameParts = parts.slice(1, -1);
+  const middleName = middleNameParts.join(" ");
+
+  return {
+    firstName: parts.length === 2 ? firstName : `${firstName} ${middleName}`.trim(),
+    middleName,
+    lastName,
+    fullName: normalized,
+  };
 }
 
 

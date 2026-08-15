@@ -121,14 +121,24 @@ function toTitleCaseName(input) {
 }
 
 function splitName(fullName) {
-  if (typeof fullName !== "string") return { firstName: "", lastName: "", fullName: "" };
+  if (typeof fullName !== "string") return { firstName: "", middleName: "", lastName: "", fullName: "" };
+
   const normalized = toTitleCaseName(fullName);
   const parts = normalized.split(" ").filter(Boolean);
-  if (parts.length === 0) return { firstName: "", lastName: "", fullName: "" };
-  if (parts.length === 1) return { firstName: parts[0], lastName: "", fullName: parts[0] };
+  if (parts.length === 0) return { firstName: "", middleName: "", lastName: "", fullName: "" };
+
+  if (parts.length === 1) {
+    return { firstName: parts[0], middleName: "", lastName: "", fullName: parts[0] };
+  }
+
+  const firstName = parts[0];
+  const lastName = parts[parts.length - 1];
+  const middleName = parts.slice(1, -1).join(" ");
+
   return {
-    firstName: parts.slice(0, -1).join(" "),
-    lastName: parts[parts.length - 1],
+    firstName: parts.length === 2 ? firstName : `${firstName} ${middleName}`.trim(),
+    middleName,
+    lastName,
     fullName: normalized,
   };
 }
@@ -163,29 +173,27 @@ app.post("/create-staff", async (req, res) => {
 
     const timestamp = Date.now();
     const staffEmail = String(email || `${staffUsername.toLowerCase()}_${timestamp}@staff.local`).trim();
-    const nameFromFull = splitName(fullName || "");
+    const nameFromFull = splitName(fullName || `${firstName || ""} ${lastName || ""}`.trim());
 
     let resolvedFirstName = String(firstName || nameFromFull.firstName || "").trim();
     let resolvedLastName = String(lastName || nameFromFull.lastName || "").trim();
     let resolvedFullName = String(fullName || "").trim();
-    resolvedFullName = toTitleCaseName(resolvedFullName);
+    resolvedFullName = toTitleCaseName(resolvedFullName || `${resolvedFirstName || ""} ${resolvedLastName || ""}`.trim());
+
+    if (!resolvedFirstName && resolvedFullName) {
+      const parsed = splitName(resolvedFullName);
+      resolvedFirstName = parsed.firstName || "";
+      resolvedLastName = parsed.lastName || "";
+    }
+
+    if (!resolvedLastName && resolvedFullName) {
+      const parsed = splitName(resolvedFullName);
+      resolvedLastName = parsed.lastName || "";
+    }
 
     if (!resolvedFirstName && staffUsername) {
       resolvedFirstName = String(staffUsername).replace(/\d+$/, "");
     }
-
-    if (!resolvedLastName && resolvedFullName) {
-      const parts = resolvedFullName.split(" ").filter(Boolean);
-      resolvedLastName = parts[parts.length - 1] || "";
-      if (parts.length > 1) {
-        resolvedFirstName = parts.slice(0, -1).join(" ");
-      }
-    }
-
-    if (!resolvedFullName) {
-      resolvedFullName = `${resolvedFirstName || ""} ${resolvedLastName || ""}`.trim();
-    }
-    resolvedFullName = toTitleCaseName(resolvedFullName);
 
     const normalizedRole = String(role || "officer").trim();
     const normalizedStatus = String(status || "active").trim();
@@ -194,7 +202,8 @@ app.post("/create-staff", async (req, res) => {
     if (!staffUsername) missing.push("username");
     if (!password) missing.push("password");
     if (!normalizedRole) missing.push("role");
-    if (!resolvedFirstName || !resolvedLastName) missing.push("firstName and lastName");
+    if (!resolvedFirstName) missing.push("firstName");
+    if (!resolvedLastName) missing.push("lastName");
 
     if (missing.length > 0) {
       return res.status(400).json({ error: `Missing required fields: ${missing.join(", ")}` });
