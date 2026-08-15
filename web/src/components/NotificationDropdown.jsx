@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import API_BASE_URL from "../config/api";
 import Icon from "./Icon";
-import { db } from "../firebase";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { db, collection, query, where, getDocs } from "../firebase";
 import { useAuth } from "../AuthContext";
 
 export default function NotificationDropdown({

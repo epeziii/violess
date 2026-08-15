@@ -10,8 +10,9 @@ import violessIcon from '../../../assets/images/violessicon.png';
 
 // 🔥 Firebase
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../../config/firebase';
-import { getFirestore, doc, setDoc } from 'firebase/firestore';
+import { auth, doc, setDoc } from '../../config/firebase';
+
+const db = {};
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');

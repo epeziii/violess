@@ -5,9 +5,7 @@ import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import * as DocumentPicker from 'expo-document-picker';
 import { ch, s } from './sharedStyles';
 import { colors, spacing } from '../theme';
-import { auth } from '../config/firebase';
-import { db } from '../config/firebase';
-import { collection, query, where, onSnapshot, orderBy, addDoc, getDoc, doc, getDocs, updateDoc, arrayUnion } from 'firebase/firestore';
+import { auth, db, collection, query, where, onSnapshot, orderBy, addDoc, getDoc, doc, getDocs, updateDoc, arrayUnion } from '../config/firebase';
 import { API_BASE_URL } from '../config/api';
 
 const formatMessageTime = (timestamp) => {

@@ -6,8 +6,9 @@ import {
 import { colors, spacing, radius, shadow } from '../theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Card, QuickCard, SectionHeader } from '../components';
-import { auth } from '../config/firebase';
-import { getFirestore, doc, getDoc } from 'firebase/firestore';
+import { auth, doc, getDoc } from '../config/firebase';
+
+const db = {};
 import { API_BASE_URL } from '../config/api';
 
 const { width } = Dimensions.get('window');

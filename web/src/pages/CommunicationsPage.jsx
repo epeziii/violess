@@ -16,7 +16,7 @@ import {
   onSnapshot,
   orderBy,
   getDocs,
-} from "firebase/firestore";
+} from "../firebase";
 import { db } from "../firebase";
 import { useAuth } from "../AuthContext";
 import API_BASE_URL from "../config/api";

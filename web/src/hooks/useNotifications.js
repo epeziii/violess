@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { db } from "../firebase";
-import { collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
+import { db, collection, query, where, orderBy, onSnapshot } from "../firebase";
 
 export function useNotifications(userId) {
   const [notifications, setNotifications] = useState([]);

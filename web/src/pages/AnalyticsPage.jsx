@@ -2,8 +2,7 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { useEffect, useMemo, useState } from 'react';
 import API_BASE_URL from '../config/api';
-import { db } from '../firebase';
-import { collection, query, onSnapshot } from 'firebase/firestore';
+import { db, collection, query, onSnapshot } from '../firebase';
 import Icon from '../components/Icon';
 
 export default function AnalyticsPage() {

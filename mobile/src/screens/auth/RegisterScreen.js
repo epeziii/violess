@@ -14,7 +14,7 @@ import {
   signInWithEmailAndPassword,
   onAuthStateChanged,
 } from 'firebase/auth';
-import { getFirestore, doc, setDoc, Timestamp } from 'firebase/firestore';
+import { doc, setDoc, Timestamp } from '../../config/firebase';
 
 const STEPS = ['Account', 'Check Email', 'Profile'];
 
@@ -103,8 +103,8 @@ export default function RegisterScreen({ navigation }) {
         // Send verification email using Firebase
         await sendEmailVerification(userCredential.user);
 
-        // Save user data to Firestore immediately
-        const db = getFirestore();
+        // Save user data to Supabase (Firestore compatibility shim)
+        const db = {};
         const userData = {
           firstName: capitalize(firstName),
           lastName: capitalize(lastName),
@@ -173,12 +173,12 @@ export default function RegisterScreen({ navigation }) {
       }
 
       try {
-        const user = auth.currentUser;
-        if (!user) throw new Error('No user logged in');
+      const user = auth.currentUser;
+      if (!user) throw new Error('No user logged in');
 
-        const db = getFirestore();
+      const db = {};
 
-        // Update the Firestore document with profile data
+      // Update the user's record in Supabase (via Firestore-shim API)
         // Do NOT set registrationComplete yet - wait until RegisterSuccessScreen
         await setDoc(doc(db, 'users', user.uid), {
           firstName: capitalize(firstName),

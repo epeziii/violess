@@ -1,8 +1,8 @@
 // src/AuthContext.jsx
 import { createContext, useContext, useState, useEffect } from "react";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, getDoc, collection, query, where, getDocs, getFirestore } from "firebase/firestore";
-import app from "./firebase"; // your firebase config
+import { doc, getDoc, collection, query, where, getDocs } from "./firebase";
+import app from "./firebase"; // your firebase config and supabase adapter
 import API_BASE_URL from "./config/api";
 
 // ─── Role permissions map ────────────────────────────────────────────────────
@@ -38,7 +38,7 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const auth = getAuth(app);
-  const db   = getFirestore(app);
+  const db = {}; // placeholder db object for compatibility with collection/doc helpers
 
   const [user, setUser] = useState(null); // { uid, name, email, role, barangay, avatar }
   const [loading, setLoading] = useState(true);
@@ -72,15 +72,38 @@ export function AuthProvider({ children }) {
     // Identifier may be an email or a username. Resolve to Firebase email when needed.
     let emailToUse = identifier;
     if (typeof identifier === "string" && !identifier.includes("@")) {
-      // lookup staff by username
-      const q = query(collection(db, "staff"), where("username", "==", identifier));
-      const snap = await getDocs(q);
-      if (snap.empty) throw new Error("No user found for that username");
-      const profile = snap.docs[0].data();
-      emailToUse = profile.email || identifier;
+      // Resolve username to email via backend (avoids anon DB/RLS issues)
+      const resp = await fetch(`${API_BASE_URL}/resolve-staff`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: identifier }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.error || "No user found for that username");
+      }
+      const json = await resp.json();
+      // Ensure we have an email address to pass to Firebase
+      if (!json.email || !String(json.email).includes("@")) {
+        throw new Error("No email address found for that username. Contact your administrator.");
+      }
+      emailToUse = json.email;
     }
 
-    const cred = await signInWithEmailAndPassword(auth, emailToUse, password);
+    // Attempt Firebase sign-in, map common errors to friendly messages
+    let cred;
+    try {
+      cred = await signInWithEmailAndPassword(auth, emailToUse, password);
+    } catch (err) {
+      const code = err?.code || err?.message || String(err);
+      if (code.includes("auth/wrong-password") || code.includes("auth/invalid-credential") || /wrong-password/i.test(code)) {
+        throw new Error("Invalid username or password.");
+      }
+      if (code.includes("auth/user-not-found") || /user-not-found/i.test(code)) {
+        throw new Error("No account found for that email.");
+      }
+      throw err;
+    }
     const staffRef = doc(db, "staff", cred.user.uid);
     const snap = await getDoc(staffRef);
     if (!snap.exists()) throw new Error("No user profile found");

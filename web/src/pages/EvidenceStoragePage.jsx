@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../AuthContext';
-import { db } from '../firebase';
-import { collection, query, where, onSnapshot, addDoc, serverTimestamp, orderBy, getDoc, doc } from 'firebase/firestore';
+import { db, collection, query, where, onSnapshot, addDoc, serverTimestamp, orderBy, getDoc, doc } from '../firebase';
 import '../styles/EvidenceStorage.css';
 import Icon from '../components/Icon';
 

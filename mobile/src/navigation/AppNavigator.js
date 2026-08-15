@@ -7,9 +7,8 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { colors } from '../theme';
 
 // 🔥 Firebase
-import { auth } from '../config/firebase';
+import { auth, doc, getDoc, onSnapshot, updateDoc, collection, query, where } from '../config/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, getDoc, onSnapshot, updateDoc } from 'firebase/firestore';
 
 // Auth Screens
 import WelcomeScreen from '../screens/auth/WelcomeScreen';
@@ -33,7 +32,7 @@ import ReportScreen from '../screens/ReportScreen';
 import SOSScreen from '../screens/SOSScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 
-const db = getFirestore();
+const db = {};
 
 const TAB_ICON_MAP = {
   Home: 'house',

@@ -5,8 +5,9 @@ import {
 } from 'react-native';
 import { colors, spacing, radius } from '../theme';
 import { Card } from '../components';
-import { auth } from '../config/firebase';
-import { getFirestore, doc, getDoc } from 'firebase/firestore';
+import { auth, doc, getDoc } from '../config/firebase';
+
+const db = {};
 
 export default function ProfileScreen({ navigation }) {
   const [userData, setUserData] = useState(null);

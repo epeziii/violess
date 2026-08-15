@@ -1,7 +1,6 @@
 // DashboardPage.jsx
 import { useState, useEffect } from "react";
-import { db } from "../firebase";
-import { collection, query, onSnapshot } from "firebase/firestore";
+import { db, collection, query, onSnapshot } from "../firebase";
 
 export default function DashboardPage({ onNavigate }) {
   const [stats, setStats] = useState({

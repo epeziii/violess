@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { getAuth, createUserWithEmailAndPassword, updatePassword } from "firebase/auth";
-import { getFirestore, collection, getDocs, onSnapshot } from "firebase/firestore";
-import { app } from "../firebase"; // Make sure your firebase.js exports initialized app
+import { collection, getDocs, onSnapshot } from "../firebase";
+import app from "../firebase"; // Make sure your firebase.js exports initialized app and adapter
 import API_BASE_URL from "../config/api";
 
 const auth = getAuth(app);
-const db = getFirestore(app);
+const db = {}; // compatibility placeholder
 
 const ROLE_LABELS  = { admin: "Admin", officer: "Officer" };
 const ROLE_CLASSES = { admin: "badge-admin", officer: "badge-officer" };

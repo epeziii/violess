@@ -5,8 +5,9 @@ import {
 } from 'react-native';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { colors, spacing, radius, shadow } from '../../theme';
-import { auth } from '../../config/firebase';
-import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
+import { auth, doc, getDoc, setDoc } from '../../config/firebase';
+
+const db = {};
 
 // ─── Anonymous Report Screen ─────────────────────────────────────────────────
 export function AnonymousScreen({ navigation }) {

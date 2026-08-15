@@ -1,8 +1,7 @@
 // CasesPage.jsx
 import { useState, useEffect, useRef } from "react";
 import Badge from "./Badge";
-import { db } from "../firebase";
-import { collection, query, orderBy, limit, onSnapshot, where, addDoc, serverTimestamp, getDocs, updateDoc, doc } from "firebase/firestore";
+import { db, collection, query, orderBy, limit, onSnapshot, where, addDoc, serverTimestamp, getDocs, updateDoc, doc } from "../firebase";
 import { useAuth } from "../AuthContext";
 import API_BASE_URL from "../config/api";
 import Icon from "../components/Icon";

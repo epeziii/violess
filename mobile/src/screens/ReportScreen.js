@@ -7,8 +7,9 @@ import {
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { colors, spacing, radius } from '../theme';
 import { Card, Button } from '../components';
-import { auth } from '../config/firebase';
-import { getFirestore, doc, getDoc } from 'firebase/firestore';
+import { auth, doc, getDoc } from '../config/firebase';
+
+const db = {};
 import { API_BASE_URL } from '../config/api';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as DocumentPicker from 'expo-document-picker';

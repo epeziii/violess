@@ -29,8 +29,8 @@ admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
 
-
-const db = admin.firestore();
+// Use Supabase-backed shim for Firestore-like operations
+const db = require('./supabaseFirestoreShim');
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -153,8 +153,17 @@ app.post("/record-staff-login", async (req, res) => {
 
 app.post("/create-staff", async (req, res) => {
   try {
-    const { firstName, lastName, fullName, email, username, password, role } = req.body;
+    const { firstName, lastName, fullName, email, username, password, role, status } = req.body;
     const staffUsername = username || email;
+    
+    if (!staffUsername || !password) {
+      return res.status(400).json({ error: "Username/email and password are required" });
+    }
+    
+    // Generate unique email from username if not provided
+    const timestamp = Date.now();
+    const firebaseEmail = email || `${staffUsername.toLowerCase()}_${timestamp}@staff.local`;
+    
     const nameFromFull = splitName(fullName || "");
 
     let resolvedFirstName = firstName || nameFromFull.firstName;
@@ -174,37 +183,38 @@ if (!resolvedFullName) {
 
 
     const missing = [];
-    if (!staffUsername) missing.push("username or email");
+    if (!staffUsername) missing.push("username");
     if (!password) missing.push("password");
     if (!role) missing.push("role");
-    if (!resolvedFullName) missing.push("fullName");
+    if (!resolvedFirstName || !resolvedLastName) missing.push("firstName and lastName");
 
     if (missing.length > 0) {
       return res.status(400).json({ error: `Missing required fields: ${missing.join(", ")}` });
     }
-
-    const looksLikeEmail = typeof staffUsername === "string" && staffUsername.includes("@");
-    const firebaseEmail = looksLikeEmail
-      ? staffUsername
-      : staffUsername;
 
     const userRecord = await admin.auth().createUser({ email: firebaseEmail, password });
     if (!userRecord?.uid) return res.status(500).json({ error: "UID missing" });
 
     const staffColor = role === "admin" ? "blue" : "pink";
 
-    await db.collection("staff").doc(userRecord.uid).set({
-      firstName: resolvedFirstName,
-      lastName: resolvedLastName,
-      fullName: resolvedFullName,
+    const staffData = {
+      first_name: resolvedFirstName,
+      last_name: resolvedLastName,
       username: staffUsername,
-      email: looksLikeEmail ? staffUsername : null,
+      email: firebaseEmail,
       role,
-      status: "active",
-      lastLogin: null,
-      cases: 0,
-      color: staffColor,
-    });
+      avatar: null,
+      profile: {
+        cases: 0,
+        color: staffColor,
+        last_login: null,
+        status: status || "active"
+      }
+    };
+
+    console.log("Saving staff data:", JSON.stringify(staffData, null, 2));
+    await db.collection("staff").doc(userRecord.uid).set(staffData);
+    console.log("Staff user saved successfully with UID:", userRecord.uid);
 
     res.json({ success: true, uid: userRecord.uid });
   } catch (error) {
@@ -285,6 +295,40 @@ app.post("/request-password-reset", async (req, res) => {
   } catch (err) {
     console.error("Error requesting password reset:", err);
     res.status(500).json({ error: err.message || "Failed to request password reset" });
+  }
+});
+
+// Resolve staff by username (used by web client when direct DB access is restricted)
+app.post('/resolve-staff', async (req, res) => {
+  try {
+    const { username } = req.body;
+    if (!username || !String(username).trim()) return res.status(400).json({ error: 'Username is required' });
+
+    const normalizedUsername = String(username).trim();
+    const usernameQuery = await db.collection('staff').where('username', '==', normalizedUsername).limit(1).get();
+    if (usernameQuery.empty) return res.status(404).json({ error: 'No account found for that username.' });
+
+    const staffDoc = usernameQuery.docs[0];
+    const staffData = staffDoc.data();
+    return res.json({ uid: staffDoc.id, email: staffData.email || null, profile: staffData });
+  } catch (err) {
+    console.error('Error resolving staff by username:', err);
+    res.status(500).json({ error: err.message || 'Failed to resolve staff' });
+  }
+});
+
+// Get staff profile by uid
+app.get('/staff/:uid', async (req, res) => {
+  try {
+    const { uid } = req.params;
+    if (!uid) return res.status(400).json({ error: 'UID is required' });
+    const staffRef = db.collection('staff').doc(uid);
+    const snap = await staffRef.get();
+    if (!snap.exists()) return res.status(404).json({ error: 'Staff not found' });
+    return res.json({ uid: snap.id, profile: snap.data() });
+  } catch (err) {
+    console.error('Error fetching staff profile:', err);
+    res.status(500).json({ error: err.message || 'Failed to fetch staff profile' });
   }
 });
 
@@ -476,8 +520,8 @@ app.post("/update-case", async (req, res) => {
 // ─── HELPER: Create activity log entry ─────────────────────────────────
 async function createActivityLog(caseId, action, actionBy, actionByName, fromStatus, toStatus, notes = "") {
   try {
-    const logId = db.collection("reports").doc().id; // Generate ID
-    await db.collection("reports").doc(caseId).collection("activityLog").doc(logId).set({
+    const logId = db.collection("cases").doc().id; // Generate ID
+    await db.collection("activity_logs").doc(logId).set({
       logId,
       timestamp: new Date(),
       action,
@@ -498,16 +542,14 @@ async function createNotification(recipientUid, type, title, message, caseId = n
   try {
     const notifId = db.collection("notifications").doc().id;
     await db.collection("notifications").doc(notifId).set({
-      notifId,
-      recipientUid,
-      type, // "case_assigned", "new_case"
+      id: notifId,
+      recipient_uid: recipientUid,
+      actor_uid: null,
       title,
-      message,
-      caseId: caseId || null,
-      caseData: caseData || null,
+      body: message,
+      payload: { caseId, caseData, type },
       read: false,
-      createdAt: new Date(),
-      readAt: null
+      created_at: new Date()
     });
   } catch (error) {
     console.error("Error creating notification:", error);
@@ -561,8 +603,8 @@ app.post("/submit-resolution", async (req, res) => {
     }
 
     // Create resolution document
-    const resolutionId = db.collection("reports").doc().id;
-    await db.collection("reports").doc(caseId).collection("resolutions").doc(resolutionId).set({
+    const resolutionId = db.collection("cases").doc().id;
+    await db.collection("resolutions").doc(resolutionId).set({
       resolutionId,
       submittedBy: uid,
       submittedByName: officerFullName,
@@ -765,15 +807,15 @@ app.post("/register-user", async (req, res) => {
     if (!userRecord?.uid) return res.status(500).json({ error: "UID missing" });
 
     await db.collection("users").doc(userRecord.uid).set({
-      firstName,
-      lastName,
+      first_name: firstName,
+      last_name: lastName,
       email,
-      phone,
+      contact_number: phone,
       barangay: barangay || "",
       status: "active",
-      accountCreated: new Date().toISOString(),
-      lastLogin: null,
-      avatar: null,
+      registration_complete: false,
+      last_login: null,
+      profile: { avatar: null },
     });
 
     res.json({ success: true, uid: userRecord.uid });
@@ -799,7 +841,7 @@ app.post("/login-user", async (req, res) => {
 
     const profile = snap.data();
     await db.collection("users").doc(cred.uid).update({
-      lastLogin: new Date().toISOString()
+      last_login: new Date().toISOString()
     });
 
     res.json({
@@ -821,11 +863,11 @@ app.post("/update-user", async (req, res) => {
     if (!uid) return res.status(400).json({ error: "UID is required" });
 
     const updateData = {};
-    if (firstName) updateData.firstName = firstName;
-    if (lastName) updateData.lastName = lastName;
-    if (phone) updateData.phone = phone;
+    if (firstName) updateData.first_name = firstName;
+    if (lastName) updateData.last_name = lastName;
+    if (phone) updateData.contact_number = phone;
     if (barangay) updateData.barangay = barangay;
-    if (avatar) updateData.avatar = avatar;
+    if (avatar) updateData.profile = { avatar };
 
     await db.collection("users").doc(uid).update(updateData);
     res.json({ success: true });
@@ -914,34 +956,35 @@ app.post("/send-verification-email", async (req, res) => {
 // ─── SUBMIT INCIDENT REPORT ──────────────────────────────────────────────
 app.post("/submit-report", async (req, res) => {
   try {
-    const { uid, incidentType, description, location, datetime, isAnonymous, suspectDescription, evidence, contactNumber: bodyContactNumber, emergencyContact: bodyEmergencyContact } = req.body;
-    if (!uid || !incidentType || !description)
-      return res.status(400).json({ error: "uid, incidentType, and description are required" });
+    const { uid, incidentType, caseType, description, location, datetime, isAnonymous, suspectDescription, evidence, contactNumber: bodyContactNumber, emergencyContact: bodyEmergencyContact } = req.body;
+    const typeValue = incidentType || caseType; // Accept both field names
+    if (!uid || !typeValue || !description)
+      return res.status(400).json({ error: "uid, incidentType (or caseType), and description are required" });
 
     const currentYear = new Date().getFullYear();
-    const reportsRef = db.collection("reports");
+    const casesRef = db.collection("cases");
 
     // Generate case ID: VIO-YYYY-NNN
-    // Query reports created this year
-    const yearStart = new Date(`${currentYear}-01-01T00:00:00Z`);
-    const yearEnd = new Date(`${currentYear}-12-31T23:59:59Z`);
+    // Query cases created this year
+    const yearStart = new Date(Date.UTC(currentYear, 0, 1, 0, 0, 0));
+    const yearEnd = new Date(Date.UTC(currentYear, 11, 31, 23, 59, 59));
 
-    const reportsQuery = await reportsRef
-      .where("createdAt", ">=", yearStart)
-      .where("createdAt", "<=", yearEnd)
-      .orderBy("createdAt", "desc")
+    const casesQuery = await casesRef
+      .where("created_at", ">=", yearStart)
+      .where("created_at", "<=", yearEnd)
+      .orderBy("created_at", "desc")
       .limit(1)
       .get();
 
     let caseNumber = 1;
-    if (!reportsQuery.empty) {
-      const lastReport = reportsQuery.docs[0].data();
-      const lastCaseId = lastReport.caseId || `VIO-${currentYear}-000`;
+    if (!casesQuery.empty) {
+      const lastCase = casesQuery.docs[0].data();
+      const lastCaseId = lastCase.case_number || `VIO-${currentYear}-000`;
       const lastNumber = parseInt(lastCaseId.split('-')[2], 10) || 0;
       caseNumber = lastNumber + 1;
     }
 
-    const caseId = `VIO-${currentYear}-${String(caseNumber).padStart(3, '0')}`;
+    const caseNumber_val = `VIO-${currentYear}-${String(caseNumber).padStart(3, '0')}`;
 
     // Get user info (for reporter name, contact number, and emergency contact if not anonymous)
     let reporterName = "Anonymous";
@@ -951,34 +994,37 @@ app.post("/submit-report", async (req, res) => {
       const userSnap = await db.collection("users").doc(uid).get();
       if (userSnap.exists) {
         const userData = userSnap.data();
-        reporterName = `${userData.firstName || ""} ${userData.lastName || ""}`.trim() || "Anonymous";
-        contactNumber = bodyContactNumber?.toString()?.trim() || userData.contactNumber || userData.phone || userData.phoneNumber || "";
+        reporterName = `${userData.first_name || ""} ${userData.last_name || ""}`.trim() || "Anonymous";
+        contactNumber = bodyContactNumber?.toString()?.trim() || userData.contact_number || userData.phone || userData.phoneNumber || "";
         emergencyContact = bodyEmergencyContact?.toString()?.trim() || userData.emergency || userData.emergencyContact || "";
       }
     }
 
-    // Create report document
-    const reportData = {
-      caseId,
-      uid: uid,  // Always store uid so user can retrieve their cases (even if anonymous)
-      incidentType,
+    // Create case document
+    const caseData = {
+      case_number: caseNumber_val,
+      reporter: uid,  // Always store uid so user can retrieve their cases (even if anonymous)
+      type: typeValue,
       description,
       location: location || "",
-      suspectDescription: suspectDescription || "",
-      evidence: evidence || [],
-      datetime: datetime || "",
-      isAnonymous,
-      reporterName,
-      contactNumber,
-      emergencyContact,
       status: "pending",
-      priorityLevel: "normal",
-      assignedOfficer: "",
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      metadata: {
+        suspect_description: suspectDescription || "",
+        evidence: evidence || [],
+        incident_date: datetime || new Date().toISOString(),
+        is_anonymous: isAnonymous,
+        reporter_name: reporterName,
+        contact_number: contactNumber,
+        emergency_contact: emergencyContact,
+        priority_level: "normal",
+        assigned_officer: ""
+      },
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
 
-    await reportsRef.add(reportData);
+    const newCaseRef = await casesRef.add(caseData);
+    const createdCaseId = newCaseRef.id;
 
     // Notify all active admins immediately when a new case is filed.
     const adminsSnapshot = await db.collection("staff")
@@ -991,10 +1037,10 @@ app.post("/submit-report", async (req, res) => {
         adminDoc.id,
         "new_case",
         "New Case Filed",
-        `A new ${incidentType} case has been filed: ${caseId}`,
-        caseId,
+        `A new ${typeValue} case has been filed: ${caseNumber_val}`,
+        createdCaseId,
         {
-          caseId,
+          caseId: createdCaseId,
           incidentType,
           priorityLevel: reportData.priorityLevel
         }
@@ -1018,10 +1064,10 @@ app.get("/user/:uid/cases", async (req, res) => {
     const { uid } = req.params;
     if (!uid) return res.status(400).json({ error: "UID is required" });
 
-    const reportsRef = db.collection("reports");
-    const snapshot = await reportsRef
-      .where("uid", "==", uid)
-      .orderBy("createdAt", "desc")
+    const casesRef = db.collection("cases");
+    const snapshot = await casesRef
+      .where("reporter", "==", uid)
+      .orderBy("created_at", "desc")
       .get();
 
     if (snapshot.empty) {
@@ -1145,7 +1191,7 @@ app.post("/case/:caseId/send-message", async (req, res) => {
 // ─── GET ALL HELP CENTERS ──────────────────────────────────────────────
 app.get("/help-centers", async (req, res) => {
   try {
-    const snapshot = await db.collection("helpCenters").get();
+    const snapshot = await db.collection("help_centers").get();
     const centers = [];
     snapshot.forEach(doc => {
       centers.push({
@@ -1167,8 +1213,8 @@ app.get("/notifications/:uid", async (req, res) => {
     if (!uid) return res.status(400).json({ error: "UID is required" });
 
     const snapshot = await db.collection("notifications")
-      .where("recipientUid", "==", uid)
-      .orderBy("createdAt", "desc")
+      .where("recipient_uid", "==", uid)
+      .orderBy("created_at", "desc")
       .limit(50)
       .get();
 
@@ -1213,7 +1259,7 @@ app.post("/mark-all-notifications-read", async (req, res) => {
     if (!uid) return res.status(400).json({ error: "uid is required" });
 
     const snapshot = await db.collection("notifications")
-      .where("recipientUid", "==", uid)
+      .where("recipient_uid", "==", uid)
       .where("read", "==", false)
       .get();
 
@@ -1295,7 +1341,7 @@ app.post("/check-and-notify-new-cases", async (req, res) => {
 
     // Get cases created in the last 24 hours (only notify about recent cases)
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const casesSnapshot = await db.collection("reports")
+    const casesSnapshot = await db.collection("cases")
       .where("createdAt", ">=", oneDayAgo)
       .get();
 
@@ -1314,7 +1360,7 @@ app.post("/check-and-notify-new-cases", async (req, res) => {
     // Get all existing notifications for new cases
     const existingNotifs = await db.collection("notifications")
       .where("type", "==", "new_case")
-      .where("recipientUid", "==", uid)
+      .where("recipient_uid", "==", uid)
       .get();
 
     console.log("[check-and-notify-new-cases] Existing new_case notifications:", existingNotifs.size);
@@ -1330,7 +1376,7 @@ app.post("/check-and-notify-new-cases", async (req, res) => {
 
     // Create notifications for unnotified cases
     for (const caseId of unnotifiedCases) {
-      const caseSnap = await db.collection("reports").where("caseId", "==", caseId).limit(1).get();
+      const caseSnap = await db.collection("cases").doc(caseId).get();
       if (!caseSnap.empty) {
         const caseDoc = caseSnap.docs[0];
         const caseData = caseDoc.data();
@@ -1576,7 +1622,7 @@ app.get('/analytics/most-common-abuse-type', async (req, res) => {
       return found?.label || null;
     };
 
-    const reportsSnap = await db.collection('reports').get();
+    const reportsSnap = await db.collection('cases').get();
 
     const counts = new Map();
     let otherCount = 0;

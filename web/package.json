@@ -10,6 +10,7 @@
     "@mui/x-date-pickers": "^9.0.4",
     "date-fns": "^4.1.0",
     "firebase": "^12.11.0",
+    "@supabase/supabase-js": "^2.33.0",
     "react": "^18.2.0",
     "react-datepicker": "^9.1.0",
     "react-dom": "^18.2.0",
@@ -17,6 +18,14 @@
     "react-scripts": "5.0.1",
     "recharts": "^2.12.0"
   },
+  "dependenciesMeta": {
+    "@supabase/supabase-js": {
+      "optional": false
+    }
+  },
+  "resolutions": {},
+  "overrides": {},
+  "engines": {},
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build"
