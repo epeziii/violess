@@ -12,7 +12,6 @@ CREATE TABLE IF NOT EXISTS staff (
   full_name text,
   role text,
   status text DEFAULT 'active',
-  avatar text,
   color text DEFAULT 'pink',
   last_login timestamptz,
   cases integer DEFAULT 0,
@@ -20,6 +19,8 @@ CREATE TABLE IF NOT EXISTS staff (
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );
+
+ALTER TABLE IF EXISTS staff DROP COLUMN IF EXISTS avatar;
 
 CREATE INDEX IF NOT EXISTS staff_email_idx ON staff(email);
 

@@ -52,6 +52,11 @@ function Shell() {
   if (!user) return <LoginPage />;
 
   const visibleNav = NAV.filter(n => can(n.permission));
+  const firstName = user?.firstName || user?.first_name || "";
+  const lastName = user?.lastName || user?.last_name || "";
+  const initials = firstName || lastName
+    ? `${String(firstName).charAt(0)}${String(lastName).charAt(0)}`.toUpperCase()
+    : "?";
 
   const pages = {
     cases:     <ProtectedRoute key={`cases-${pendingCaseSelectionKey}`} permission="cases"><CasesPage initialSelectedCaseId={pendingCasePageCaseId} initialSelectedCaseKey={pendingCaseSelectionKey} /></ProtectedRoute>,
@@ -130,15 +135,13 @@ function Shell() {
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             {/* Avatar circle */}
             <div className={`officer-avatar ${user.role === "admin" ? "av-blue" : "av-pink"}`}>
-              {user.firstName && user.lastName
-                ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
-                : "?"}
+              {initials}
             </div>
 
             {/* Name & Role */}
             {sidebarOpen && (
               <div className="officer-info">
-                <span className="officer-name">{user.firstName} {user.lastName}</span>
+                <span className="officer-name">{firstName} {lastName}</span>
                 <span className="officer-role">
                   <Icon icon={user.role === "admin" ? "shield" : "user-tie"} style={{ marginRight: "4px" }} size="11px" />
                   {user.role === "admin" ? "Admin" : "Officer"}

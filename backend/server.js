@@ -248,7 +248,6 @@ app.post("/create-staff", async (req, res) => {
       full_name: resolvedFullName,
       role: normalizedRole,
       status: normalizedStatus,
-      avatar: null,
       color: staffColor,
       last_login: null,
       cases: 0,
