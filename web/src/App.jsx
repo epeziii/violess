@@ -52,10 +52,19 @@ function Shell() {
   if (!user) return <LoginPage />;
 
   const visibleNav = NAV.filter(n => can(n.permission));
-  const firstName = user?.firstName || user?.first_name || "";
-  const lastName = user?.lastName || user?.last_name || "";
-  const initials = firstName || lastName
-    ? `${String(firstName).charAt(0)}${String(lastName).charAt(0)}`.toUpperCase()
+  const firstNameRaw = user?.firstName || user?.first_name || "";
+  const lastNameRaw = user?.lastName || user?.last_name || "";
+  const formatDisplayName = (value = "") => String(value || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+  const firstName = formatDisplayName(firstNameRaw);
+  const lastName = formatDisplayName(lastNameRaw);
+  const initials = firstNameRaw || lastNameRaw
+    ? `${String(firstNameRaw).charAt(0)}${String(lastNameRaw).charAt(0)}`.toUpperCase()
     : "?";
 
   const pages = {

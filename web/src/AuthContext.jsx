@@ -32,6 +32,29 @@ export const PERMISSIONS = {
 
 const AuthContext = createContext(null);
 
+function normalizeStaffProfile(profile = {}, fallbackEmail = "") {
+  const firstName = profile.firstName || profile.first_name || profile.profile?.firstName || profile.profile?.first_name || "";
+  const lastName = profile.lastName || profile.last_name || profile.profile?.lastName || profile.profile?.last_name || "";
+  const fullName = profile.fullName || profile.full_name || profile.profile?.fullName || profile.profile?.full_name || `${firstName} ${lastName}`.trim();
+  const username = profile.username || profile.profile?.username || "";
+  const role = profile.role || profile.profile?.role || "officer";
+  const status = profile.status || profile.profile?.status || "active";
+
+  return {
+    ...profile,
+    uid: profile.uid || profile.id || profile.profile?.id || "",
+    email: profile.email || fallbackEmail || profile.profile?.email || "",
+    username,
+    firstName,
+    lastName,
+    fullName,
+    role,
+    status,
+    lastLogin: profile.lastLogin || profile.last_login || profile.profile?.lastLogin || profile.profile?.last_login || null,
+    color: profile.color || profile.profile?.color || "pink",
+  };
+}
+
 async function fetchStaffProfileByEmail(email) {
   const normalizedEmail = String(email || "").trim().toLowerCase();
   if (!normalizedEmail) return null;
@@ -48,7 +71,7 @@ async function fetchStaffProfileByEmail(email) {
   }
 
   if (!data) return null;
-  return { uid: data.id, email: data.email || normalizedEmail, ...data };
+  return normalizeStaffProfile({ uid: data.id, email: data.email || normalizedEmail, ...data }, normalizedEmail);
 }
 
 async function fetchStaffProfileByUid(uid) {
@@ -62,7 +85,7 @@ async function fetchStaffProfileByUid(uid) {
     .maybeSingle();
 
   if (!error && data) {
-    return { uid: data.id, email: data.email || null, ...data };
+    return normalizeStaffProfile({ uid: data.id, email: data.email || null, ...data }, null);
   }
 
   if (error && error.code !== "PGRST116") {
@@ -150,11 +173,12 @@ export function AuthProvider({ children }) {
             throw new Error("No user profile found");
           }
 
+          const normalizedProfile = normalizeStaffProfile(profile, session.user.email);
           const nextUser = {
-            uid: profile.uid || profile.id || session.user.id,
+            uid: normalizedProfile.uid || normalizedProfile.id || session.user.id,
             authUid: session.user.id,
-            email: profile.email || session.user.email,
-            ...profile,
+            email: normalizedProfile.email || session.user.email,
+            ...normalizedProfile,
           };
 
           if (active) {
@@ -192,11 +216,12 @@ export function AuthProvider({ children }) {
           throw new Error("No user profile found");
         }
 
+        const normalizedProfile = normalizeStaffProfile(profile, session.user.email);
         const nextUser = {
-          uid: profile.uid || profile.id || session.user.id,
+          uid: normalizedProfile.uid || normalizedProfile.id || session.user.id,
           authUid: session.user.id,
-          email: profile.email || session.user.email,
-          ...profile,
+          email: normalizedProfile.email || session.user.email,
+          ...normalizedProfile,
         };
 
         setUser(nextUser);
@@ -237,11 +262,12 @@ export function AuthProvider({ children }) {
       profile = await resolveStaffByIdentifier(email);
     }
 
+    const normalizedProfile = normalizeStaffProfile(profile || {}, data.user.email || email);
     const nextUser = {
-      uid: profile?.uid || profile?.id || data.user.id,
+      uid: normalizedProfile.uid || normalizedProfile.id || data.user.id,
       authUid: data.user.id,
-      email: profile?.email || data.user.email || email,
-      ...profile,
+      email: normalizedProfile.email || data.user.email || email,
+      ...normalizedProfile,
     };
 
     setUser(nextUser);

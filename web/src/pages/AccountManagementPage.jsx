@@ -172,7 +172,8 @@ function CreateModal({ onClose, refreshAccounts }) {
     }
 
     try {
-      const nameData = splitFullName(form.fullName);
+      const normalizedFullName = toTitleCaseName(form.fullName);
+      const nameData = splitFullName(normalizedFullName);
       const res = await fetch(`${API_BASE_URL}/create-staff`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -211,7 +212,7 @@ function CreateModal({ onClose, refreshAccounts }) {
               className="form-input"
               placeholder="Enter full name"
               value={form.fullName}
-              onChange={e => set("fullName", e.target.value)}
+              onChange={e => set("fullName", toTitleCaseName(e.target.value))}
             />
           </div>
           <div className="form-group">
