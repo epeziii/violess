@@ -39,29 +39,31 @@ function toTitleCaseName(input) {
   const normalized = (input || "").trim().replace(/\s+/g, " ");
   if (!normalized) return "";
 
-  // Title Case each word: "dela" -> "Dela", "CRUZ" -> "Cruz"
   return normalized
     .split(" ")
     .filter(Boolean)
-    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .map((word) => {
+      if (!word) return "";
+      const lower = word.toLowerCase();
+      return lower.charAt(0).toUpperCase() + lower.slice(1);
+    })
     .join(" ");
 }
 
 function splitFullName(fullName) {
-  const titleCased = toTitleCaseName(fullName);
-  const normalized = titleCased.trim().replace(/\s+/g, " ");
+  const normalized = (fullName || "").trim().replace(/\s+/g, " ");
   const parts = normalized.split(" ").filter(Boolean);
 
   if (parts.length === 0) return { firstName: "", middleName: "", lastName: "", fullName: "" };
   if (parts.length === 1) return { firstName: parts[0], middleName: "", lastName: "", fullName: normalized };
 
-  const firstName = parts[0];
   const lastName = parts[parts.length - 1];
-  const middleNameParts = parts.slice(1, -1);
-  const middleName = middleNameParts.join(" ");
+  const firstAndMiddle = parts.slice(0, -1);
+  const middleName = firstAndMiddle.length > 1 ? firstAndMiddle.slice(1).join(" ") : "";
+  const firstName = firstAndMiddle[0] || "";
 
   return {
-    firstName: parts.length === 2 ? firstName : `${firstName} ${middleName}`.trim(),
+    firstName: `${firstName} ${middleName}`.trim(),
     middleName,
     lastName,
     fullName: normalized,
@@ -208,7 +210,7 @@ function CreateModal({ onClose, refreshAccounts }) {
               className="form-input"
               placeholder="Enter full name"
               value={form.fullName}
-onChange={e => set("fullName", toTitleCaseName(e.target.value))}
+              onChange={e => set("fullName", e.target.value)}
             />
           </div>
           <div className="form-group">
