@@ -1,148 +1,192 @@
 // src/AuthContext.jsx
 import { createContext, useContext, useState, useEffect } from "react";
-import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, getDoc, collection, query, where, getDocs } from "./firebase";
-import app from "./firebase"; // your firebase config and supabase adapter
+import { supabase } from "./supabase";
 import API_BASE_URL from "./config/api";
 
-// ─── Role permissions map ────────────────────────────────────────────────────
 export const PERMISSIONS = {
   admin: {
-    dashboard:        true,
-    cases:            true,
-    referrals:        true,
-    communications:   true,
-    analytics:        true,
-    evidence:         true,
-    accountManagement:true,
-    systemSettings:   true,
-    deleteRecords:    true,
-    exportData:       true,
+    dashboard: true,
+    cases: true,
+    referrals: true,
+    communications: true,
+    analytics: true,
+    evidence: true,
+    accountManagement: true,
+    systemSettings: true,
+    deleteRecords: true,
+    exportData: true,
   },
   officer: {
-    dashboard:        true,
-    cases:            false,
-    referrals:        true,
-    communications:   true,
-    analytics:        "view",
-    evidence:         true,
-    accountManagement:false,
-    systemSettings:   true,
-    deleteRecords:    false,
-    exportData:       false,
+    dashboard: true,
+    cases: false,
+    referrals: true,
+    communications: true,
+    analytics: "view",
+    evidence: true,
+    accountManagement: false,
+    systemSettings: true,
+    deleteRecords: false,
+    exportData: false,
   },
 };
 
-// ─── Auth Context ────────────────────────────────────────────────────────────
 const AuthContext = createContext(null);
 
+async function fetchStaffProfileByEmail(email) {
+  const { data, error } = await supabase
+    .from("staff")
+    .select("*")
+    .eq("email", String(email).toLowerCase())
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) throw new Error("No user profile found");
+
+  return { uid: data.id, email: data.email || null, ...data };
+}
+
 async function fetchStaffProfileByUid(uid) {
-  const resp = await fetch(`${API_BASE_URL}/staff/${uid}`);
+  const { data, error } = await supabase
+    .from("staff")
+    .select("*")
+    .eq("id", uid)
+    .maybeSingle();
+
+  if (!error && data) {
+    return { uid: data.id, email: data.email || null, ...data };
+  }
+
+  if (error && error.code !== "PGRST116") {
+    throw error;
+  }
+
+  return null;
+}
+
+async function resolveStaffByIdentifier(identifier) {
+  const clean = String(identifier || "").trim();
+  if (!clean) throw new Error("Username or email is required.");
+
+  const resp = await fetch(`${API_BASE_URL}/resolve-staff`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username: clean }),
+  });
+
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({}));
-    throw new Error(err.error || "No user profile found");
+    throw new Error(err.error || "No user found for that username");
   }
+
   const json = await resp.json();
-  return { uid: json.uid || uid, email: json.profile?.email || null, ...json.profile };
+  if (!json.email || !String(json.email).includes("@")) {
+    throw new Error("No email address found for that username. Contact your administrator.");
+  }
+
+  return json;
 }
 
 export function AuthProvider({ children }) {
-  const auth = getAuth(app);
-  const db = {}; // placeholder db object for compatibility with collection/doc helpers
-
-  const [user, setUser] = useState(null); // { uid, name, email, role, barangay, avatar }
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Listen for Firebase auth state changes
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
+    let active = true;
+
+    const loadSession = async () => {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) console.warn("Supabase session error:", error);
+
+      if (session?.user) {
         try {
-          const profile = await fetchStaffProfileByUid(firebaseUser.uid);
-          setUser({ uid: firebaseUser.uid, email: firebaseUser.email, ...profile });
-          sessionStorage.setItem("violess_user", JSON.stringify({ uid: firebaseUser.uid, email: firebaseUser.email, ...profile }));
+          let profile = await fetchStaffProfileByUid(session.user.id);
+          if (!profile) {
+            profile = await fetchStaffProfileByEmail(session.user.email);
+          }
+          const nextUser = { uid: session.user.id, email: session.user.email, ...profile };
+          if (active) {
+            setUser(nextUser);
+            sessionStorage.setItem("violess_user", JSON.stringify(nextUser));
+          }
         } catch (err) {
-          console.warn("Failed to load staff profile via backend:", err);
-          setUser(null);
-          sessionStorage.removeItem("violess_user");
+          console.warn("Failed to load staff profile from Supabase:", err);
+          if (active) {
+            setUser(null);
+            sessionStorage.removeItem("violess_user");
+          }
         }
-      } else {
+      } else if (active) {
+        setUser(null);
+        sessionStorage.removeItem("violess_user");
+      }
+
+      if (active) setLoading(false);
+    };
+
+    loadSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!session?.user) {
+        setUser(null);
+        sessionStorage.removeItem("violess_user");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        let profile = await fetchStaffProfileByUid(session.user.id);
+        if (!profile) {
+          profile = await fetchStaffProfileByEmail(session.user.email);
+        }
+        const nextUser = { uid: session.user.id, email: session.user.email, ...profile };
+        setUser(nextUser);
+        sessionStorage.setItem("violess_user", JSON.stringify(nextUser));
+      } catch (err) {
+        console.warn("Auth state changed but no matching staff profile was found:", err);
         setUser(null);
         sessionStorage.removeItem("violess_user");
       }
       setLoading(false);
     });
 
-    return () => unsubscribe();
-  }, [auth, db]);
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
-  // Firebase login
   const login = async (identifier, password) => {
-    // Identifier may be an email or a username. Resolve to Firebase email when needed.
-    let emailToUse = identifier;
-    if (typeof identifier === "string" && !identifier.includes("@")) {
-      // Resolve username to email via backend (avoids anon DB/RLS issues)
-      const resp = await fetch(`${API_BASE_URL}/resolve-staff`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: identifier }),
-      });
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
-        throw new Error(err.error || "No user found for that username");
-      }
-      const json = await resp.json();
-      // Ensure we have an email address to pass to Firebase
-      if (!json.email || !String(json.email).includes("@")) {
-        throw new Error("No email address found for that username. Contact your administrator.");
-      }
-      emailToUse = json.email;
-    }
+    const staff = await resolveStaffByIdentifier(identifier);
+    const email = String(staff.email).toLowerCase();
 
-    // Attempt Firebase sign-in, map common errors to friendly messages
-    let cred;
-    try {
-      cred = await signInWithEmailAndPassword(auth, emailToUse, password);
-    } catch (err) {
-      const code = err?.code || err?.message || String(err);
-      if (code.includes("auth/wrong-password") || code.includes("auth/invalid-credential") || /wrong-password/i.test(code)) {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      const message = error.message || "Login failed";
+      if (/invalid login|invalid credentials|wrong password|password/i.test(message)) {
         throw new Error("Invalid username or password.");
       }
-      if (code.includes("auth/user-not-found") || /user-not-found/i.test(code)) {
-        throw new Error("No account found for that email.");
-      }
-      throw err;
-    }
-    let profile;
-    try {
-      profile = await fetchStaffProfileByUid(cred.user.uid);
-    } catch (err) {
-      throw new Error(err.message || "No user profile found");
+      throw new Error(message);
     }
 
-    try {
-      await fetch(`${API_BASE_URL}/record-staff-login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uid: cred.user.uid }),
-      });
-    } catch (err) {
-      console.warn("Failed to record lastLogin via backend API:", err);
-    }
+    let profile = await fetchStaffProfileByUid(data.user.id);
+    if (!profile) profile = await fetchStaffProfileByEmail(email);
 
-    setUser({ uid: cred.user.uid, email: cred.user.email, ...profile });
-    sessionStorage.setItem("violess_user", JSON.stringify({ uid: cred.user.uid, email: cred.user.email, ...profile }));
-    return { uid: cred.user.uid, email: cred.user.email, ...profile };
+    const nextUser = { uid: data.user.id, email: data.user.email, ...profile };
+    setUser(nextUser);
+    sessionStorage.setItem("violess_user", JSON.stringify(nextUser));
+    return nextUser;
   };
 
-  // Logout
   const logoutUser = async () => {
-    await signOut(auth);
+    await supabase.auth.signOut();
     setUser(null);
     sessionStorage.removeItem("violess_user");
   };
 
-  // Permission checker
   const can = (permission) => {
     if (!user) return false;
     return !!PERMISSIONS[user.role]?.[permission];

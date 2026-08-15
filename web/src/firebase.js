@@ -4,7 +4,6 @@ import { getAnalytics } from "firebase/analytics";
 import { getAuth } from "firebase/auth";
 import { supabase } from "./supabase";
 
-// Keep Firebase Auth for now (migration focuses on Firestore -> Supabase)
 const firebaseConfig = {
   apiKey: "AIzaSyC5mRFHNtXwzH5BKS0U7sIPOVwX4bil1K8",
   authDomain: "violess-4e542.firebaseapp.com",
@@ -19,74 +18,105 @@ const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 const auth = getAuth(app);
 
-// --- Minimal Firestore-like adapter backed by Supabase ---
+const TABLE_ALIASES = {
+  reports: "cases",
+  report: "cases",
+};
 
-const db = {}; // compatibility placeholder for `getFirestore(app)` usage
+const FIELD_ALIASES = {
+  recipientUid: "recipient_uid",
+  createdAt: "created_at",
+  caseId: "case_id",
+  assignedOfficer: "assigned_officer",
+  assignedOfficerUid: "assigned_officer_uid",
+  firstName: "first_name",
+  lastName: "last_name",
+  fullName: "full_name",
+  updatedAt: "updated_at",
+  reporter: "reporter",
+  caseNumber: "case_number",
+  assignedAt: "assigned_at",
+  resolvedAt: "resolved_at",
+  submittedAt: "submitted_at",
+  reviewedAt: "reviewed_at",
+  created_at: "created_at",
+  recipient_uid: "recipient_uid",
+  case_id: "case_id",
+};
+
+const db = {}; // compatibility placeholder
+
+function normalizeTableName(name) {
+  return TABLE_ALIASES[name] || name;
+}
+
+function normalizeFieldName(field) {
+  return FIELD_ALIASES[field] || field;
+}
 
 function collection(_db, name) {
-  return { table: name };
+  return { table: normalizeTableName(name) };
 }
 
 function doc(a, b, c) {
-  // Supports both doc(collectionRef, id) and doc(db, "collection", id)
-  if (a && a.table && typeof b !== 'undefined') {
-    return { table: a.table, id: String(b) };
+  if (a && a.table && typeof b !== "undefined") {
+    return { table: normalizeTableName(a.table), id: String(b) };
   }
-  // assume form doc(db, "collectionName", id)
-  return { table: String(b), id: String(c) };
+  return { table: normalizeTableName(String(b)), id: String(c) };
 }
 
 function where(field, op, value) {
-  return { type: 'where', field, op, value };
+  return { type: "where", field: normalizeFieldName(field), op, value };
 }
 
-function orderBy(field, dir = 'asc') {
-  return { type: 'orderBy', field, dir };
+function orderBy(field, dir = "asc") {
+  return { type: "orderBy", field: normalizeFieldName(field), dir };
 }
 
 function limit(n) {
-  return { type: 'limit', n };
+  return { type: "limit", n };
 }
 
 function query(colRef, ...constraints) {
-  return { table: colRef.table, constraints };
+  return { table: normalizeTableName(colRef.table), constraints };
 }
 
 async function getDocs(queryRef) {
-  const table = queryRef.table;
-  let builder = supabase.from(table).select('*');
+  const table = normalizeTableName(queryRef.table);
+  let builder = supabase.from(table).select("*");
 
   for (const c of (queryRef.constraints || [])) {
-    if (c.type === 'where') {
+    if (c.type === "where") {
+      const field = normalizeFieldName(c.field);
       switch (c.op) {
-        case '==':
-          builder = builder.eq(c.field, c.value);
+        case "==":
+          builder = builder.eq(field, c.value);
           break;
-        case '!=':
-        case '<>':
-          builder = builder.neq(c.field, c.value);
+        case "!=":
+        case "<>":
+          builder = builder.neq(field, c.value);
           break;
-        case '>':
-          builder = builder.gt(c.field, c.value);
+        case ">":
+          builder = builder.gt(field, c.value);
           break;
-        case '>=':
-          builder = builder.gte(c.field, c.value);
+        case ">=":
+          builder = builder.gte(field, c.value);
           break;
-        case '<':
-          builder = builder.lt(c.field, c.value);
+        case "<":
+          builder = builder.lt(field, c.value);
           break;
-        case '<=':
-          builder = builder.lte(c.field, c.value);
+        case "<=":
+          builder = builder.lte(field, c.value);
           break;
-        case 'array-contains':
-          builder = builder.contains(c.field, [c.value]);
+        case "array-contains":
+          builder = builder.contains(field, [c.value]);
           break;
         default:
-          builder = builder.eq(c.field, c.value);
+          builder = builder.eq(field, c.value);
       }
-    } else if (c.type === 'orderBy') {
-      builder = builder.order(c.field, { ascending: c.dir === 'asc' });
-    } else if (c.type === 'limit') {
+    } else if (c.type === "orderBy") {
+      builder = builder.order(normalizeFieldName(c.field), { ascending: c.dir === "asc" });
+    } else if (c.type === "limit") {
       builder = builder.limit(c.n);
     }
   }
@@ -94,37 +124,39 @@ async function getDocs(queryRef) {
   const { data, error } = await builder;
   if (error) throw error;
 
-  // Mimic Firestore snapshot.docs array of { id, data() }
-  const docs = (data || []).map((row) => ({ id: String(row.id || row.uid || row.uuid || row._id || ''), data: () => row }));
+  const docs = (data || []).map((row) => ({ id: String(row.id || row.uid || row.uuid || row._id || ""), data: () => row }));
   return { docs };
 }
 
 async function getDoc(docRef) {
-  const { data, error } = await supabase.from(docRef.table).select('*').eq('id', docRef.id).maybeSingle();
+  const table = normalizeTableName(docRef.table);
+  const { data, error } = await supabase.from(table).select("*").eq("id", docRef.id).maybeSingle();
   if (error) throw error;
   if (!data) return { exists: () => false, data: () => null };
   return { exists: () => true, data: () => data };
 }
 
 async function addDoc(colRef, data) {
-  const { data: inserted, error } = await supabase.from(colRef.table).insert([data]).select().single();
+  const table = normalizeTableName(colRef.table);
+  const { data: inserted, error } = await supabase.from(table).insert([data]).select().single();
   if (error) throw error;
-  return { id: String(inserted.id || '') };
+  return { id: String(inserted.id || "") };
 }
 
 async function setDoc(docRef, data, options = {}) {
   const payload = { ...data, id: docRef.id };
-  const { error } = await supabase.from(docRef.table).upsert([payload], { onConflict: ['id'] });
+  const table = normalizeTableName(docRef.table);
+  const { error } = await supabase.from(table).upsert([payload], { onConflict: ["id"] });
   if (error) throw error;
 }
 
 async function updateDoc(docRef, data) {
-  const { error } = await supabase.from(docRef.table).update(data).eq('id', docRef.id);
+  const table = normalizeTableName(docRef.table);
+  const { error } = await supabase.from(table).update(data).eq("id", docRef.id);
   if (error) throw error;
 }
 
 function onSnapshot(queryRef, callback, onError) {
-  // Simple polling-based subscription: fetch immediately and then poll every 3s.
   let active = true;
 
   const callNow = async () => {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { db, collection, query, where, orderBy, onSnapshot } from "../firebase";
+import { supabase } from "../supabase";
 
 export function useNotifications(userId) {
   const [notifications, setNotifications] = useState([]);
@@ -11,33 +11,36 @@ export function useNotifications(userId) {
       return;
     }
 
-    console.log("[useNotifications] Setting up listener for userId:", userId);
+    let isActive = true;
+    const loadNotifications = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("notifications")
+          .select("*")
+          .eq("recipient_uid", userId)
+          .order("created_at", { ascending: false });
 
-    try {
-      const q = query(
-        collection(db, "notifications"),
-        where("recipientUid", "==", userId),
-        orderBy("createdAt", "desc")
-      );
+        if (error) throw error;
 
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const notifs = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt
+        const normalized = (data || []).map((row) => ({
+          id: row.id,
+          ...row,
+          recipientUid: row.recipient_uid,
+          actorUid: row.actor_uid,
+          createdAt: row.created_at ? new Date(row.created_at) : null,
+          read: !!row.read,
         }));
 
-        console.log("[useNotifications] Received notifications:", notifs.length, notifs);
-        setNotifications(notifs);
-        setUnreadCount(notifs.filter(n => !n.read).length);
-      }, (error) => {
-        console.error("[useNotifications] Firestore listener error:", error);
-      });
+        if (!isActive) return;
+        setNotifications(normalized);
+        setUnreadCount(normalized.filter((n) => !n.read).length);
+      } catch (error) {
+        console.error("[useNotifications] Supabase listener error:", error);
+      }
+    };
 
-      return () => unsubscribe();
-    } catch (error) {
-      console.error("[useNotifications] Error setting up listener:", error);
-    }
+    loadNotifications();
+    return () => { isActive = false; };
   }, [userId]);
 
   return { notifications, unreadCount };

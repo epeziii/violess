@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../AuthContext";
-import app from "../../firebase";
 import API_BASE_URL from "../../config/api";
 import violessIcon from "../../assets/violessicon.png";
 import "./../../styles/auth.css";
