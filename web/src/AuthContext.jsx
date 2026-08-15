@@ -33,23 +33,32 @@ export const PERMISSIONS = {
 const AuthContext = createContext(null);
 
 async function fetchStaffProfileByEmail(email) {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  if (!normalizedEmail) return null;
+
   const { data, error } = await supabase
     .from("staff")
     .select("*")
-    .eq("email", String(email).toLowerCase())
+    .eq("email", normalizedEmail)
     .maybeSingle();
 
-  if (error) throw error;
-  if (!data) throw new Error("No user profile found");
+  if (error) {
+    if (error.code === "PGRST116") return null;
+    throw error;
+  }
 
-  return { uid: data.id, email: data.email || null, ...data };
+  if (!data) return null;
+  return { uid: data.id, email: data.email || normalizedEmail, ...data };
 }
 
 async function fetchStaffProfileByUid(uid) {
+  const normalizedUid = String(uid || "").trim();
+  if (!normalizedUid) return null;
+
   const { data, error } = await supabase
     .from("staff")
     .select("*")
-    .eq("id", uid)
+    .eq("id", normalizedUid)
     .maybeSingle();
 
   if (!error && data) {
@@ -70,7 +79,7 @@ async function resolveStaffByIdentifier(identifier) {
   const resp = await fetch(`${API_BASE_URL}/resolve-staff`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username: clean }),
+    body: JSON.stringify({ username: clean, email: clean, identifier: clean }),
   });
 
   if (!resp.ok) {
@@ -86,6 +95,43 @@ async function resolveStaffByIdentifier(identifier) {
   return json;
 }
 
+async function resolveStaffProfileForSession(sessionUser) {
+  if (!sessionUser) return null;
+
+  const email = String(sessionUser.email || "").trim().toLowerCase();
+  const uid = String(sessionUser.id || "").trim();
+
+  const directCandidates = await Promise.all([
+    uid ? fetchStaffProfileByUid(uid) : Promise.resolve(null),
+    email ? fetchStaffProfileByEmail(email) : Promise.resolve(null),
+  ]);
+
+  const directProfile = directCandidates.find(Boolean) || null;
+  if (directProfile) {
+    return directProfile;
+  }
+
+  if (email) {
+    try {
+      const resp = await fetch(`${API_BASE_URL}/resolve-staff`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, username: email, identifier: email }),
+      });
+      if (resp.ok) {
+        const json = await resp.json();
+        if (json?.email) {
+          return { uid: json.uid || json.profile?.id || sessionUser.id, email: json.email, ...json.profile, ...json };
+        }
+      }
+    } catch (error) {
+      console.warn("Background staff resolve fallback failed:", error);
+    }
+  }
+
+  return null;
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -99,11 +145,18 @@ export function AuthProvider({ children }) {
 
       if (session?.user) {
         try {
-          let profile = await fetchStaffProfileByUid(session.user.id);
+          const profile = await resolveStaffProfileForSession(session.user);
           if (!profile) {
-            profile = await fetchStaffProfileByEmail(session.user.email);
+            throw new Error("No user profile found");
           }
-          const nextUser = { uid: session.user.id, email: session.user.email, ...profile };
+
+          const nextUser = {
+            uid: profile.uid || profile.id || session.user.id,
+            authUid: session.user.id,
+            email: profile.email || session.user.email,
+            ...profile,
+          };
+
           if (active) {
             setUser(nextUser);
             sessionStorage.setItem("violess_user", JSON.stringify(nextUser));
@@ -134,11 +187,18 @@ export function AuthProvider({ children }) {
       }
 
       try {
-        let profile = await fetchStaffProfileByUid(session.user.id);
+        const profile = await resolveStaffProfileForSession(session.user);
         if (!profile) {
-          profile = await fetchStaffProfileByEmail(session.user.email);
+          throw new Error("No user profile found");
         }
-        const nextUser = { uid: session.user.id, email: session.user.email, ...profile };
+
+        const nextUser = {
+          uid: profile.uid || profile.id || session.user.id,
+          authUid: session.user.id,
+          email: profile.email || session.user.email,
+          ...profile,
+        };
+
         setUser(nextUser);
         sessionStorage.setItem("violess_user", JSON.stringify(nextUser));
       } catch (err) {
@@ -172,10 +232,18 @@ export function AuthProvider({ children }) {
       throw new Error(message);
     }
 
-    let profile = await fetchStaffProfileByUid(data.user.id);
-    if (!profile) profile = await fetchStaffProfileByEmail(email);
+    let profile = await resolveStaffProfileForSession(data.user);
+    if (!profile) {
+      profile = await resolveStaffByIdentifier(email);
+    }
 
-    const nextUser = { uid: data.user.id, email: data.user.email, ...profile };
+    const nextUser = {
+      uid: profile?.uid || profile?.id || data.user.id,
+      authUid: data.user.id,
+      email: profile?.email || data.user.email || email,
+      ...profile,
+    };
+
     setUser(nextUser);
     sessionStorage.setItem("violess_user", JSON.stringify(nextUser));
     return nextUser;

@@ -298,21 +298,34 @@ app.post("/request-password-reset", async (req, res) => {
   }
 });
 
-// Resolve staff by username (used by web client when direct DB access is restricted)
+// Resolve staff by username or email (used by web client when direct DB access is restricted)
 app.post('/resolve-staff', async (req, res) => {
   try {
-    const { username } = req.body;
-    if (!username || !String(username).trim()) return res.status(400).json({ error: 'Username is required' });
+    const { username, email, identifier } = req.body;
+    const lookupValue = String(username || email || identifier || '').trim();
+    if (!lookupValue) return res.status(400).json({ error: 'Username or email is required' });
 
-    const normalizedUsername = String(username).trim();
-    const usernameQuery = await db.collection('staff').where('username', '==', normalizedUsername).limit(1).get();
-    if (usernameQuery.empty) return res.status(404).json({ error: 'No account found for that username.' });
+    const normalizedLookup = lookupValue.trim();
 
-    const staffDoc = usernameQuery.docs[0];
-    const staffData = staffDoc.data();
-    return res.json({ uid: staffDoc.id, email: staffData.email || null, profile: staffData });
+    const usernameQuery = await db.collection('staff').where('username', '==', normalizedLookup).limit(1).get();
+    if (!usernameQuery.empty) {
+      const staffDoc = usernameQuery.docs[0];
+      const staffData = staffDoc.data();
+      return res.json({ uid: staffDoc.id, email: staffData.email || null, profile: staffData });
+    }
+
+    if (normalizedLookup.includes('@')) {
+      const emailQuery = await db.collection('staff').where('email', '==', normalizedLookup.toLowerCase()).limit(1).get();
+      if (!emailQuery.empty) {
+        const staffDoc = emailQuery.docs[0];
+        const staffData = staffDoc.data();
+        return res.json({ uid: staffDoc.id, email: staffData.email || null, profile: staffData });
+      }
+    }
+
+    return res.status(404).json({ error: 'No account found for that username or email.' });
   } catch (err) {
-    console.error('Error resolving staff by username:', err);
+    console.error('Error resolving staff by username/email:', err);
     res.status(500).json({ error: err.message || 'Failed to resolve staff' });
   }
 });
