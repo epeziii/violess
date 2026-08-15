@@ -36,6 +36,16 @@ export const PERMISSIONS = {
 // ─── Auth Context ────────────────────────────────────────────────────────────
 const AuthContext = createContext(null);
 
+async function fetchStaffProfileByUid(uid) {
+  const resp = await fetch(`${API_BASE_URL}/staff/${uid}`);
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.error || "No user profile found");
+  }
+  const json = await resp.json();
+  return { uid: json.uid || uid, email: json.profile?.email || null, ...json.profile };
+}
+
 export function AuthProvider({ children }) {
   const auth = getAuth(app);
   const db = {}; // placeholder db object for compatibility with collection/doc helpers
@@ -47,13 +57,12 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // Get user profile from Firestore
-        const snap = await getDoc(doc(db, "staff", firebaseUser.uid));
-        if (snap.exists()) {
-          const profile = snap.data();
+        try {
+          const profile = await fetchStaffProfileByUid(firebaseUser.uid);
           setUser({ uid: firebaseUser.uid, email: firebaseUser.email, ...profile });
           sessionStorage.setItem("violess_user", JSON.stringify({ uid: firebaseUser.uid, email: firebaseUser.email, ...profile }));
-        } else {
+        } catch (err) {
+          console.warn("Failed to load staff profile via backend:", err);
           setUser(null);
           sessionStorage.removeItem("violess_user");
         }
@@ -104,9 +113,12 @@ export function AuthProvider({ children }) {
       }
       throw err;
     }
-    const staffRef = doc(db, "staff", cred.user.uid);
-    const snap = await getDoc(staffRef);
-    if (!snap.exists()) throw new Error("No user profile found");
+    let profile;
+    try {
+      profile = await fetchStaffProfileByUid(cred.user.uid);
+    } catch (err) {
+      throw new Error(err.message || "No user profile found");
+    }
 
     try {
       await fetch(`${API_BASE_URL}/record-staff-login`, {
@@ -118,8 +130,6 @@ export function AuthProvider({ children }) {
       console.warn("Failed to record lastLogin via backend API:", err);
     }
 
-    const updatedSnap = await getDoc(staffRef);
-    const profile = updatedSnap.data();
     setUser({ uid: cred.user.uid, email: cred.user.email, ...profile });
     sessionStorage.setItem("violess_user", JSON.stringify({ uid: cred.user.uid, email: cred.user.email, ...profile }));
     return { uid: cred.user.uid, email: cred.user.email, ...profile };
