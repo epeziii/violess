@@ -399,14 +399,49 @@ app.get('/staff/:uid', async (req, res) => {
 // ─── UPDATE STAFF PASSWORD ────────────────────────────────────────────
 app.post("/change-staff-password", async (req, res) => {
   try {
-    const { uid, password } = req.body;
-    if (!uid) return res.status(400).json({ error: "UID is required" });
-    if (!password || String(password).trim().length < 6) {
-      return res.status(400).json({ error: "A password of at least 6 characters is required" });
+    const { uid, email, password } = req.body;
+    const targetUid = String(uid || "").trim();
+    const targetEmail = String(email || "").trim().toLowerCase();
+
+    if (!targetUid && !targetEmail) {
+      return res.status(400).json({ error: "UID or email is required" });
     }
 
-    await admin.auth().updateUser(uid, { password: String(password) });
-    res.json({ success: true });
+    if (!password || String(password).trim().length < 8) {
+      return res.status(400).json({ error: "A password of at least 8 characters is required" });
+    }
+
+    let authUserId = targetUid;
+
+    if (!authUserId && targetEmail) {
+      const { data: staffRow, error: staffError } = await supabase
+        .from("staff")
+        .select("id")
+        .eq("email", targetEmail)
+        .maybeSingle();
+
+      if (staffError) throw staffError;
+      if (!staffRow) {
+        return res.status(404).json({ error: "No staff account found for that email." });
+      }
+
+      authUserId = staffRow.id;
+    }
+
+    if (supabase?.auth?.admin?.updateUserById) {
+      const { data, error } = await supabase.auth.admin.updateUserById(authUserId, {
+        password: String(password),
+      });
+
+      if (error) {
+        throw new Error(error.message || "Failed to update password");
+      }
+
+      return res.json({ success: true, uid: data?.user?.id || authUserId });
+    }
+
+    await admin.auth().updateUser(authUserId, { password: String(password) });
+    res.json({ success: true, uid: authUserId });
   } catch (err) {
     console.error("Error changing staff password:", err);
     res.status(500).json({ error: err.message || "Failed to update password" });

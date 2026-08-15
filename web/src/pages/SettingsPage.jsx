@@ -15,7 +15,7 @@ function validatePasswordStrength(password) {
   return failures;
 }
 
-function ChangePasswordModal({ uid, onClose }) {
+function ChangePasswordModal({ uid, email, onClose }) {
   const [passwordForm, setPasswordForm] = useState({
     password: "",
     confirmPassword: "",
@@ -45,7 +45,8 @@ function ChangePasswordModal({ uid, onClose }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          uid,
+          uid: uid,
+          email: email,
           password: passwordForm.password,
         }),
       });
@@ -148,7 +149,11 @@ export default function SettingsPage() {
       </div>
 
       {passwordModalVisible && (
-        <ChangePasswordModal uid={user?.uid} onClose={() => setPasswordModalVisible(false)} />
+        <ChangePasswordModal
+          uid={user?.uid || user?.authUid}
+          email={user?.email}
+          onClose={() => setPasswordModalVisible(false)}
+        />
       )}
     </div>
   );

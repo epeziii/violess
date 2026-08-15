@@ -313,6 +313,7 @@ function ChangePasswordModal({ account, onClose, refreshAccounts }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           uid: account.id,
+          email: account.email,
           password: passwordForm.password,
         }),
       });
