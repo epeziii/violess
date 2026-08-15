@@ -9,8 +9,13 @@ CREATE TABLE IF NOT EXISTS staff (
   email text,
   first_name text,
   last_name text,
+  full_name text,
   role text,
+  status text DEFAULT 'active',
   avatar text,
+  color text DEFAULT 'pink',
+  last_login timestamptz,
+  cases integer DEFAULT 0,
   profile jsonb,
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()

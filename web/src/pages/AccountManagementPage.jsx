@@ -18,6 +18,7 @@ function normalizeStaffRecord(row = {}) {
   const lastName = row.lastName || row.last_name || row.profile?.lastName || "";
   const fullName = row.fullName || row.full_name || row.profile?.fullName || [firstName, lastName].filter(Boolean).join(" ").trim();
   const status = row.status || row.profile?.status || "active";
+  const color = row.color || row.profile?.color || "pink";
 
   return {
     ...row,
@@ -29,7 +30,7 @@ function normalizeStaffRecord(row = {}) {
     email: row.email || "",
     status,
     role: row.role || "officer",
-    color: row.color || row.profile?.color || "pink",
+    color,
     lastLogin: row.lastLogin || row.last_login || row.profile?.last_login || null,
     cases: row.cases ?? row.profile?.cases ?? 0,
   };

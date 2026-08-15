@@ -286,12 +286,8 @@ app.post("/update-staff", async (req, res) => {
       role,
       first_name: resolvedFirst || undefined,
       last_name: resolvedLast || undefined,
-      profile: {
-        status,
-        fullName: computedFullName,
-        firstName: resolvedFirst || undefined,
-        lastName: resolvedLast || undefined,
-      },
+      full_name: computedFullName,
+      status,
       updated_at: new Date().toISOString(),
     };
 
@@ -430,9 +426,7 @@ app.post("/update-staff-status", async (req, res) => {
 
     const normalizedStatus = String(status).trim();
     const { error } = await supabase.from("staff").update({
-      profile: {
-        status: normalizedStatus,
-      },
+      status: normalizedStatus,
       updated_at: new Date().toISOString(),
     }).eq("id", uid);
 
