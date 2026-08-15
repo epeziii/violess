@@ -14,8 +14,7 @@ import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { colors, spacing } from '../theme';
 import { Card } from '../components';
 import { pv, s } from './sharedStyles';
-import { signOut } from 'firebase/auth';
-import { auth } from '../config/firebase';
+import { supabase } from '../config/supabase';
 
 const PREFERENCE_KEY = 'darkMode';
 
@@ -57,7 +56,8 @@ export default function PrivacyScreen({ navigation }) {
           text: 'Log Out',
           onPress: async () => {
             try {
-              await signOut(auth);
+              const { error } = await supabase.auth.signOut();
+              if (error) throw error;
             } catch (error) {
               console.error('Logout error:', error);
               Alert.alert('Error', 'Failed to log out. Please try again.');

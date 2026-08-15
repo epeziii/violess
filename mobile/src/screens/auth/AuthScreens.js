@@ -5,9 +5,7 @@ import {
 } from 'react-native';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { colors, spacing, radius, shadow } from '../../theme';
-import { auth, doc, getDoc, setDoc } from '../../config/firebase';
-
-const db = {};
+import { supabase } from '../../config/supabase';
 
 // ─── Anonymous Report Screen ─────────────────────────────────────────────────
 export function AnonymousScreen({ navigation }) {
@@ -123,13 +121,11 @@ export function RegisterSuccessScreen({ navigation }) {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const currentUser = auth.currentUser;
+        const { data: { session } = {} } = await supabase.auth.getSession();
+        const currentUser = session?.user;
         if (currentUser) {
-          const db = getFirestore();
-          const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-          if (userDoc.exists()) {
-            setUserData(userDoc.data());
-          }
+          const { data: userDoc } = await supabase.from('users').select('*').eq('id', currentUser.id).maybeSingle();
+          if (userDoc) setUserData(userDoc);
         }
       } catch (error) {
         console.error('Error fetching user data:', error);
@@ -197,7 +193,7 @@ export function ForgotPasswordScreen({ navigation }) {
   const handleSend = async () => {
     if (!phone.trim()) return;
     setLoading(true);
-    // TODO: Firebase — sendPasswordResetEmail or phone OTP
+    // TODO: Supabase password reset flow or phone OTP
     await new Promise(r => setTimeout(r, 1000));
     setLoading(false);
     setSent(true);

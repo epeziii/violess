@@ -1,31 +1,24 @@
--- Supabase schema mapping for VIOLES migration from Firestore
--- Run this on your Supabase database (psql or SQL editor)
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
 
--- NOTE: Using text primary keys to preserve existing Firebase-generated IDs.
-
-CREATE TABLE IF NOT EXISTS staff (
-  id text PRIMARY KEY,
+CREATE TABLE public.staff (
+  id text NOT NULL,
   username text,
   email text,
   first_name text,
   last_name text,
-  full_name text,
   role text,
-  status text DEFAULT 'active',
-  color text DEFAULT 'pink',
-  last_login timestamptz,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  status text DEFAULT 'active'::text,
   cases integer DEFAULT 0,
-  profile jsonb,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
+  full_name text,
+  color text DEFAULT 'pink'::text,
+  last_login timestamp with time zone,
+  CONSTRAINT staff_pkey PRIMARY KEY (id)
 );
-
-ALTER TABLE IF EXISTS staff DROP COLUMN IF EXISTS avatar;
-
-CREATE INDEX IF NOT EXISTS staff_email_idx ON staff(email);
-
-CREATE TABLE IF NOT EXISTS users (
-  id text PRIMARY KEY,
+CREATE TABLE public.users (
+  id text NOT NULL,
   first_name text,
   last_name text,
   email text,
@@ -36,129 +29,114 @@ CREATE TABLE IF NOT EXISTS users (
   contact_number text,
   status text,
   registration_complete boolean DEFAULT false,
-  last_login timestamptz,
-  profile jsonb,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
+  last_login timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now(),
+  middle_name text,
+  CONSTRAINT users_pkey PRIMARY KEY (id)
 );
-
-CREATE INDEX IF NOT EXISTS users_email_idx ON users(email);
-
-CREATE TABLE IF NOT EXISTS cases (
-  id text PRIMARY KEY,
+CREATE TABLE public.cases (
+  id text NOT NULL,
   case_number text,
   type text,
   reporter text,
   location text,
   status text,
-  assigned_officer text REFERENCES staff(id) ON DELETE SET NULL,
+  assigned_officer text,
   metadata jsonb,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT cases_pkey PRIMARY KEY (id),
+  CONSTRAINT cases_assigned_officer_fkey FOREIGN KEY (assigned_officer) REFERENCES public.staff(id)
 );
-
-CREATE INDEX IF NOT EXISTS cases_created_idx ON cases(created_at);
-
-CREATE TABLE IF NOT EXISTS messages (
-  id text PRIMARY KEY,
-  case_id text REFERENCES cases(id) ON DELETE CASCADE,
+CREATE TABLE public.messages (
+  id text NOT NULL,
+  case_id text,
   sender_uid text,
   content text,
   attachments jsonb,
-  created_at timestamptz DEFAULT now()
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT messages_pkey PRIMARY KEY (id),
+  CONSTRAINT messages_case_id_fkey FOREIGN KEY (case_id) REFERENCES public.cases(id)
 );
-
-CREATE INDEX IF NOT EXISTS messages_case_idx ON messages(case_id);
-
-CREATE TABLE IF NOT EXISTS notifications (
-  id text PRIMARY KEY,
+CREATE TABLE public.notifications (
+  id text NOT NULL,
   recipient_uid text,
   actor_uid text,
   title text,
   body text,
   payload jsonb,
   read boolean DEFAULT false,
-  created_at timestamptz DEFAULT now()
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT notifications_pkey PRIMARY KEY (id)
 );
-
-CREATE INDEX IF NOT EXISTS notifications_recipient_idx ON notifications(recipient_uid);
-
-CREATE TABLE IF NOT EXISTS help_centers (
-  id text PRIMARY KEY,
+CREATE TABLE public.help_centers (
+  id text NOT NULL,
   name text,
   address text,
   contact_info jsonb,
   metadata jsonb,
-  created_at timestamptz DEFAULT now()
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT help_centers_pkey PRIMARY KEY (id)
 );
-
-CREATE TABLE IF NOT EXISTS activity_logs (
-  id text PRIMARY KEY,
-  case_id text REFERENCES cases(id) ON DELETE CASCADE,
+CREATE TABLE public.activity_logs (
+  id text NOT NULL,
+  case_id text,
   log_id text,
-  timestamp timestamptz DEFAULT now(),
+  timestamp timestamp with time zone DEFAULT now(),
   action text,
   action_by text,
   action_by_name text,
   from_status text,
   to_status text,
   notes text,
-  metadata jsonb
+  metadata jsonb,
+  CONSTRAINT activity_logs_pkey PRIMARY KEY (id),
+  CONSTRAINT activity_logs_case_id_fkey FOREIGN KEY (case_id) REFERENCES public.cases(id)
 );
-
-CREATE TABLE IF NOT EXISTS resolutions (
-  id text PRIMARY KEY,
+CREATE TABLE public.resolutions (
+  id text NOT NULL,
   resolution_id text,
-  case_id text REFERENCES cases(id) ON DELETE CASCADE,
+  case_id text,
   submitted_by text,
   submitted_by_name text,
-  submitted_at timestamptz,
+  submitted_at timestamp with time zone,
   notes text,
-  completion_date timestamptz,
+  completion_date timestamp with time zone,
   evidence_urls jsonb,
   status text,
   reviewed_by text,
   reviewed_by_name text,
-  reviewed_at timestamptz,
-  review_comments text
+  reviewed_at timestamp with time zone,
+  review_comments text,
+  CONSTRAINT resolutions_pkey PRIMARY KEY (id),
+  CONSTRAINT resolutions_case_id_fkey FOREIGN KEY (case_id) REFERENCES public.cases(id)
 );
-
-CREATE TABLE IF NOT EXISTS evidence_files (
-  id text PRIMARY KEY,
-  case_id text REFERENCES cases(id) ON DELETE CASCADE,
+CREATE TABLE public.evidence_files (
+  id text NOT NULL,
+  case_id text,
   filename text,
   url text,
   storage_meta jsonb,
-  created_at timestamptz DEFAULT now()
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT evidence_files_pkey PRIMARY KEY (id),
+  CONSTRAINT evidence_files_case_id_fkey FOREIGN KEY (case_id) REFERENCES public.cases(id)
 );
-
-CREATE TABLE IF NOT EXISTS access_logs (
-  id text PRIMARY KEY,
-  file_id text REFERENCES evidence_files(id) ON DELETE CASCADE,
+CREATE TABLE public.access_logs (
+  id text NOT NULL,
+  file_id text,
   action text,
   actor_uid text,
   metadata jsonb,
-  created_at timestamptz DEFAULT now()
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT access_logs_pkey PRIMARY KEY (id),
+  CONSTRAINT access_logs_file_id_fkey FOREIGN KEY (file_id) REFERENCES public.evidence_files(id)
 );
-
--- Generic communications/referrals table
-CREATE TABLE IF NOT EXISTS communications (
-  id text PRIMARY KEY,
-  case_id text REFERENCES cases(id) ON DELETE SET NULL,
+CREATE TABLE public.communications (
+  id text NOT NULL,
+  case_id text,
   type text,
   payload jsonb,
-  created_at timestamptz DEFAULT now()
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT communications_pkey PRIMARY KEY (id),
+  CONSTRAINT communications_case_id_fkey FOREIGN KEY (case_id) REFERENCES public.cases(id)
 );
-
--- Utility: function to keep updated_at in sync
-CREATE OR REPLACE FUNCTION trigger_set_timestamp()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = now();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER staff_updated_at BEFORE UPDATE ON staff FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
-CREATE TRIGGER users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
-CREATE TRIGGER cases_updated_at BEFORE UPDATE ON cases FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();

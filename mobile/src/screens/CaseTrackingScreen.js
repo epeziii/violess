@@ -4,7 +4,7 @@ import { View, Text, ScrollView, TouchableOpacity, StatusBar, ActivityIndicator,
 import { colors, spacing } from '../theme';
 import { Card, StatusBadge, TimelineStep, Avatar, Button } from '../components';
 import { s } from './sharedStyles';
-import { auth } from '../config/firebase';
+import { supabase } from '../config/supabase';
 import { API_BASE_URL } from '../config/api';
 
 export default function CaseTrackingScreen({ navigation }) {
@@ -56,17 +56,18 @@ export default function CaseTrackingScreen({ navigation }) {
         setLoading(true);
         setError(null);
 
-        const currentUser = auth.currentUser;
+        const { data: { session } = {} } = await supabase.auth.getSession();
+        const currentUser = session?.user;
         if (!currentUser) {
           setError("No user logged in");
           setLoading(false);
           return;
         }
 
-        console.log('🔍 [Track] Fetching cases for uid:', currentUser.uid);
+        console.log('🔍 [Track] Fetching cases for uid:', currentUser.id);
         console.log('🔗 [Track] Using API:', API_BASE_URL);
         
-        const data = await fetchWithRetry(`${API_BASE_URL}/user/${currentUser.uid}/cases`, 2);
+        const data = await fetchWithRetry(`${API_BASE_URL}/user/${currentUser.id}/cases`, 2);
         
         console.log('📱 [Track] Backend response:', data);
         
@@ -154,7 +155,8 @@ export default function CaseTrackingScreen({ navigation }) {
 
     const updateUnread = async () => {
       try {
-        const currentUser = auth.currentUser;
+        const { data: { session } = {} } = await supabase.auth.getSession();
+        const currentUser = session?.user;
         if (!currentUser) return;
 
         const map = {};
@@ -162,7 +164,7 @@ export default function CaseTrackingScreen({ navigation }) {
         for (const c of cases) {
           try {
             const resp = await fetch(`${API_BASE_URL}/case/${c.id}/messages`, {
-              headers: { 'x-user-id': currentUser.uid },
+              headers: { 'x-user-id': currentUser.id },
             });
             const data = await resp.json();
             if (!data?.success || !Array.isArray(data.messages)) continue;

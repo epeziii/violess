@@ -6,9 +6,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native
 import { FontAwesome6 } from '@expo/vector-icons';
 import { colors } from '../theme';
 
-// 🔥 Firebase
-import { auth, doc, getDoc, onSnapshot, updateDoc, collection, query, where } from '../config/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
+import { supabase } from '../config/supabase';
 
 // Auth Screens
 import WelcomeScreen from '../screens/auth/WelcomeScreen';
@@ -164,68 +162,52 @@ export default function AppNavigator() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let unsubAuth, unsubFirestore;
+    let active = true;
 
-    unsubAuth = onAuthStateChanged(auth, async (u) => {
-      if (u) {
-        // Verify user is in "users" collection (mobile user, not staff)
-        try {
-          const userDoc = await getDoc(doc(db, 'users', u.uid));
-          if (userDoc.exists()) {
-            // User is a valid mobile user
-            // Only set user if registration is complete
-            if (userDoc.data().registrationComplete === true) {
-              setUser(u);
-              // Ensure any old unsubFirestore is cleaned up
-              unsubFirestore?.();
-              unsubFirestore = undefined;
-            } else {
-              // Registration not complete, stay in auth flow
-              setUser(null);
-              // Unsubscribe from any old listener first
-              unsubFirestore?.();
-              // Listen for when registrationComplete becomes true (e.g., after RegisterSuccessScreen)
-              const unsubUser = onSnapshot(
-                doc(db, 'users', u.uid),
-                async (snap) => {
-                  if (snap.exists() && snap.data().registrationComplete === true) {
-                    console.log('Registration completed detected, logging in user');
-                    setUser(u);
-                  }
-                },
-                (error) => {
-                  console.warn('Note: Waiting for registration to complete...', error.code);
-                  // Listener error is expected while registration is in progress
-                  // The listener will retry automatically
-                }
-              );
-              unsubFirestore = unsubUser;
-            }
-          } else {
-            // User exists in Firebase Auth but not in "users" collection
-            // This is likely a staff account that shouldn't have mobile access
-            unsubFirestore?.();
-            await auth.signOut();
-            setUser(null);
-          }
-        } catch (error) {
-          console.error('Error verifying user:', error);
-          unsubFirestore?.();
-          await auth.signOut();
-          setUser(null);
+    const syncUser = async () => {
+      try {
+        const { data: { session } = {}, error } = await supabase.auth.getSession();
+        if (error) throw error;
+
+        const currentUser = session?.user ?? null;
+        if (!currentUser) {
+          if (active) setUser(null);
+          if (active) setLoading(false);
+          return;
         }
-      } else {
-        // User logged out - clean up any existing listeners
-        unsubFirestore?.();
-        unsubFirestore = undefined;
-        setUser(null);
+
+        const { data: profile, error: profileError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', currentUser.id)
+          .maybeSingle();
+
+        if (profileError) throw profileError;
+
+        const isValidMobileUser = !!profile && (profile.registration_complete ?? profile.registrationComplete ?? true) !== false;
+        if (active) setUser(isValidMobileUser ? currentUser : null);
+      } catch (error) {
+        console.error('Error verifying Supabase user session:', error);
+        if (active) {
+          setUser(null);
+          try { await supabase.auth.signOut(); } catch (signOutError) { console.warn('Sign out cleanup failed', signOutError); }
+        }
+      } finally {
+        if (active) setLoading(false);
       }
+    };
+
+    syncUser();
+
+    const { data: { subscription } = {} } = supabase.auth.onAuthStateChange((event, session) => {
+      const nextUser = session?.user ?? null;
+      setUser(nextUser);
       setLoading(false);
     });
 
     return () => {
-      unsubAuth?.();
-      unsubFirestore?.();
+      active = false;
+      subscription?.unsubscribe?.();
     };
   }, []);
 

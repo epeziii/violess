@@ -6,15 +6,7 @@ import {
 } from 'react-native';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { colors, spacing, radius, shadow } from '../../theme';
-import { auth } from '../../config/firebase';
-import {
-  createUserWithEmailAndPassword,
-  sendEmailVerification,
-  reload,
-  signInWithEmailAndPassword,
-  onAuthStateChanged,
-} from 'firebase/auth';
-import { doc, setDoc, Timestamp } from '../../config/firebase';
+import { supabase } from '../../config/supabase';
 
 const STEPS = ['Account', 'Check Email', 'Profile'];
 
@@ -41,7 +33,14 @@ const BARANGAYS = [
 
 const capitalize = (str) => {
   if (!str) return '';
-  return str.trim().charAt(0).toUpperCase() + str.trim().slice(1);
+  return str.trim().replace(/\s+/g, ' ').split(' ').map(word => {
+    if (!word) return '';
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  }).join(' ');
+};
+
+const formatNameInput = (value) => {
+  return value.replace(/\s+/g, ' ').trimStart();
 };
 
 export default function RegisterScreen({ navigation }) {
@@ -65,10 +64,17 @@ export default function RegisterScreen({ navigation }) {
 
   // Listen to auth state changes to reliably get current user
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
-      setCurrentUser(u);
+    const syncCurrentUser = async () => {
+      const { data: { session } = {} } = await supabase.auth.getSession();
+      setCurrentUser(session?.user ?? null);
+    };
+    syncCurrentUser();
+
+    const { data: { subscription } = {} } = supabase.auth.onAuthStateChange((event, session) => {
+      setCurrentUser(session?.user ?? null);
     });
-    return unsub;
+
+    return () => subscription?.unsubscribe?.();
   }, []);
 
   const pwStrength = () => {
@@ -97,29 +103,12 @@ export default function RegisterScreen({ navigation }) {
       }
       setLoading(true);
       try {
-        // Create Firebase account
-        const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
-
-        // Send verification email using Firebase
-        await sendEmailVerification(userCredential.user);
-
-        // Save user data to Supabase (Firestore compatibility shim)
-        const db = {};
-        const userData = {
-          firstName: capitalize(firstName),
-          lastName: capitalize(lastName),
+        const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
-          barangay: '',
-          role: '',
-          status: 'active',
-          registrationComplete: false,
-          accountCreated: Timestamp.now(),
-          lastLogin: Timestamp.now(),
-        };
-        console.log('Creating user doc for uid:', userCredential.user.uid);
-        console.log('User data:', userData);
-        await setDoc(doc(db, 'users', userCredential.user.uid), userData);
-        console.log('User document created successfully in Step 0');
+          password,
+        });
+
+        if (error) throw error;
 
         setLoading(false);
         setStep(1);
@@ -132,21 +121,21 @@ export default function RegisterScreen({ navigation }) {
           errorMsg = 'Invalid email address.';
         } else if (err.code === 'auth/weak-password') {
           errorMsg = 'Password is too weak.';
+        } else if (/rate limit|too many requests|email.*limit/i.test(err.message || '')) {
+          errorMsg = 'Verification emails are temporarily rate-limited. Please wait a few minutes and try again.';
         }
         setError(errorMsg);
       }
     } else if (step === 1) {
       // Verify email and proceed to profile collection
-      const user = auth.currentUser;
+      const { data: { session } = {} } = await supabase.auth.getSession();
+      const user = session?.user;
       if (!user) {
         setError('Please verify your email first by clicking the link.');
         return;
       }
 
-      // Refresh auth state to get latest email verification status from Firebase
-      await reload(user);
-
-      if (!user.emailVerified) {
+      if (!user.email_confirmed_at) {
         setError('Please verify your email first by clicking the link.');
         return;
       }
@@ -173,26 +162,29 @@ export default function RegisterScreen({ navigation }) {
       }
 
       try {
-      const user = auth.currentUser;
-      if (!user) throw new Error('No user logged in');
+        const { data: { session } = {} } = await supabase.auth.getSession();
+        const user = session?.user;
+        if (!user) throw new Error('No user logged in');
 
-      const db = {};
+        const { error: profileError } = await supabase.from('users').upsert([
+          {
+            id: user.id,
+            first_name: capitalize(firstName),
+            middle_name: middleName ? capitalize(middleName) : null,
+            last_name: capitalize(lastName),
+            email: email.trim(),
+            barangay: barangay.trim(),
+            city: 'Olongapo',
+            role,
+            emergency: emergency.trim(),
+            contact_number: contactNum.trim(),
+            status: 'active',
+            registration_complete: true,
+            last_login: new Date().toISOString(),
+          }
+        ], { onConflict: 'id' });
 
-      // Update the user's record in Supabase (via Firestore-shim API)
-        // Do NOT set registrationComplete yet - wait until RegisterSuccessScreen
-        await setDoc(doc(db, 'users', user.uid), {
-          firstName: capitalize(firstName),
-          lastName: capitalize(lastName),
-          email: email.trim(),
-          barangay: barangay.trim(),
-          city: 'Olongapo City',
-          role,
-          emergency: emergency.trim(),
-          contactNumber: contactNum.trim(),
-          status: 'active',
-          registrationComplete: false,
-          lastLogin: Timestamp.now(),
-        }, { merge: true });
+        if (profileError) throw profileError;
 
         setLoading(false);
         navigation.replace('RegisterSuccess');
@@ -209,15 +201,20 @@ export default function RegisterScreen({ navigation }) {
   const handleResendEmail = async () => {
     setError('');
     try {
-      const user = auth.currentUser;
-      if (!user) {
+      const { data: { session } = {} } = await supabase.auth.getSession();
+      const user = session?.user;
+      if (!user || !user.email) {
         setError('Please wait a moment for your session to load...');
         return;
       }
-      await sendEmailVerification(user);
+      const { error } = await supabase.auth.resend({ type: 'signup', email: user.email });
+      if (error) throw error;
       alert('Verification email sent! Check your inbox.');
     } catch (err) {
-      setError('Failed to resend email: ' + err.message);
+      const rateLimited = /rate limit|too many requests|email.*limit/i.test(err.message || '');
+      setError(rateLimited
+        ? 'Too many verification emails sent. Please wait a few minutes before trying again.'
+        : 'Failed to resend email: ' + (err.message || 'Unknown error'));
     }
   };
 
@@ -291,7 +288,7 @@ export default function RegisterScreen({ navigation }) {
                   placeholder="Your first name"
                   placeholderTextColor={colors.placeholder}
                   value={firstName}
-                  onChangeText={setFirstName}
+                  onChangeText={(text) => setFirstName(formatNameInput(capitalize(text)))}
                 />
               </View>
             </View>
@@ -305,7 +302,7 @@ export default function RegisterScreen({ navigation }) {
                   placeholder="Your last name"
                   placeholderTextColor={colors.placeholder}
                   value={lastName}
-                  onChangeText={setLastName}
+                  onChangeText={(text) => setLastName(formatNameInput(capitalize(text)))}
                 />
               </View>
             </View>
@@ -319,7 +316,7 @@ export default function RegisterScreen({ navigation }) {
                   placeholder="Your middle name"
                   placeholderTextColor={colors.placeholder}
                   value={middleName}
-                  onChangeText={setMiddleName}
+                  onChangeText={(text) => setMiddleName(formatNameInput(capitalize(text)))}
                 />
               </View>
             </View>

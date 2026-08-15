@@ -6,9 +6,7 @@ import {
 import { colors, spacing, radius, shadow } from '../theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Card, QuickCard, SectionHeader } from '../components';
-import { auth, doc, getDoc } from '../config/firebase';
-
-const db = {};
+import { supabase } from '../config/supabase';
 import { API_BASE_URL } from '../config/api';
 
 const { width } = Dimensions.get('window');
@@ -34,13 +32,15 @@ export default function HomeScreen({ navigation }) {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const currentUser = auth.currentUser;
+        const { data: { session } = {} } = await supabase.auth.getSession();
+        const currentUser = session?.user;
         if (currentUser) {
-          const db = getFirestore();
-          const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-          if (userDoc.exists()) {
-            setUserData(userDoc.data());
-          }
+          const { data: userDoc } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', currentUser.id)
+            .maybeSingle();
+          if (userDoc) setUserData(userDoc);
         }
       } catch (error) {
         console.error('Error fetching user data:', error);
@@ -90,17 +90,18 @@ export default function HomeScreen({ navigation }) {
         setRecentCasesLoading(true);
         setRecentCasesError(null);
 
-        const currentUser = auth.currentUser;
+        const { data: { session } = {} } = await supabase.auth.getSession();
+        const currentUser = session?.user;
         if (!currentUser) {
           setRecentCases([]);
           setActiveCasesCount(0);
           return;
         }
 
-        console.log('🔍 [Home] Fetching cases for uid:', currentUser.uid);
+        console.log('🔍 [Home] Fetching cases for uid:', currentUser.id);
         console.log('🔗 [Home] Using API:', API_BASE_URL);
 
-        const data = await fetchWithRetry(`${API_BASE_URL}/user/${currentUser.uid}/cases`);
+        const data = await fetchWithRetry(`${API_BASE_URL}/user/${currentUser.id}/cases`);
 
         console.log('📱 [Home] Backend response:', data);
 
@@ -222,7 +223,8 @@ export default function HomeScreen({ navigation }) {
 
     const updateUnread = async () => {
       try {
-        const currentUser = auth.currentUser;
+        const { data: { session } = {} } = await supabase.auth.getSession();
+        const currentUser = session?.user;
         if (!currentUser) return;
 
         const map = {};
@@ -230,7 +232,7 @@ export default function HomeScreen({ navigation }) {
         for (const id of Array.from(new Set(userCaseIds))) {
           try {
             const resp = await fetch(`${API_BASE_URL}/case/${id}/messages`, {
-              headers: { 'x-user-id': currentUser.uid },
+              headers: { 'x-user-id': currentUser.id },
             });
             const data = await resp.json();
             if (!data?.success || !Array.isArray(data.messages)) continue;

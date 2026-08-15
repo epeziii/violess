@@ -5,7 +5,7 @@ import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import * as DocumentPicker from 'expo-document-picker';
 import { ch, s } from './sharedStyles';
 import { colors, spacing } from '../theme';
-import { auth, db, collection, query, where, onSnapshot, orderBy, addDoc, getDoc, doc, getDocs, updateDoc, arrayUnion } from '../config/firebase';
+import { supabase } from '../config/supabase';
 import { API_BASE_URL } from '../config/api';
 
 const formatMessageTime = (timestamp) => {
@@ -14,7 +14,7 @@ const formatMessageTime = (timestamp) => {
   try {
     let date;
     
-    // Firebase Timestamp
+    // Supabase Timestamp / ISO string
     if (timestamp.toDate) {
       date = timestamp.toDate();
     } 
@@ -115,22 +115,22 @@ export default function ChatScreen({ navigation, route }) {
       }
 
       try {
-        const currentUser = auth.currentUser;
+        const { data: { session } = {} } = await supabase.auth.getSession();
+        const currentUser = session?.user;
         if (!currentUser) {
           setLoading(false);
           return;
         }
 
-        // Query for the case
-        const casesQuery = query(
-          collection(db, "reports"),
-          where("caseId", "==", caseId),
-          where("uid", "==", currentUser.uid)
-        );
+        const { data: foundCase, error: caseError } = await supabase
+          .from('reports')
+          .select('*')
+          .eq('caseId', caseId)
+          .eq('uid', currentUser.id)
+          .maybeSingle();
 
-        const snapshot = await getDocs(casesQuery);
-        if (!snapshot.empty) {
-          const foundCase = snapshot.docs[0].data();
+        if (caseError) throw caseError;
+        if (foundCase) {
           setCaseData(foundCase);
           setOfficerName(foundCase.assignedOfficer || 'Officer');
         }
@@ -165,22 +165,23 @@ export default function ChatScreen({ navigation, route }) {
       return;
     }
 
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      setMessages([]);
-      setLoading(false);
-      return;
-    }
-
     let isMounted = true;
 
     const fetchMessages = async () => {
+      const { data: { session } = {} } = await supabase.auth.getSession();
+      const currentUser = session?.user;
+      if (!currentUser) {
+        setMessages([]);
+        setLoading(false);
+        return;
+      }
+
       try {
         const response = await fetch(
           `${API_BASE_URL}/case/${caseId}/messages`,
           {
             headers: {
-              "x-user-id": currentUser.uid,
+              "x-user-id": currentUser.id,
             },
           }
         );
@@ -285,48 +286,43 @@ export default function ChatScreen({ navigation, route }) {
 
     try {
       setSending(true);
-      const currentUser = auth.currentUser;
+      const { data: { session } = {} } = await supabase.auth.getSession();
+      const currentUser = session?.user;
       if (!currentUser) return;
 
-      // Get user info for the message
-      const userDocRef = doc(db, "users", currentUser.uid);
-      const userSnap = await getDoc(userDocRef);
-      if (!userSnap.exists()) {
-        console.error("User profile not found");
+      const { data: userData } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', currentUser.id)
+        .maybeSingle();
+
+      if (!userData) {
+        console.error('User profile not found');
         return;
       }
 
-      const userData = userSnap.data();
-      const reporterName = `${userData.firstName} ${userData.lastName}`.trim();
+      const reporterName = `${userData.first_name || userData.firstName || ''} ${userData.last_name || userData.lastName || ''}`.trim();
 
-      // Get case to find assigned officer uid
-      const casesQuery = query(
-        collection(db, "reports"),
-        where("caseId", "==", caseId),
-        where("uid", "==", currentUser.uid)
-      );
-
-      let officerUid = "";
-      let assignedOfficerName = "";
+      let officerUid = '';
+      let assignedOfficerName = '';
 
       try {
-        const caseSnapshot = await getDocs(casesQuery);
-        if (!caseSnapshot.empty) {
-          const caseData = caseSnapshot.docs[0].data();
-          assignedOfficerName = caseData.assignedOfficer || "";
+        const { data: caseData } = await supabase
+          .from('reports')
+          .select('*')
+          .eq('caseId', caseId)
+          .eq('uid', currentUser.id)
+          .maybeSingle();
 
-          // Look up the officer's UID by staff name
+        if (caseData) {
+          assignedOfficerName = caseData.assignedOfficer || '';
+
           if (assignedOfficerName) {
-            const staffQuery = query(
-              collection(db, "staff"),
-              where("firstName", "!=", "")
-            );
-            const staffSnapshot = await getDocs(staffQuery);
-            for (const staffDoc of staffSnapshot.docs) {
-              const staffData = staffDoc.data();
-              const fullName = `${staffData.firstName} ${staffData.lastName}`.trim();
+            const { data: staffRows = [] } = await supabase.from('staff').select('*');
+            for (const staffRow of staffRows) {
+              const fullName = `${staffRow.first_name || staffRow.firstName || ''} ${staffRow.last_name || staffRow.lastName || ''}`.trim();
               if (fullName === assignedOfficerName) {
-                officerUid = staffDoc.id;
+                officerUid = staffRow.id;
                 break;
               }
             }
@@ -334,18 +330,20 @@ export default function ChatScreen({ navigation, route }) {
         }
       } catch (error) {
         console.warn('Could not look up officer UID:', error.message);
-        // Continue without officer UID
       }
 
-      // Add message to Firestore
-      await addDoc(collection(db, "messages", caseId, "messages"), {
+      const { error: insertError } = await supabase.from('messages').insert([{
+        case_id: caseId,
+        sender_uid: currentUser.id,
+        content: messageText,
         from: 'reporter',
-        reporterUid: currentUser.uid,
-        reporterName: reporterName,
-        officerUid: officerUid || "",
-        text: messageText,
-        timestamp: new Date(),
-      });
+        reporterUid: currentUser.id,
+        reporterName,
+        officerUid: officerUid || '',
+        created_at: new Date().toISOString(),
+      }]);
+
+      if (insertError) throw insertError;
 
       // Reset reason input if used
       if (showReasonFor) {
@@ -406,49 +404,47 @@ export default function ChatScreen({ navigation, route }) {
         return;
       }
 
-      const currentUser = auth.currentUser;
+      const { data: { session } = {} } = await supabase.auth.getSession();
+      const currentUser = session?.user;
       if (!currentUser) {
         setUploading(false);
         return;
       }
 
-      const userDocRef = doc(db, "users", currentUser.uid);
-      const userSnap = await getDoc(userDocRef);
-      if (!userSnap.exists()) {
-        console.error("User profile not found");
+      const { data: userData } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', currentUser.id)
+        .maybeSingle();
+
+      if (!userData) {
+        console.error('User profile not found');
         setUploading(false);
         return;
       }
 
-      const userData = userSnap.data();
-      const reporterName = `${userData.firstName} ${userData.lastName}`.trim();
+      const reporterName = `${userData.first_name || userData.firstName || ''} ${userData.last_name || userData.lastName || ''}`.trim();
 
-      const casesQuery = query(
-        collection(db, "reports"),
-        where("caseId", "==", caseId),
-        where("uid", "==", currentUser.uid)
-      );
-
-      let officerUid = "";
-      let assignedOfficerName = "";
+      let officerUid = '';
+      let assignedOfficerName = '';
 
       try {
-        const caseSnapshot = await getDocs(casesQuery);
-        if (!caseSnapshot.empty) {
-          const caseData = caseSnapshot.docs[0].data();
-          assignedOfficerName = caseData.assignedOfficer || "";
+        const { data: caseData } = await supabase
+          .from('reports')
+          .select('*')
+          .eq('caseId', caseId)
+          .eq('uid', currentUser.id)
+          .maybeSingle();
+
+        if (caseData) {
+          assignedOfficerName = caseData.assignedOfficer || '';
 
           if (assignedOfficerName) {
-            const staffQuery = query(
-              collection(db, "staff"),
-              where("firstName", "!=", "")
-            );
-            const staffSnapshot = await getDocs(staffQuery);
-            for (const staffDoc of staffSnapshot.docs) {
-              const staffData = staffDoc.data();
-              const fullName = `${staffData.firstName} ${staffData.lastName}`.trim();
+            const { data: staffRows = [] } = await supabase.from('staff').select('*');
+            for (const staffRow of staffRows) {
+              const fullName = `${staffRow.first_name || staffRow.firstName || ''} ${staffRow.last_name || staffRow.lastName || ''}`.trim();
               if (fullName === assignedOfficerName) {
-                officerUid = staffDoc.id;
+                officerUid = staffRow.id;
                 break;
               }
             }
@@ -460,17 +456,21 @@ export default function ChatScreen({ navigation, route }) {
 
       const fileMessage = `📎 ${uploadResult.originalName}`;
 
-      await addDoc(collection(db, "messages", caseId, "messages"), {
+      const { error: insertError } = await supabase.from('messages').insert([{
+        case_id: caseId,
+        sender_uid: currentUser.id,
+        content: fileMessage,
         from: 'reporter',
-        reporterUid: currentUser.uid,
-        reporterName: reporterName,
-        officerUid: officerUid || "",
-        text: fileMessage,
+        reporterUid: currentUser.id,
+        reporterName,
+        officerUid: officerUid || '',
         fileUrl: uploadResult.url,
         fileName: uploadResult.originalName,
         isEvidence: true,
-        timestamp: new Date(),
-      });
+        created_at: new Date().toISOString(),
+      }]);
+
+      if (insertError) throw insertError;
 
       Alert.alert('Success', 'File uploaded and sent!');
       setUploading(false);

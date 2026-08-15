@@ -7,9 +7,7 @@ import {
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { colors, spacing, radius } from '../theme';
 import { Card, Button } from '../components';
-import { auth, doc, getDoc } from '../config/firebase';
-
-const db = {};
+import { supabase } from '../config/supabase';
 import { API_BASE_URL } from '../config/api';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -59,14 +57,13 @@ const [showTimePicker, setShowTimePicker] = useState(false);
   useEffect(() => {
     const loadReporterContactInfo = async () => {
       try {
-        const uid = auth.currentUser?.uid;
+        const { data: { session } = {} } = await supabase.auth.getSession();
+        const uid = session?.user?.id;
         if (!uid) return;
-        const db = getFirestore();
-        const userDoc = await getDoc(doc(db, 'users', uid));
-        if (userDoc.exists()) {
-          const data = userDoc.data();
-          setContactNumber(data.contactNumber || '');
-          setEmergencyContact(data.emergency || data.emergencyContact || '');
+        const { data: userDoc } = await supabase.from('users').select('*').eq('id', uid).maybeSingle();
+        if (userDoc) {
+          setContactNumber(userDoc.contact_number || userDoc.contactNumber || '');
+          setEmergencyContact(userDoc.emergency || userDoc.emergencyContact || '');
         }
       } catch (error) {
         console.error('Error loading reporter contact info:', error);
@@ -178,7 +175,8 @@ const [showTimePicker, setShowTimePicker] = useState(false);
     setIsLoading(true);
 
     try {
-      const uid = auth.currentUser?.uid;
+      const { data: { session } = {} } = await supabase.auth.getSession();
+      const uid = session?.user?.id;
       if (!uid) {
         Alert.alert('Error', 'User not authenticated');
         setIsLoading(false);
@@ -187,14 +185,13 @@ const [showTimePicker, setShowTimePicker] = useState(false);
 
       if (!isAnonymous && (!contactNumber || !emergencyContact)) {
         try {
-          const uid = auth.currentUser?.uid;
+          const { data: { session } = {} } = await supabase.auth.getSession();
+          const uid = session?.user?.id;
           if (uid) {
-            const db = getFirestore();
-            const userDoc = await getDoc(doc(db, 'users', uid));
-            if (userDoc.exists()) {
-              const data = userDoc.data();
-              setContactNumber(prev => prev || data.contactNumber || data.phone || data.phoneNumber || '');
-              setEmergencyContact(prev => prev || data.emergency || data.emergencyContact || '');
+            const { data: userDoc } = await supabase.from('users').select('*').eq('id', uid).maybeSingle();
+            if (userDoc) {
+              setContactNumber(prev => prev || userDoc.contact_number || userDoc.contactNumber || userDoc.phone || userDoc.phoneNumber || '');
+              setEmergencyContact(prev => prev || userDoc.emergency || userDoc.emergencyContact || '');
             }
           }
         } catch (loadError) {

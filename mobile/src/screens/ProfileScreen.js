@@ -5,9 +5,7 @@ import {
 } from 'react-native';
 import { colors, spacing, radius } from '../theme';
 import { Card } from '../components';
-import { auth, doc, getDoc } from '../config/firebase';
-
-const db = {};
+import { supabase } from '../config/supabase';
 
 export default function ProfileScreen({ navigation }) {
   const [userData, setUserData] = useState(null);
@@ -16,13 +14,11 @@ export default function ProfileScreen({ navigation }) {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const currentUser = auth.currentUser;
+        const { data: { session } = {} } = await supabase.auth.getSession();
+        const currentUser = session?.user;
         if (currentUser) {
-          const db = getFirestore();
-          const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-          if (userDoc.exists()) {
-            setUserData(userDoc.data());
-          }
+          const { data: userDoc } = await supabase.from('users').select('*').eq('id', currentUser.id).maybeSingle();
+          if (userDoc) setUserData(userDoc);
         }
       } catch (error) {
         console.error('Error fetching user data:', error);

@@ -8,9 +8,7 @@ import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { colors, spacing, radius, shadow } from '../../theme';
 import violessIcon from '../../../assets/images/violessicon.png';
 
-// 🔥 Firebase
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth, doc, setDoc } from '../../config/firebase';
+import { supabase } from '../../config/supabase';
 
 const db = {};
 
@@ -34,7 +32,7 @@ export default function LoginScreen({ navigation }) {
     ]).start();
   };
 
-  // 🔑 Handle Firebase login
+  // 🔑 Handle Supabase login
   const handleLogin = async () => {
     if (!email.trim() || !password) {
       setError('Please fill in all fields.');
@@ -46,17 +44,16 @@ export default function LoginScreen({ navigation }) {
     setLoading(true);
 
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
 
-      // Mark registration as complete for this user
-      const db = getFirestore();
-      await setDoc(doc(db, 'users', userCredential.user.uid), {
-        registrationComplete: true,
-      }, { merge: true });
+      if (error) throw error;
 
-      // ✅ Do NOT navigate manually
-      // Your AppNavigator's Firebase listener will handle login redirect
-
+      await supabase.from('users').upsert([
+        { id: data.user.id, registration_complete: true, last_login: new Date().toISOString() }
+      ], { onConflict: 'id' });
     } catch (e) {
       let msg = 'Incorrect email or password.';
       if (e.message) msg = e.message;
