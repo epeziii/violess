@@ -37,18 +37,23 @@ function normalizeStaffRecord(row = {}) {
 }
 
 function toTitleCaseName(input) {
-  const normalized = (input || "").trim().replace(/\s+/g, " ");
-  if (!normalized) return "";
+  const raw = String(input ?? "");
+  if (!raw) return "";
 
-  return normalized
+  const trailingSpace = raw.endsWith(" ");
+  const normalized = raw.replace(/\s+/g, " ").trim();
+  if (!normalized) return trailingSpace ? " " : "";
+
+  const titleCased = normalized
     .split(" ")
     .filter(Boolean)
     .map((word) => {
-      if (!word) return "";
       const lower = word.toLowerCase();
       return lower.charAt(0).toUpperCase() + lower.slice(1);
     })
     .join(" ");
+
+  return trailingSpace ? `${titleCased} ` : titleCased;
 }
 
 function splitFullName(fullName) {
