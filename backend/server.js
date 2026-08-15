@@ -245,18 +245,8 @@ app.post("/create-staff", async (req, res) => {
       email: staffEmail,
       first_name: resolvedFirstName,
       last_name: resolvedLastName,
-      firstName: resolvedFirstName,
-      lastName: resolvedLastName,
-      full_name: resolvedFullName,
-      fullName: resolvedFullName,
       role: normalizedRole,
-      status: normalizedStatus,
-      color: staffColor,
       avatar: null,
-      last_login: null,
-      lastLogin: null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
       profile: {
         cases: 0,
         color: staffColor,
@@ -266,6 +256,8 @@ app.post("/create-staff", async (req, res) => {
         lastName: resolvedLastName,
         fullName: resolvedFullName,
       },
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     };
 
     const { error: upsertError } = await supabase.from("staff").upsert([staffRecord], { onConflict: ["id"] });
@@ -287,20 +279,18 @@ app.post("/update-staff", async (req, res) => {
     const nameFromFull = splitName(fullName || "");
     const rawFull = (fullName || "").trim() || `${firstName || nameFromFull.firstName || ""} ${lastName || nameFromFull.lastName || ""}`.trim();
     const computedFullName = toTitleCaseName(rawFull);
+    const resolvedFirst = firstName || nameFromFull.firstName || undefined;
+    const resolvedLast = lastName || nameFromFull.lastName || undefined;
+
     const updateData = {
       role,
-      status,
-      fullName: computedFullName,
-      full_name: computedFullName,
-      firstName: firstName || nameFromFull.firstName || undefined,
-      first_name: firstName || nameFromFull.firstName || undefined,
-      lastName: lastName || nameFromFull.lastName || undefined,
-      last_name: lastName || nameFromFull.lastName || undefined,
+      first_name: resolvedFirst || undefined,
+      last_name: resolvedLast || undefined,
       profile: {
         status,
         fullName: computedFullName,
-        firstName: firstName || nameFromFull.firstName || undefined,
-        lastName: lastName || nameFromFull.lastName || undefined,
+        firstName: resolvedFirst || undefined,
+        lastName: resolvedLast || undefined,
       },
       updated_at: new Date().toISOString(),
     };
@@ -440,8 +430,9 @@ app.post("/update-staff-status", async (req, res) => {
 
     const normalizedStatus = String(status).trim();
     const { error } = await supabase.from("staff").update({
-      status: normalizedStatus,
-      profile: { status: normalizedStatus },
+      profile: {
+        status: normalizedStatus,
+      },
       updated_at: new Date().toISOString(),
     }).eq("id", uid);
 

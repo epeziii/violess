@@ -14,9 +14,9 @@ const AVATAR_COLOR = { pink: "av-pink", blue: "av-blue", green: "av-green", purp
 const EMPTY_FORM = { fullName: "", username: "", role: "", password: "", confirmPassword: "" };
 
 function normalizeStaffRecord(row = {}) {
-  const firstName = row.firstName || row.first_name || "";
-  const lastName = row.lastName || row.last_name || "";
-  const fullName = row.fullName || row.full_name || [firstName, lastName].filter(Boolean).join(" ").trim();
+  const firstName = row.firstName || row.first_name || row.profile?.firstName || "";
+  const lastName = row.lastName || row.last_name || row.profile?.lastName || "";
+  const fullName = row.fullName || row.full_name || row.profile?.fullName || [firstName, lastName].filter(Boolean).join(" ").trim();
   const status = row.status || row.profile?.status || "active";
 
   return {
