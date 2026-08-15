@@ -13,6 +13,28 @@ const STATUS_CLASS = { active: "badge-active", inactive: "badge-inactive", suspe
 const AVATAR_COLOR = { pink: "av-pink", blue: "av-blue", green: "av-green", purple: "av-purple", amber: "av-amber" };
 const EMPTY_FORM = { fullName: "", username: "", role: "", password: "", confirmPassword: "" };
 
+function normalizeStaffRecord(row = {}) {
+  const firstName = row.firstName || row.first_name || "";
+  const lastName = row.lastName || row.last_name || "";
+  const fullName = row.fullName || row.full_name || [firstName, lastName].filter(Boolean).join(" ").trim();
+  const status = row.status || row.profile?.status || "active";
+
+  return {
+    ...row,
+    id: String(row.id || row.uid || ""),
+    firstName,
+    lastName,
+    fullName,
+    username: row.username || row.email || "",
+    email: row.email || "",
+    status,
+    role: row.role || "officer",
+    color: row.color || row.profile?.color || "pink",
+    lastLogin: row.lastLogin || row.last_login || row.profile?.last_login || null,
+    cases: row.cases ?? row.profile?.cases ?? 0,
+  };
+}
+
 function toTitleCaseName(input) {
   const normalized = (input || "").trim().replace(/\s+/g, " ");
   if (!normalized) return "";
@@ -492,13 +514,13 @@ export default function AccountManagementPage() {
 
   const fetchAccounts = async () => {
     const snapshot = await getDocs(collection(db, "staff"));
-    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const data = snapshot.docs.map(doc => normalizeStaffRecord({ id: doc.id, ...doc.data() }));
     setAccounts(data);
   };
 
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, "staff"), (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const data = snapshot.docs.map(doc => normalizeStaffRecord({ id: doc.id, ...doc.data() }));
       setAccounts(data);
     }, (error) => {
       console.error("Failed to subscribe to staff accounts:", error);

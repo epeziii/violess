@@ -6,6 +6,7 @@ const nodemailer = require("nodemailer");
 const multer = require("multer");
 const { v2: cloudinary } = require("cloudinary");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { supabase } = require('./supabaseClient');
 
 // 🔑 Firebase Admin SDK service account
 // Prefer FIREBASE_CREDENTIALS env var. Fallback to local service account json for dev.
@@ -154,69 +155,114 @@ app.post("/record-staff-login", async (req, res) => {
 app.post("/create-staff", async (req, res) => {
   try {
     const { firstName, lastName, fullName, email, username, password, role, status } = req.body;
-    const staffUsername = username || email;
-    
+    const staffUsername = String(username || email || "").trim();
+
     if (!staffUsername || !password) {
       return res.status(400).json({ error: "Username/email and password are required" });
     }
-    
-    // Generate unique email from username if not provided
+
     const timestamp = Date.now();
-    const firebaseEmail = email || `${staffUsername.toLowerCase()}_${timestamp}@staff.local`;
-    
+    const staffEmail = String(email || `${staffUsername.toLowerCase()}_${timestamp}@staff.local`).trim();
     const nameFromFull = splitName(fullName || "");
 
-    let resolvedFirstName = firstName || nameFromFull.firstName;
-    let resolvedLastName = lastName || nameFromFull.lastName;
-let resolvedFullName = (fullName || "").trim();
+    let resolvedFirstName = String(firstName || nameFromFull.firstName || "").trim();
+    let resolvedLastName = String(lastName || nameFromFull.lastName || "").trim();
+    let resolvedFullName = String(fullName || "").trim();
     resolvedFullName = toTitleCaseName(resolvedFullName);
 
     if (!resolvedFirstName && staffUsername) {
-
       resolvedFirstName = String(staffUsername).replace(/\d+$/, "");
     }
-if (!resolvedFullName) {
-      resolvedFullName = `${resolvedFirstName || ""} ${resolvedLastName || ""}`.trim();
+
+    if (!resolvedLastName && resolvedFullName) {
+      const parts = resolvedFullName.split(" ").filter(Boolean);
+      resolvedLastName = parts[parts.length - 1] || "";
+      if (parts.length > 1) {
+        resolvedFirstName = parts.slice(0, -1).join(" ");
+      }
     }
 
+    if (!resolvedFullName) {
+      resolvedFullName = `${resolvedFirstName || ""} ${resolvedLastName || ""}`.trim();
+    }
     resolvedFullName = toTitleCaseName(resolvedFullName);
 
+    const normalizedRole = String(role || "officer").trim();
+    const normalizedStatus = String(status || "active").trim();
 
     const missing = [];
     if (!staffUsername) missing.push("username");
     if (!password) missing.push("password");
-    if (!role) missing.push("role");
+    if (!normalizedRole) missing.push("role");
     if (!resolvedFirstName || !resolvedLastName) missing.push("firstName and lastName");
 
     if (missing.length > 0) {
       return res.status(400).json({ error: `Missing required fields: ${missing.join(", ")}` });
     }
 
-    const userRecord = await admin.auth().createUser({ email: firebaseEmail, password });
-    if (!userRecord?.uid) return res.status(500).json({ error: "UID missing" });
+    let authUserId = null;
+    if (supabase?.auth?.admin?.createUser) {
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email: staffEmail,
+        password,
+        email_confirm: true,
+        user_metadata: {
+          first_name: resolvedFirstName,
+          last_name: resolvedLastName,
+          full_name: resolvedFullName,
+          username: staffUsername,
+          role: normalizedRole,
+        },
+      });
 
-    const staffColor = role === "admin" ? "blue" : "pink";
+      if (authError) {
+        throw new Error(authError.message || "Failed to create Supabase auth user");
+      }
 
-    const staffData = {
+      authUserId = authData?.user?.id;
+    } else {
+      const userRecord = await admin.auth().createUser({ email: staffEmail, password });
+      authUserId = userRecord?.uid;
+    }
+
+    if (!authUserId) {
+      return res.status(500).json({ error: "UID missing after auth user creation" });
+    }
+
+    const staffColor = normalizedRole === "admin" ? "blue" : "pink";
+    const staffRecord = {
+      id: authUserId,
+      username: staffUsername,
+      email: staffEmail,
       first_name: resolvedFirstName,
       last_name: resolvedLastName,
-      username: staffUsername,
-      email: firebaseEmail,
-      role,
+      firstName: resolvedFirstName,
+      lastName: resolvedLastName,
+      full_name: resolvedFullName,
+      fullName: resolvedFullName,
+      role: normalizedRole,
+      status: normalizedStatus,
+      color: staffColor,
       avatar: null,
+      last_login: null,
+      lastLogin: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
       profile: {
         cases: 0,
         color: staffColor,
         last_login: null,
-        status: status || "active"
-      }
+        status: normalizedStatus,
+        firstName: resolvedFirstName,
+        lastName: resolvedLastName,
+        fullName: resolvedFullName,
+      },
     };
 
-    console.log("Saving staff data:", JSON.stringify(staffData, null, 2));
-    await db.collection("staff").doc(userRecord.uid).set(staffData);
-    console.log("Staff user saved successfully with UID:", userRecord.uid);
+    const { error: upsertError } = await supabase.from("staff").upsert([staffRecord], { onConflict: ["id"] });
+    if (upsertError) throw upsertError;
 
-    res.json({ success: true, uid: userRecord.uid });
+    res.json({ success: true, uid: authUserId, email: staffEmail });
   } catch (error) {
     console.error("Error creating staff:", error);
     res.status(500).json({ error: error.message || "Unknown error" });
@@ -229,14 +275,29 @@ app.post("/update-staff", async (req, res) => {
     const { uid, firstName, lastName, fullName, role, status } = req.body;
     if (!uid || !role || !status) return res.status(400).json({ error: "All fields are required" });
 
-const nameFromFull = splitName(fullName || "");
-    const rawFull = fullName?.trim() || `${firstName || nameFromFull.firstName} ${lastName || nameFromFull.lastName}`.trim();
-    const updateData = { role, status, fullName: toTitleCaseName(rawFull) };
+    const nameFromFull = splitName(fullName || "");
+    const rawFull = (fullName || "").trim() || `${firstName || nameFromFull.firstName || ""} ${lastName || nameFromFull.lastName || ""}`.trim();
+    const computedFullName = toTitleCaseName(rawFull);
+    const updateData = {
+      role,
+      status,
+      fullName: computedFullName,
+      full_name: computedFullName,
+      firstName: firstName || nameFromFull.firstName || undefined,
+      first_name: firstName || nameFromFull.firstName || undefined,
+      lastName: lastName || nameFromFull.lastName || undefined,
+      last_name: lastName || nameFromFull.lastName || undefined,
+      profile: {
+        status,
+        fullName: computedFullName,
+        firstName: firstName || nameFromFull.firstName || undefined,
+        lastName: lastName || nameFromFull.lastName || undefined,
+      },
+      updated_at: new Date().toISOString(),
+    };
 
-    if (firstName || nameFromFull.firstName) updateData.firstName = firstName || nameFromFull.firstName;
-    if (lastName || nameFromFull.lastName) updateData.lastName = lastName || nameFromFull.lastName;
-
-    await db.collection("staff").doc(uid).update(updateData);
+    const { error } = await supabase.from("staff").update(updateData).eq("id", uid);
+    if (error) throw error;
     res.json({ success: true });
   } catch (err) {
     console.error("Error updating staff:", err);
@@ -368,7 +429,14 @@ app.post("/update-staff-status", async (req, res) => {
     const { uid, status } = req.body;
     if (!uid || !status) return res.status(400).json({ error: "UID and status required" });
 
-    await db.collection("staff").doc(uid).update({ status });
+    const normalizedStatus = String(status).trim();
+    const { error } = await supabase.from("staff").update({
+      status: normalizedStatus,
+      profile: { status: normalizedStatus },
+      updated_at: new Date().toISOString(),
+    }).eq("id", uid);
+
+    if (error) throw error;
     res.json({ success: true });
   } catch (err) {
     console.error("Error updating status:", err);
