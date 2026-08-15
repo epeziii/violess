@@ -95,6 +95,42 @@ async function fetchStaffProfileByUid(uid) {
   return null;
 }
 
+async function recordStaffLastLogin(uid, email) {
+  const targetUid = String(uid || "").trim();
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  const loginAt = new Date().toISOString();
+
+  if (!targetUid && !normalizedEmail) return null;
+
+  let staffId = targetUid;
+
+  if (!staffId && normalizedEmail) {
+    const { data, error } = await supabase
+      .from("staff")
+      .select("id")
+      .eq("email", normalizedEmail)
+      .maybeSingle();
+
+    if (error) {
+      if (error.code !== "PGRST116") throw error;
+      return null;
+    }
+
+    if (!data) return null;
+    staffId = data.id;
+  }
+
+  if (!staffId) return null;
+
+  const { error } = await supabase
+    .from("staff")
+    .update({ last_login: loginAt, updated_at: loginAt })
+    .eq("id", staffId);
+
+  if (error) throw error;
+  return loginAt;
+}
+
 async function resolveStaffByIdentifier(identifier) {
   const clean = String(identifier || "").trim();
   if (!clean) throw new Error("Username or email is required.");
@@ -263,11 +299,22 @@ export function AuthProvider({ children }) {
     }
 
     const normalizedProfile = normalizeStaffProfile(profile || {}, data.user.email || email);
+    const uid = normalizedProfile.uid || normalizedProfile.id || data.user.id;
+    let loginTimestamp = normalizedProfile.lastLogin;
+
+    try {
+      loginTimestamp = (await recordStaffLastLogin(uid, email)) || loginTimestamp || new Date().toISOString();
+    } catch (error) {
+      console.warn("Failed to record staff last login:", error);
+      loginTimestamp = loginTimestamp || new Date().toISOString();
+    }
+
     const nextUser = {
-      uid: normalizedProfile.uid || normalizedProfile.id || data.user.id,
+      uid,
       authUid: data.user.id,
       email: normalizedProfile.email || data.user.email || email,
       ...normalizedProfile,
+      lastLogin: loginTimestamp,
     };
 
     setUser(nextUser);
