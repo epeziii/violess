@@ -125,54 +125,54 @@ export default function CasesPage({ initialSelectedCaseId, initialSelectedCaseKe
 
   useEffect(() => {
     try {
-      // Real-time listener for reports collection
-      const q = query(
-        collection(db, "reports"),
-        orderBy("createdAt", "desc"),
-        limit(10)
-      );
+      // Fetch cases from backend
+      setLoading(true);
+      fetch(`${API_BASE_URL}/all-cases`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.cases) {
+            const reportsData = data.cases.map((doc) => ({
+              id: doc.caseId || doc.id,
+              type: doc.incidentType || doc.type,
+              reporter: doc.reporterName,
+              location: doc.location || "N/A",
+              status: getStatusFromString(doc.status),
+              date: formatDate(doc.createdAt),
+              incidentDateTime: formatIncidentDateTime(doc.incidentDateTime || doc.datetime),
+              priority: doc.priorityLevel || "normal",
+              assignedOfficer: doc.assignedOfficer || "",
+              description: doc.description || "",
+              suspectDescription: doc.suspectDescription || "",
+              isAnonymous: doc.isAnonymous ?? true,
+              contactNumber: doc.contactNumber || "",
+              emergencyContact: doc.emergencyContact || "",
+              createdAt: doc.createdAt,
+              docId: doc.id,
+            }));
+            setReports(reportsData);
 
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const reportsData = snapshot.docs.map((doc) => ({
-          id: doc.data().caseId,
-          type: doc.data().incidentType,
-          reporter: doc.data().reporterName,
-          location: doc.data().location || "N/A",
-          status: getStatusFromString(doc.data().status),
-          date: formatDate(doc.data().createdAt),
-          incidentDateTime: formatIncidentDateTime(doc.data().datetime),
-          priority: doc.data().priorityLevel || "normal",
-          assignedOfficer: doc.data().assignedOfficer || "",
-          assignedOfficerUid: doc.data().assignedOfficerUid || "",
-          referredTo: doc.data().referredTo || "",
-          referralReason: doc.data().referralReason || "",
-          description: doc.data().description || "",
-          suspectDescription: doc.data().suspectDescription || "",
-          isAnonymous: doc.data().isAnonymous ?? true,
-          contactNumber: doc.data().contactNumber || "",
-          emergencyContact: doc.data().emergencyContact || doc.data().emergency || "",
-          createdAt: doc.data().createdAt,
-          docId: doc.id,
-        }));
-        setReports(reportsData);
-
-        const currentSelectedCase = selectedCaseRef.current;
-        if (currentSelectedCase) {
-          const updatedCase = reportsData.find(c => c.docId === currentSelectedCase.docId);
-          if (updatedCase) {
-            setSelectedCase(updatedCase);
-            if (actionMode !== "update") {
-              setStatus(updatedCase.status);
-              setAssignedOfficer(updatedCase.assignedOfficer || "");
-              setPriorityLevel(updatedCase.priority || "normal");
+            const currentSelectedCase = selectedCaseRef.current;
+            if (currentSelectedCase) {
+              const updatedCase = reportsData.find(c => c.docId === currentSelectedCase.docId);
+              if (updatedCase) {
+                setSelectedCase(updatedCase);
+                if (actionMode !== "update") {
+                  setStatus(updatedCase.status);
+                  setAssignedOfficer(updatedCase.assignedOfficer || "");
+                  setPriorityLevel(updatedCase.priority || "normal");
+                }
+              }
             }
+          } else {
+            setReports(SAMPLE_CASES);
           }
-        }
-
-        setLoading(false);
-      });
-
-      return () => unsubscribe();
+          setLoading(false);
+        })
+        .catch(error => {
+          console.error("Error fetching cases from backend:", error);
+          setReports(SAMPLE_CASES);
+          setLoading(false);
+        });
     } catch (error) {
       console.error("Error fetching reports:", error);
       setReports(SAMPLE_CASES);

@@ -1264,6 +1264,54 @@ app.get("/user/:uid/cases", async (req, res) => {
   }
 });
 
+// ─── GET ALL CASES (for admin dashboard) ──────────────────────────────────────────────
+app.get("/all-cases", async (req, res) => {
+  try {
+    const casesRef = db.collection("cases");
+    const snapshot = await casesRef
+      .orderBy("created_at", "desc")
+      .limit(100)
+      .get();
+
+    if (snapshot.empty) {
+      return res.json({ success: true, cases: [] });
+    }
+
+    const cases = snapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        caseId: data.case_number,
+        caseNumber: data.case_number,
+        type: data.type,
+        incidentType: data.type,
+        description: data.description,
+        location: data.location,
+        status: data.status,
+        priority: data.metadata?.priority_level || "normal",
+        priorityLevel: data.metadata?.priority_level || "normal",
+        datetime: data.metadata?.incident_date,
+        incidentDateTime: data.metadata?.incident_date,
+        reporterName: data.metadata?.reporter_name || "Anonymous",
+        reporter: data.reporter,
+        isAnonymous: data.metadata?.is_anonymous ?? true,
+        suspectDescription: data.metadata?.suspect_description || "",
+        evidence: data.metadata?.evidence || [],
+        contactNumber: data.metadata?.contact_number || "",
+        emergencyContact: data.metadata?.emergency_contact || "",
+        assignedOfficer: data.metadata?.assigned_officer || "",
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+      };
+    });
+
+    res.json({ success: true, cases });
+  } catch (err) {
+    console.error("Error fetching all cases:", err);
+    res.status(500).json({ error: err.message || "Failed to fetch cases" });
+  }
+});
+
 // ─── GET MESSAGES FOR A CASE ──────────────────────────────────────────────
 app.get("/case/:caseId/messages", async (req, res) => {
   try {
