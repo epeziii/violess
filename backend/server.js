@@ -1332,12 +1332,12 @@ app.get('/access-logs', async (req, res) => {
           const staffData = staffDoc.data() || {};
           fullName = staffData.full_name || staffData.fullName || [staffData.first_name, staffData.last_name].filter(Boolean).join(' ').trim() || '';
         } catch (err) {
-          // Silently fail staff lookup, fall back to empty
+          console.error('Staff lookup error:', err);
         }
       }
 
-      // Final fallback
-      fullName = fullName || metadata.adminEmail || 'Unknown staff';
+      // Final fallback - never use email, only use Unknown staff
+      fullName = fullName || 'Unknown staff';
 
       return {
         id: doc.id,
