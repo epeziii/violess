@@ -182,13 +182,16 @@ export default function EvidenceStoragePage() {
   const logAccess = async ({ caseDocId, caseId, action, fileName }) => {
     if (!user?.uid || !caseId || !action) return;
 
+    const fullName = user.fullName || user.displayName || [user.firstName, user.lastName].filter(Boolean).join(' ') || 'Staff Member';
+
     try {
       const response = await fetch(`${API_BASE_URL}/log-access`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           adminId: user.uid,
-          adminName: user.displayName || user.email || 'Staff Member',
+          adminName: fullName,
+          fullName,
           adminEmail: user.email || '',
           role: user.role || 'admin',
           caseId,
@@ -544,7 +547,8 @@ function AccessLogRow({ log, formatActionLabel }) {
     });
   };
 
-  const adminDisplayName = (log.adminName || 'Unknown staff').trim() || 'Unknown staff';
+  const rawName = log.fullName || log.adminName || log.adminEmail || 'Unknown staff';
+  const adminDisplayName = typeof rawName === 'string' && rawName.includes('@') ? 'Unknown staff' : (rawName || 'Unknown staff').trim() || 'Unknown staff';
   const normalizedRole = (log.role || '').toString().toLowerCase();
   const roleLabel = normalizedRole ? ROLE_LABELS[normalizedRole] || log.role : '—';
   const roleClass = normalizedRole ? ROLE_CLASSES[normalizedRole] || '' : '';

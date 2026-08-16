@@ -1159,8 +1159,8 @@ input[type="date"].form-input::-webkit-datetime-edit-fields-wrapper {
 }
 
 .badge-admin {
-  background: #EDE7F6;
-  color: #4527A0;
+  background: #EAF3FF;
+  color: #0B63D9;
 }
 
 .badge-social {
@@ -1169,8 +1169,8 @@ input[type="date"].form-input::-webkit-datetime-edit-fields-wrapper {
 }
 
 .badge-officer {
-  background: var(--primary-light);
-  color: var(--primary);
+  background: #FDE7F3;
+  color: #C2185B;
 }
 
 

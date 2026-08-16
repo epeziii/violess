@@ -1322,11 +1322,13 @@ app.get('/access-logs', async (req, res) => {
     const logs = snapshot.docs.map((doc) => {
       const data = doc.data() || {};
       const metadata = data.metadata || {};
+      const fullName = metadata.fullName || metadata.adminName || metadata.adminEmail || 'Unknown staff';
 
       return {
         id: doc.id,
         adminId: data.actor_uid || metadata.adminId || null,
-        adminName: metadata.adminName || '',
+        adminName: fullName,
+        fullName,
         adminEmail: metadata.adminEmail || '',
         role: metadata.role || '',
         caseId: metadata.caseId || metadata.case_id || '',
@@ -1346,12 +1348,13 @@ app.get('/access-logs', async (req, res) => {
 
 app.post('/log-access', async (req, res) => {
   try {
-    const { adminId, adminName, adminEmail, role, caseId, caseDocId, fileId, fileName, action } = req.body || {};
+    const { adminId, adminName, fullName, adminEmail, role, caseId, caseDocId, fileId, fileName, action } = req.body || {};
 
     if (!action) {
       return res.status(400).json({ success: false, error: 'Action is required' });
     }
 
+    const resolvedFullName = String(fullName || adminName || adminEmail || 'Staff Member').trim() || 'Staff Member';
     const logId = db.collection('access_logs').doc().id;
     await db.collection('access_logs').doc(logId).set({
       id: logId,
@@ -1361,7 +1364,8 @@ app.post('/log-access', async (req, res) => {
       created_at: new Date(),
       metadata: {
         adminId: adminId || null,
-        adminName: adminName || '',
+        adminName: resolvedFullName,
+        fullName: resolvedFullName,
         adminEmail: adminEmail || '',
         role: role || '',
         caseId: caseId || null,
