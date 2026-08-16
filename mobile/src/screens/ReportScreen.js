@@ -170,6 +170,44 @@ const [showTimePicker, setShowTimePicker] = useState(false);
     return true;
   };
 
+  const buildIncidentDateTime = (selectedDate, selectedTime) => {
+    const safeDate = selectedDate instanceof Date ? selectedDate : new Date();
+    const safeTime = selectedTime instanceof Date ? selectedTime : new Date();
+
+    const combinedDate = new Date(
+      safeDate.getFullYear(),
+      safeDate.getMonth(),
+      safeDate.getDate(),
+      safeTime.getHours(),
+      safeTime.getMinutes(),
+      safeTime.getSeconds()
+    );
+
+    return combinedDate.toISOString();
+  };
+
+  const formatIncidentDateTimeDisplay = (selectedDate, selectedTime) => {
+    const safeDate = selectedDate instanceof Date ? selectedDate : new Date();
+    const safeTime = selectedTime instanceof Date ? selectedTime : new Date();
+
+    const combinedDate = new Date(
+      safeDate.getFullYear(),
+      safeDate.getMonth(),
+      safeDate.getDate(),
+      safeTime.getHours(),
+      safeTime.getMinutes(),
+      safeTime.getSeconds()
+    );
+
+    return combinedDate.toLocaleString([], {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    });
+  };
+
   const handleSubmit = async () => {
     if (!validateStep1() || !validateStep2()) return;
 
@@ -199,18 +237,6 @@ const [showTimePicker, setShowTimePicker] = useState(false);
           console.error('Error loading contact data before submit:', loadError);
         }
       }
-
-      const buildIncidentDateTime = (selectedDate, selectedTime) => {
-        const combinedDate = new Date(
-          selectedDate.getFullYear(),
-          selectedDate.getMonth(),
-          selectedDate.getDate(),
-          selectedTime.getHours(),
-          selectedTime.getMinutes(),
-          selectedTime.getSeconds()
-        );
-        return combinedDate.toISOString();
-      };
 
       const payload = {
         uid,
@@ -443,7 +469,7 @@ const [showTimePicker, setShowTimePicker] = useState(false);
   onPress={() => setShowDatePicker(true)}
 >
   <Text>
-    {date ? date.toDateString() : 'Select date'}
+    {date ? date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : 'Select date'}
   </Text>
 </TouchableOpacity>
 
@@ -675,20 +701,7 @@ const [showTimePicker, setShowTimePicker] = useState(false);
               <View style={styles.reviewRow}>
                 <Text style={styles.reviewLabel}>Date & Time:</Text>
                 <Text style={styles.reviewValue}>
-                  {new Date(
-                    date.getFullYear(),
-                    date.getMonth(),
-                    date.getDate(),
-                    time.getHours(),
-                    time.getMinutes(),
-                    time.getSeconds()
-                  ).toLocaleString([], {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                    hour: 'numeric',
-                    minute: '2-digit'
-                  })}
+                  {formatIncidentDateTimeDisplay(date, time)}
                 </Text>
               </View>
               )}

@@ -126,6 +126,16 @@ function normalizeDateTimeInput(value) {
     const trimmed = value.trim();
     if (!trimmed) return new Date().toISOString();
 
+    const weirdPattern = trimmed.match(/^([A-Za-z]{3})\s+([A-Za-z]{3})\s+(\d{1,2})\s+(\d{4})\s+(\d{1,2})(\d{2})(\d{2})\s+GMT([+-])(\d{2})(\d{2})\s+.*$/i);
+    if (weirdPattern) {
+      const [, , monthName, day, year, hour, minute, second, tzSign, tzHour, tzMinute] = weirdPattern;
+      const monthIndex = new Date(`${monthName} 1, ${year}`).getMonth();
+      const tzOffsetMinutes = (Number(tzHour) * 60 + Number(tzMinute)) * (tzSign === "+" ? -1 : 1);
+      const parsed = new Date(Date.UTC(Number(year), monthIndex, Number(day), Number(hour), Number(minute), Number(second)));
+      parsed.setUTCMinutes(parsed.getUTCMinutes() - tzOffsetMinutes);
+      return parsed.toISOString();
+    }
+
     const cleaned = trimmed
       .replace(/\s*\([^)]*\)\s*$/, "")
       .replace(/GMT([+-])(\d{2})(\d{2})/i, "GMT$1$2:$3")
