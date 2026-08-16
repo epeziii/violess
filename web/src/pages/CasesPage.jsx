@@ -131,24 +131,28 @@ export default function CasesPage({ initialSelectedCaseId, initialSelectedCaseKe
         .then(res => res.json())
         .then(data => {
           if (data.success && data.cases) {
-            const reportsData = data.cases.map((doc) => ({
-              id: doc.caseId || doc.id,
-              type: doc.incidentType || doc.type,
-              reporter: doc.reporterName,
-              location: doc.location || "N/A",
-              status: getStatusFromString(doc.status),
-              date: formatDate(doc.createdAt),
-              incidentDateTime: formatIncidentDateTime(doc.incidentDateTime || doc.datetime),
-              priority: doc.priorityLevel || "normal",
-              assignedOfficer: doc.assignedOfficer || "",
-              description: doc.description || "",
-              suspectDescription: doc.suspectDescription || "",
-              isAnonymous: doc.isAnonymous ?? true,
-              contactNumber: doc.contactNumber || "",
-              emergencyContact: doc.emergencyContact || "",
-              createdAt: doc.createdAt,
-              docId: doc.id,
-            }));
+            const reportsData = data.cases.map((doc) => {
+              // Parse the ISO string to a Date for proper formatting
+              const createdAtDate = doc.createdAt ? new Date(doc.createdAt) : new Date();
+              return {
+                id: doc.caseId || doc.id,
+                type: doc.incidentType || doc.type,
+                reporter: doc.reporterName,
+                location: doc.location || "N/A",
+                status: getStatusFromString(doc.status),
+                date: formatDate(createdAtDate),
+                incidentDateTime: formatIncidentDateTime(doc.incidentDateTime || doc.datetime),
+                priority: doc.priorityLevel || "normal",
+                assignedOfficer: doc.assignedOfficer || "",
+                description: doc.description || "",
+                suspectDescription: doc.suspectDescription || "",
+                isAnonymous: doc.isAnonymous ?? true,
+                contactNumber: doc.contactNumber || "",
+                emergencyContact: doc.emergencyContact || "",
+                createdAt: doc.createdAt,
+                docId: doc.id,
+              };
+            });
             setReports(reportsData);
 
             const currentSelectedCase = selectedCaseRef.current;
