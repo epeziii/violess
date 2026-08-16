@@ -1219,7 +1219,7 @@ app.post("/submit-report", async (req, res) => {
 
     res.json({
       success: true,
-      caseId,
+      caseId: createdCaseId,
       message: "Report submitted successfully"
     });
   } catch (err) {
