@@ -104,23 +104,23 @@ export default function EvidenceStoragePage() {
     setEvidence(allEvidence);
   }, [selectedCaseId, cases]);
 
-  useEffect(() => {
+  const fetchAccessLogs = async () => {
     if (!isAdmin) {
       setAccessLogs([]);
       return;
     }
 
-    const fetchAccessLogs = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/access-logs`);
-        const data = await response.json();
-        setAccessLogs(Array.isArray(data?.logs) ? data.logs : []);
-      } catch (error) {
-        console.error('Failed to load access logs:', error);
-        setAccessLogs([]);
-      }
-    };
+    try {
+      const response = await fetch(`${API_BASE_URL}/access-logs`);
+      const data = await response.json();
+      setAccessLogs(Array.isArray(data?.logs) ? data.logs : []);
+    } catch (error) {
+      console.error('Failed to load access logs:', error);
+      setAccessLogs([]);
+    }
+  };
 
+  useEffect(() => {
     fetchAccessLogs();
   }, [isAdmin]);
 
@@ -175,7 +175,7 @@ export default function EvidenceStoragePage() {
     if (!user?.uid || !caseId || !action) return;
 
     try {
-      await fetch(`${API_BASE_URL}/log-access`, {
+      const response = await fetch(`${API_BASE_URL}/log-access`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -189,6 +189,10 @@ export default function EvidenceStoragePage() {
           action,
         }),
       });
+
+      if (response.ok) {
+        await fetchAccessLogs();
+      }
     } catch (err) {
       console.error('Error logging access:', err);
     }
