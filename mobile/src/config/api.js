@@ -9,8 +9,7 @@ import { Platform } from 'react-native';
 // Production: Replace with deployed URL (e.g. https://your-app.onrender.com)
 
 const getApiBaseUrl = () => {
-  // Use the deployed Vercel backend by default.
-  // For local development, replace this with your machine IP if you want a local backend.
+  // Use the current live Vercel backend alias requested by the project.
   return 'https://violess-backend.vercel.app';
 };
 

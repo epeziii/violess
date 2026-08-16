@@ -55,6 +55,8 @@ cloudinary.config({
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
+console.log('[backend] booting with timestamp normalization guard enabled');
+
 const upload = multer({ storage: multer.memoryStorage() });
 
 app.post("/upload-evidence", upload.single("file"), async (req, res) => {
@@ -1117,7 +1119,9 @@ app.post("/submit-report", async (req, res) => {
     if (!uid || !typeValue || !description)
       return res.status(400).json({ error: "uid, incidentType (or caseType), and description are required" });
 
+    const rawIncidentDate = datetime;
     const normalizedIncidentDate = normalizeDateTimeInput(datetime);
+    console.log('[submit-report] raw incident datetime:', rawIncidentDate, '-> normalized:', normalizedIncidentDate);
     const currentYear = new Date().getFullYear();
     const casesRef = db.collection("cases");
 
