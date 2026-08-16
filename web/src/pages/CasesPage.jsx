@@ -6,14 +6,6 @@ import { useAuth } from "../AuthContext";
 import API_BASE_URL from "../config/api";
 import Icon from "../components/Icon";
 
-const SAMPLE_CASES = [
-  { id: "#VIO-001", type: "Harassment", reporter: "Anonymous", location: "Brgy. 123", status: "reviewing", date: "Feb 12" },
-  { id: "#VIO-002", type: "Domestic Abuse", reporter: "Maria D.", location: "Brgy. 456", status: "urgent", date: "Feb 13" },
-  { id: "#VIO-003", type: "Bullying", reporter: "Anonymous", location: "School Zone", status: "referred", date: "Feb 14" },
-  { id: "#VIO-004", type: "Threats", reporter: "Ana L.", location: "Brgy. 123", status: "pending", date: "Feb 15" },
-  { id: "#VIO-005", type: "Harassment", reporter: "Anonymous", location: "Market Area", status: "resolved", date: "Feb 10" },
-];
-
 const getStatusFromString = (status) => {
   if (status === "pending") return "pending";
   if (status === "pending_admin_review") return "pending_admin_review";
@@ -168,18 +160,18 @@ export default function CasesPage({ initialSelectedCaseId, initialSelectedCaseKe
               }
             }
           } else {
-            setReports(SAMPLE_CASES);
+            setReports([]);
           }
           setLoading(false);
         })
         .catch(error => {
           console.error("Error fetching cases from backend:", error);
-          setReports(SAMPLE_CASES);
+          setReports([]);
           setLoading(false);
         });
     } catch (error) {
       console.error("Error fetching reports:", error);
-      setReports(SAMPLE_CASES);
+      setReports([]);
       setLoading(false);
     }
   }, []);
@@ -246,7 +238,7 @@ export default function CasesPage({ initialSelectedCaseId, initialSelectedCaseKe
     }
   }, []);
 
-  const displayReports = loading ? SAMPLE_CASES : (reports.length > 0 ? reports : SAMPLE_CASES);
+  const displayReports = reports;
 
   const filteredReferrals = referrals.filter((referral) => {
     const searchTerm = searchInput.toLowerCase();
