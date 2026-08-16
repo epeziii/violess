@@ -547,8 +547,7 @@ function AccessLogRow({ log, formatActionLabel }) {
     });
   };
 
-  const rawName = log.fullName || log.adminName || log.adminEmail || 'Unknown staff';
-  const adminDisplayName = typeof rawName === 'string' && rawName.includes('@') ? 'Unknown staff' : (rawName || 'Unknown staff').trim() || 'Unknown staff';
+  const adminDisplayName = (log.fullName || log.adminName || 'Unknown staff').trim() || 'Unknown staff';
   const normalizedRole = (log.role || '').toString().toLowerCase();
   const roleLabel = normalizedRole ? ROLE_LABELS[normalizedRole] || log.role : '—';
   const roleClass = normalizedRole ? ROLE_CLASSES[normalizedRole] || '' : '';

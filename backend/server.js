@@ -1319,10 +1319,25 @@ app.get('/access-logs', async (req, res) => {
       .limit(200)
       .get();
 
-    const logs = snapshot.docs.map((doc) => {
+    const logs = await Promise.all(snapshot.docs.map(async (doc) => {
       const data = doc.data() || {};
       const metadata = data.metadata || {};
-      const fullName = metadata.fullName || metadata.adminName || metadata.adminEmail || 'Unknown staff';
+      let fullName = metadata.fullName || metadata.adminName || '';
+
+      // If we don't have a full name in metadata, try to look it up from the staff table
+      if (!fullName && (data.actor_uid || metadata.adminId)) {
+        const staffId = data.actor_uid || metadata.adminId;
+        try {
+          const staffDoc = await db.collection('staff').doc(staffId).get();
+          const staffData = staffDoc.data() || {};
+          fullName = staffData.full_name || staffData.fullName || [staffData.first_name, staffData.last_name].filter(Boolean).join(' ').trim() || '';
+        } catch (err) {
+          // Silently fail staff lookup, fall back to empty
+        }
+      }
+
+      // Final fallback
+      fullName = fullName || metadata.adminEmail || 'Unknown staff';
 
       return {
         id: doc.id,
@@ -1337,7 +1352,7 @@ app.get('/access-logs', async (req, res) => {
         action: data.action || metadata.action || 'viewed',
         timestamp: data.created_at || data.timestamp || null,
       };
-    });
+    }));
 
     res.json({ success: true, logs });
   } catch (error) {
