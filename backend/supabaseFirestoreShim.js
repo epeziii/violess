@@ -138,14 +138,16 @@ class CollectionRef {
     // If this is a subcollection with caseId, filter automatically
     if (this._opts.caseId) builder = builder.eq('case_id', this._opts.caseId);
     for (const w of this._wheres) {
+      // Serialize Date objects in where clauses to ISO strings
+      const filterVal = w.val instanceof Date ? w.val.toISOString() : w.val;
       switch (w.op) {
-        case '==': builder = builder.eq(w.field, w.val); break;
-        case '!=': builder = builder.neq(w.field, w.val); break;
-        case '>': builder = builder.gt(w.field, w.val); break;
-        case '>=': builder = builder.gte(w.field, w.val); break;
-        case '<': builder = builder.lt(w.field, w.val); break;
-        case '<=': builder = builder.lte(w.field, w.val); break;
-        default: builder = builder.eq(w.field, w.val);
+        case '==': builder = builder.eq(w.field, filterVal); break;
+        case '!=': builder = builder.neq(w.field, filterVal); break;
+        case '>': builder = builder.gt(w.field, filterVal); break;
+        case '>=': builder = builder.gte(w.field, filterVal); break;
+        case '<': builder = builder.lt(w.field, filterVal); break;
+        case '<=': builder = builder.lte(w.field, filterVal); break;
+        default: builder = builder.eq(w.field, filterVal);
       }
     }
     if (this._order) builder = builder.order(this._order.field, { ascending: this._order.dir === 'asc' });
@@ -159,8 +161,8 @@ class CollectionRef {
 function batch() {
   const ops = [];
   return {
-    update(ref, payload) { ops.push({ type: 'update', ref, payload }); },
-    set(ref, payload) { ops.push({ type: 'set', ref, payload }); },
+    update(ref, payload) { ops.push({ type: 'update', ref, payload: serializeData(payload) }); },
+    set(ref, payload) { ops.push({ type: 'set', ref, payload: serializeData(payload) }); },
     async commit() {
       for (const op of ops) {
         if (op.type === 'update') {

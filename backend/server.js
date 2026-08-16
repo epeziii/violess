@@ -1162,6 +1162,15 @@ app.post("/submit-report", async (req, res) => {
     }
 
     // Create case document
+    // CRITICAL: Ensure incident_date is ALWAYS a clean ISO string, never a Date object
+    const safeIncidentDate = typeof normalizedIncidentDate === 'string' 
+      ? normalizedIncidentDate.trim() 
+      : (normalizedIncidentDate instanceof Date 
+          ? normalizedIncidentDate.toISOString() 
+          : new Date().toISOString());
+    
+    console.log('[submit-report] final incident_date for storage:', safeIncidentDate, 'type:', typeof safeIncidentDate);
+    
     const caseData = {
       case_number: caseNumber_val,
       reporter: uid,  // Always store uid so user can retrieve their cases (even if anonymous)
@@ -1172,7 +1181,7 @@ app.post("/submit-report", async (req, res) => {
       metadata: {
         suspect_description: suspectDescription || "",
         evidence: evidence || [],
-        incident_date: normalizedIncidentDate,
+        incident_date: safeIncidentDate,
         is_anonymous: isAnonymous,
         reporter_name: reporterName,
         contact_number: contactNumber,
