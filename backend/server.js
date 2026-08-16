@@ -1322,21 +1322,33 @@ app.get('/access-logs', async (req, res) => {
     const logs = await Promise.all(snapshot.docs.map(async (doc) => {
       const data = doc.data() || {};
       const metadata = data.metadata || {};
-      let fullName = metadata.fullName || metadata.adminName || '';
+      
+      // Start with metadata full name, but only if it doesn't look like an email
+      let fullName = metadata.fullName || '';
+      const adminName = metadata.adminName || '';
+      
+      if (!fullName && adminName && !adminName.includes('@')) {
+        fullName = adminName;
+      }
 
-      // If we don't have a full name in metadata, try to look it up from the staff table
-      if (!fullName && (data.actor_uid || metadata.adminId)) {
+      // Always try to look up from staff table if we have an ID
+      if (data.actor_uid || metadata.adminId) {
         const staffId = data.actor_uid || metadata.adminId;
         try {
           const staffDoc = await db.collection('staff').doc(staffId).get();
           const staffData = staffDoc.data() || {};
-          fullName = staffData.full_name || staffData.fullName || [staffData.first_name, staffData.last_name].filter(Boolean).join(' ').trim() || '';
+          const staffFullName = staffData.full_name || staffData.fullName || [staffData.first_name, staffData.last_name].filter(Boolean).join(' ').trim();
+          
+          // Use staff table lookup if it's not empty
+          if (staffFullName) {
+            fullName = staffFullName;
+          }
         } catch (err) {
           console.error('Staff lookup error:', err);
         }
       }
 
-      // Final fallback - never use email, only use Unknown staff
+      // Final fallback - never show email
       fullName = fullName || 'Unknown staff';
 
       return {
