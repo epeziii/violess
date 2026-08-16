@@ -220,14 +220,18 @@ export default function CasesPage({ initialSelectedCaseId, initialSelectedCaseKe
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const officersData = snapshot.docs.map((doc) => {
           const data = doc.data();
+          const firstName = data.first_name || data.firstName || "";
+          const lastName = data.last_name || data.lastName || "";
+          const fullName = data.full_name || data.fullName || `${firstName} ${lastName}`.trim();
+
           return {
             id: doc.id,
-            name: `${data.firstName || ""} ${data.lastName || ""}`.trim(),
-            firstName: data.firstName || "",
-            lastName: data.lastName || "",
+            name: (fullName || `${firstName} ${lastName}`.trim()).trim(),
+            firstName,
+            lastName,
             email: data.email || "",
           };
-        });
+        }).filter((officer) => officer.name);
         setOfficers(officersData);
       });
 

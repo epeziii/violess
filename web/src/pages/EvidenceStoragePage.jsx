@@ -104,6 +104,26 @@ export default function EvidenceStoragePage() {
     setEvidence(allEvidence);
   }, [selectedCaseId, cases]);
 
+  useEffect(() => {
+    if (!isAdmin) {
+      setAccessLogs([]);
+      return;
+    }
+
+    const fetchAccessLogs = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/access-logs`);
+        const data = await response.json();
+        setAccessLogs(Array.isArray(data?.logs) ? data.logs : []);
+      } catch (error) {
+        console.error('Failed to load access logs:', error);
+        setAccessLogs([]);
+      }
+    };
+
+    fetchAccessLogs();
+  }, [isAdmin]);
+
   const filteredAccessLogs = accessLogs.filter((log) => {
     const searchValue = accessLogSearch.trim().toLowerCase();
     const caseId = (log.caseId || '').toString().toLowerCase();
@@ -120,10 +140,9 @@ export default function EvidenceStoragePage() {
       return date.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
     };
 
-    const staffName = (log.adminName || `${log.adminFirstName || ''} ${log.adminLastName || ''}`).toString().toLowerCase();
+    const staffName = (log.adminName || '').toString().toLowerCase();
     const roleText = (log.role || '').toString().toLowerCase();
     const timestampText = formatLogTimestamp(log.timestamp).toString().toLowerCase();
-
     const searchable = [caseId, action, staffName, (log.adminEmail || '').toString().toLowerCase(), roleText, timestampText].join(' ');
     return roleMatch && searchable.includes(searchValue);
   });
@@ -152,12 +171,26 @@ export default function EvidenceStoragePage() {
   };
 
 
-  const logAccess = async ({ caseDocId, caseId, action }) => {
-    // Access logging is intentionally disabled here because the app does not expose a backend
-    // endpoint for activity logs yet. Cases still render correctly regardless of whether they
-    // have evidence attached.
-    if (process.env.NODE_ENV !== 'production') {
-      console.info('Access log skipped for evidence preview:', { caseDocId, caseId, action });
+  const logAccess = async ({ caseDocId, caseId, action, fileName }) => {
+    if (!user?.uid || !caseId || !action) return;
+
+    try {
+      await fetch(`${API_BASE_URL}/log-access`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          adminId: user.uid,
+          adminName: user.displayName || user.email || 'Staff Member',
+          adminEmail: user.email || '',
+          role: user.role || 'admin',
+          caseId,
+          caseDocId,
+          fileName,
+          action,
+        }),
+      });
+    } catch (err) {
+      console.error('Error logging access:', err);
     }
   };
 
@@ -486,12 +519,9 @@ function formatAction(action) {
 
 
 function AccessLogRow({ log }) {
-  const [staff, setStaff] = useState(null);
-
   const formatAccessTimestamp = (timestamp) => {
     if (!timestamp) return '—';
     const date = new Date(timestamp?.toDate?.() || timestamp);
-    // Desired format example: Jun 10, 2026, 12:09 PM
     return date.toLocaleString('en-US', {
       month: 'short',
       day: 'numeric',
@@ -502,79 +532,32 @@ function AccessLogRow({ log }) {
     });
   };
 
-
-  useEffect(() => {
-    let mounted = true;
-
-    // If log already includes staff info (prefetched), use it instead of fetching again
-    if (log?.adminName || log?.adminEmail || log?.role) {
-      const first = log.adminFirstName || '';
-      const last = log.adminLastName || '';
-      if (mounted) {
-        setStaff({ id: log.adminId || null, firstName: first, lastName: last, email: log.adminEmail || '', role: log.role || '', status: 'active', color: log.color || 'av-pink' });
-      }
-      return () => { mounted = false; };
-    }
-
-    const fetchStaff = async () => {
-      if (!log?.adminId) return;
-      try {
-        const staffRef = doc(db, 'staff', log.adminId);
-        const staffSnap = await getDoc(staffRef);
-        if (!mounted) return;
-        if (staffSnap.exists()) {
-          setStaff({ id: staffSnap.id, ...staffSnap.data() });
-        } else {
-          setStaff(null);
-        }
-      } catch (e) {
-        console.error('Failed to fetch staff for access log:', e);
-        if (mounted) setStaff(null);
-      }
-    };
-
-    fetchStaff();
-    return () => {
-      mounted = false;
-    };
-  }, [log?.adminId]);
-
-  const initials = staff
-    ? `${(staff.firstName || '').charAt(0)}${(staff.lastName || '').charAt(0)}`.toUpperCase()
-    : '';
-
-  const normalizedRole = staff?.role ? staff.role.toString().toLowerCase() : '';
-  const roleLabel = normalizedRole ? ROLE_LABELS[normalizedRole] || staff.role : '—';
+  const adminDisplayName = (log.adminName || 'Unknown staff').trim() || 'Unknown staff';
+  const normalizedRole = (log.role || '').toString().toLowerCase();
+  const roleLabel = normalizedRole ? ROLE_LABELS[normalizedRole] || log.role : '—';
   const roleClass = normalizedRole ? ROLE_CLASSES[normalizedRole] || '' : '';
-  const avatarClass = staff
-    ? (AVATAR_COLOR[staff.color] || (normalizedRole === 'admin' ? 'av-blue' : 'av-pink'))
-    : 'av-pink';
 
   return (
     <tr>
       <td>
-        {staff ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div
-              className={`staff-avatar ${avatarClass}`}
-              style={{ opacity: staff.status !== 'active' ? 0.45 : 1 }}
-            >
-              {initials}
-            </div>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: staff.status !== 'active' ? 'var(--text-muted)' : 'var(--text)' }}>
-                {staff.firstName} {staff.lastName}
-              </div>
-            </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className={`staff-avatar ${AVATAR_COLOR.pink}`} style={{ opacity: 1 }}>
+            {adminDisplayName
+              .split(' ')
+              .map((part) => part[0])
+              .join('')
+              .slice(0, 2)
+              .toUpperCase() || 'US'}
           </div>
-        ) : (
-          <span style={{ color: 'var(--text-muted)' }}>Unknown staff</span>
-        )}
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>{adminDisplayName}</div>
+          </div>
+        </div>
       </td>
       <td>
         <span className={`badge ${roleClass}`}>{roleLabel}</span>
       </td>
-      <td className="bold">{log.caseId}</td>
+      <td className="bold">{log.caseId || '—'}</td>
       <td className="action-cell" title={log.action}>{formatAction(log.action)}</td>
       <td>{formatAccessTimestamp(log.timestamp)}</td>
     </tr>
@@ -622,6 +605,7 @@ function FileCard({ file, onAccess, caseDocId, caseId }) {
         caseDocId,
         caseId,
         action: `previewed_${fileName}`,
+        fileName,
       });
     }
   };
@@ -646,6 +630,7 @@ function FileCard({ file, onAccess, caseDocId, caseId }) {
           caseDocId,
           caseId,
           action: `downloaded_${fileName}`,
+          fileName,
         });
       }
     } catch (err) {

@@ -1312,6 +1312,72 @@ app.get("/all-cases", async (req, res) => {
   }
 });
 
+app.get('/access-logs', async (req, res) => {
+  try {
+    const snapshot = await db.collection('access_logs')
+      .orderBy('created_at', 'desc')
+      .limit(200)
+      .get();
+
+    const logs = snapshot.docs.map((doc) => {
+      const data = doc.data() || {};
+      const metadata = data.metadata || {};
+
+      return {
+        id: doc.id,
+        adminId: data.actor_uid || metadata.adminId || null,
+        adminName: metadata.adminName || '',
+        adminEmail: metadata.adminEmail || '',
+        role: metadata.role || '',
+        caseId: metadata.caseId || metadata.case_id || '',
+        fileName: metadata.fileName || '',
+        fileId: metadata.fileId || data.file_id || '',
+        action: data.action || metadata.action || 'viewed',
+        timestamp: data.created_at || data.timestamp || null,
+      };
+    });
+
+    res.json({ success: true, logs });
+  } catch (error) {
+    console.error('[access-logs] failed:', error);
+    res.status(500).json({ success: false, logs: [], error: error.message || 'Failed to fetch access logs' });
+  }
+});
+
+app.post('/log-access', async (req, res) => {
+  try {
+    const { adminId, adminName, adminEmail, role, caseId, caseDocId, fileId, fileName, action } = req.body || {};
+
+    if (!action) {
+      return res.status(400).json({ success: false, error: 'Action is required' });
+    }
+
+    const logId = db.collection('access_logs').doc().id;
+    await db.collection('access_logs').doc(logId).set({
+      id: logId,
+      file_id: fileId || null,
+      actor_uid: adminId || null,
+      action: String(action),
+      created_at: new Date(),
+      metadata: {
+        adminId: adminId || null,
+        adminName: adminName || '',
+        adminEmail: adminEmail || '',
+        role: role || '',
+        caseId: caseId || null,
+        caseDocId: caseDocId || null,
+        fileId: fileId || null,
+        fileName: fileName || '',
+      }
+    });
+
+    res.json({ success: true, id: logId });
+  } catch (error) {
+    console.error('[log-access] failed:', error);
+    res.status(500).json({ success: false, error: error.message || 'Failed to log access' });
+  }
+});
+
 // ─── GET MESSAGES FOR A CASE ──────────────────────────────────────────────
 app.get("/case/:caseId/messages", async (req, res) => {
   try {
