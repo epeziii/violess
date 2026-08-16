@@ -57,8 +57,68 @@ const EyeOffIcon = () => (
   </svg>
 );
 
+function EmailConfirmedPage() {
+  return (
+    <main className="confirm-page" style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '24px',
+      background: 'linear-gradient(135deg, #fff5f9 0%, #f3e8ff 100%)',
+    }}>
+      <div className="confirm-card" style={{
+        width: 'min(100%, 560px)',
+        background: '#fff',
+        borderRadius: '20px',
+        padding: '48px 36px',
+        boxShadow: '0 20px 60px rgba(123, 58, 180, 0.12)',
+        textAlign: 'center',
+        border: '1px solid rgba(168, 85, 247, 0.08)',
+      }}>
+        <div className="confirm-check" style={{
+          width: '88px',
+          height: '88px',
+          margin: '0 auto 24px',
+          borderRadius: '50%',
+          background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
+          color: '#fff',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '42px',
+          fontWeight: 700,
+          boxShadow: '0 10px 24px rgba(16, 185, 129, 0.3)',
+        }}>
+          ✓
+        </div>
+        <h1 style={{ margin: 0, fontSize: 'clamp(2rem, 4vw, 2.6rem)', lineHeight: 1.2 }}>Email confirmed</h1>
+        <p style={{ margin: '18px auto 0', maxWidth: '420px', fontSize: '1.05rem', color: '#4b5563', lineHeight: 1.7 }}>
+          Your email address has been successfully verified. You can now return to the app and continue creating your account.
+        </p>
+        <div style={{
+          marginTop: '28px',
+          background: '#f9fafb',
+          border: '1px solid #e5e7eb',
+          borderRadius: '12px',
+          padding: '14px 18px',
+          color: '#374151',
+          fontSize: '0.98rem',
+        }}>
+          You may close this page now.
+        </div>
+      </div>
+    </main>
+  );
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('sos');
+  const isConfirmationPage = typeof window !== 'undefined' && window.location.pathname === '/email-confirmed';
+
+  if (isConfirmationPage) {
+    return <EmailConfirmedPage />;
+  }
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [faqActive, setFaqActive] = useState(null);
 

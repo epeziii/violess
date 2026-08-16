@@ -103,8 +103,7 @@ export default function RegisterScreen({ navigation }) {
       }
       setLoading(true);
       try {
-        // Deploy the standalone confirm app at Vercel and update this URL if Vercel assigns a custom domain.
-        const redirectUrl = 'https://confirm.vercel.app';
+        const redirectUrl = 'https://violess-landing.vercel.app/email-confirmed';
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
