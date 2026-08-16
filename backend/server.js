@@ -1560,7 +1560,7 @@ app.post("/check-and-notify-new-cases", async (req, res) => {
     // Get cases created in the last 24 hours (only notify about recent cases)
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const casesSnapshot = await db.collection("cases")
-      .where("createdAt", ">=", oneDayAgo)
+      .where("created_at", ">=", oneDayAgo)
       .get();
 
     console.log("[check-and-notify-new-cases] Cases created in last 24h:", casesSnapshot.size);
