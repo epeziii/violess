@@ -39,6 +39,7 @@ CREATE TABLE public.cases (
   case_number text,
   type text,
   reporter text,
+  description text,
   location text,
   status text,
   assigned_officer text,

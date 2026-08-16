@@ -109,6 +109,47 @@ app.post("/delete-evidence", async (req, res) => {
   }
 });
 
+function normalizeDateTimeInput(value) {
+  if (value === null || value === undefined || value === "") {
+    return new Date().toISOString();
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  if (typeof value === "number") {
+    return new Date(value).toISOString();
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return new Date().toISOString();
+
+    const cleaned = trimmed
+      .replace(/\s*\([^)]*\)\s*$/, "")
+      .replace(/GMT([+-])(\d{2})(\d{2})/i, "GMT$1$2:$3")
+      .replace(/\s+/g, " ");
+
+    const parsed = new Date(cleaned);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toISOString();
+    }
+
+    const isoCandidate = trimmed.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?/i);
+    if (isoCandidate) {
+      return new Date(isoCandidate[0]).toISOString();
+    }
+  }
+
+  const parsed = new Date(value);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toISOString();
+  }
+
+  return new Date().toISOString();
+}
+
 function toTitleCaseName(input) {
   const normalized = (input || "").trim().replace(/\s+/g, " ");
   if (!normalized) return "";
@@ -1066,6 +1107,7 @@ app.post("/submit-report", async (req, res) => {
     if (!uid || !typeValue || !description)
       return res.status(400).json({ error: "uid, incidentType (or caseType), and description are required" });
 
+    const normalizedIncidentDate = normalizeDateTimeInput(datetime);
     const currentYear = new Date().getFullYear();
     const casesRef = db.collection("cases");
 
@@ -1116,7 +1158,7 @@ app.post("/submit-report", async (req, res) => {
       metadata: {
         suspect_description: suspectDescription || "",
         evidence: evidence || [],
-        incident_date: datetime || new Date().toISOString(),
+        incident_date: normalizedIncidentDate,
         is_anonymous: isAnonymous,
         reporter_name: reporterName,
         contact_number: contactNumber,

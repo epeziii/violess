@@ -32,8 +32,8 @@ export default function ProfileScreen({ navigation }) {
 
   const getInitials = () => {
     if (!userData) return 'U';
-    const first = userData.firstName ? userData.firstName.charAt(0).toUpperCase() : '';
-    const last = userData.lastName ? userData.lastName.charAt(0).toUpperCase() : '';
+    const first = userData.first_name ? userData.first_name.charAt(0).toUpperCase() : '';
+    const last = userData.last_name ? userData.last_name.charAt(0).toUpperCase() : '';
     return (first + last) || 'U';
   };
 
@@ -61,7 +61,7 @@ export default function ProfileScreen({ navigation }) {
             <Text style={styles.largeAvatarText}>{getInitials()}</Text>
           </View>
           <Text style={styles.userName}>
-            {userData?.firstName} {userData?.lastName}
+            {userData?.first_name} {userData?.last_name}
           </Text>
           <Text style={styles.userEmail}>{userData?.email}</Text>
         </View>
@@ -80,7 +80,7 @@ export default function ProfileScreen({ navigation }) {
 
           <View style={[styles.infoSection, styles.infoDivider]}>
             <Text style={styles.infoLabel}>Contact Number</Text>
-            <Text style={styles.infoValue}>{userData?.contactNumber || 'Not provided'}</Text>
+            <Text style={styles.infoValue}>{userData?.contact_number || 'Not provided'}</Text>
           </View>
 
           <View style={[styles.infoSection, styles.infoDivider]}>

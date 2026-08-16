@@ -178,13 +178,13 @@ export default function AppNavigator() {
 
         const { data: profile, error: profileError } = await supabase
           .from('users')
-          .select('*')
+          .select('registration_complete')
           .eq('id', currentUser.id)
           .maybeSingle();
 
         if (profileError) throw profileError;
 
-        const isValidMobileUser = !!profile && (profile.registration_complete ?? profile.registrationComplete ?? true) !== false;
+        const isValidMobileUser = profile?.registration_complete === true;
         if (active) setUser(isValidMobileUser ? currentUser : null);
       } catch (error) {
         console.error('Error verifying Supabase user session:', error);
@@ -201,8 +201,28 @@ export default function AppNavigator() {
 
     const { data: { subscription } = {} } = supabase.auth.onAuthStateChange((event, session) => {
       const nextUser = session?.user ?? null;
-      setUser(nextUser);
-      setLoading(false);
+      
+      // Only set user if they have a complete profile (not in middle of registration)
+      if (nextUser) {
+        supabase
+          .from('users')
+          .select('registration_complete')
+          .eq('id', nextUser.id)
+          .maybeSingle()
+          .then(({ data: profile, error }) => {
+            if (error) {
+              console.error('Profile check error:', error);
+              setUser(null);
+              return;
+            }
+            const isRegistrationComplete = profile?.registration_complete ?? true;
+            setUser(isRegistrationComplete ? nextUser : null);
+            setLoading(false);
+          });
+      } else {
+        setUser(null);
+        setLoading(false);
+      }
     });
 
     return () => {

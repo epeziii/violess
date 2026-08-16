@@ -12,6 +12,7 @@ import { API_BASE_URL } from '../config/api';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
+import { getInfoAsync, uploadAsync, FileSystemUploadType } from 'expo-file-system/legacy';
 
 const INCIDENT_TYPES = [
   { id: 'domestic', label: 'Domestic Violence', icon: 'heart-crack' },
@@ -199,6 +200,18 @@ const [showTimePicker, setShowTimePicker] = useState(false);
         }
       }
 
+      const buildIncidentDateTime = (selectedDate, selectedTime) => {
+        const combinedDate = new Date(
+          selectedDate.getFullYear(),
+          selectedDate.getMonth(),
+          selectedDate.getDate(),
+          selectedTime.getHours(),
+          selectedTime.getMinutes(),
+          selectedTime.getSeconds()
+        );
+        return combinedDate.toISOString();
+      };
+
       const payload = {
         uid,
         incidentType: selectedType,
@@ -206,10 +219,7 @@ const [showTimePicker, setShowTimePicker] = useState(false);
         location,
         suspectDescription,
         evidence: evidenceFiles,
-        datetime: `${date.toDateString()} ${time.toLocaleTimeString([], {
-  hour: '2-digit',
-  minute: '2-digit'
-})}`,
+        datetime: buildIncidentDateTime(date, time),
         isAnonymous,
       };
 
@@ -493,8 +503,8 @@ const [showTimePicker, setShowTimePicker] = useState(false);
                     throw new Error('No file selected');
                   }
 
-                  // Get file size
-                  const fileInfo = await FileSystem.getInfoAsync(file.uri);
+                  // Get file size using legacy API
+                  const fileInfo = await getInfoAsync(file.uri);
                   const fileSizeMB = (fileInfo.size || 0) / (1024 * 1024);
 
                   // Validate individual file size (10MB max)
@@ -513,12 +523,12 @@ const [showTimePicker, setShowTimePicker] = useState(false);
                     throw new Error(`File "${file.name}" is already added`);
                   }
 
-                  const uploadResult = await FileSystem.uploadAsync(
+                  const uploadResult = await uploadAsync(
                     `${API_BASE_URL}/upload-evidence`,
                     file.uri,
                     {
                       httpMethod: 'POST',
-                      uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+                      uploadType: FileSystemUploadType.MULTIPART,
                       fieldName: 'file',
                       mimeType: file.mimeType || 'application/octet-stream',
                     }
@@ -665,10 +675,20 @@ const [showTimePicker, setShowTimePicker] = useState(false);
               <View style={styles.reviewRow}>
                 <Text style={styles.reviewLabel}>Date & Time:</Text>
                 <Text style={styles.reviewValue}>
-                  {`${date.toDateString()} ${time.toLocaleTimeString([], {
-  hour: '2-digit',
-  minute: '2-digit'
-})}`}
+                  {new Date(
+                    date.getFullYear(),
+                    date.getMonth(),
+                    date.getDate(),
+                    time.getHours(),
+                    time.getMinutes(),
+                    time.getSeconds()
+                  ).toLocaleString([], {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit'
+                  })}
                 </Text>
               </View>
               )}

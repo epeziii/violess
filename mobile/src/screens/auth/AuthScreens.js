@@ -159,7 +159,7 @@ export function RegisterSuccessScreen({ navigation }) {
             </View>
             <View>
               <Text style={styles.profileName}>
-                {userData ? `${userData.firstName} ${userData.lastName}` : 'Loading...'}
+                {userData ? `${userData.first_name} ${userData.last_name}` : 'Loading...'}
               </Text>
               <Text style={styles.profileRole}>
                 Community Member

@@ -156,21 +156,30 @@ export default function RegisterScreen({ navigation }) {
         setError(errorMsg);
       }
     } else if (step === 1) {
-      // Verify email and proceed to profile collection
-      const { data: { session } = {} } = await supabase.auth.getSession();
-      const user = session?.user;
-      if (!user) {
-        setError('Please verify your email first by clicking the link.');
-        return;
-      }
+      // Just verify email is confirmed, don't sign in yet (we'll sign in after profile is complete)
+      setLoading(true);
+      try {
+        // Check if email was confirmed by attempting to sign in
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
 
-      if (!user.email_confirmed_at) {
-        setError('Please verify your email first by clicking the link.');
-        return;
-      }
+        if (error) {
+          setLoading(false);
+          setError('Email not yet verified or incorrect credentials.');
+          return;
+        }
 
-      setLoading(false);
-      setStep(2);
+        // Email is verified and credentials are correct, proceed to profile step
+        // (User is now signed in but registration_complete is not set yet)
+        setLoading(false);
+        setStep(2);
+      } catch (err) {
+        setLoading(false);
+        console.error('Step 1 verification error:', err);
+        setError('An error occurred. Please try again.');
+      }
     } else {
       setLoading(true);
       setError('');
