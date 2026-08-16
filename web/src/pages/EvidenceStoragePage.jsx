@@ -152,6 +152,14 @@ export default function EvidenceStoragePage() {
   const accessLogEndIndex = Math.min(accessLogStartIndex + accessLogRowsPerPage, filteredAccessLogs.length);
   const paginatedAccessLogs = filteredAccessLogs.slice(accessLogStartIndex, accessLogEndIndex);
 
+  const formatActionLabel = (log) => {
+    if (!log?.action) return 'Viewed';
+    const action = String(log.action);
+    if (action.startsWith('previewed_')) return 'Previewed';
+    if (action.startsWith('downloaded_')) return 'Downloaded';
+    return action;
+  };
+
   const logRoleOptions = [
     { value: 'all', label: 'All roles' },
     { value: 'admin', label: 'Admin' },
@@ -434,7 +442,7 @@ export default function EvidenceStoragePage() {
                 <tbody>
                   {paginatedAccessLogs.length > 0 ? (
                     paginatedAccessLogs.map((log) => (
-                      <AccessLogRow key={log.id} log={log} />
+                      <AccessLogRow key={log.id} log={log} formatActionLabel={formatActionLabel} />
                     ))
                   ) : (
                     <tr>
@@ -522,7 +530,7 @@ function formatAction(action) {
 }
 
 
-function AccessLogRow({ log }) {
+function AccessLogRow({ log, formatActionLabel }) {
   const formatAccessTimestamp = (timestamp) => {
     if (!timestamp) return '—';
     const date = new Date(timestamp?.toDate?.() || timestamp);
@@ -540,6 +548,9 @@ function AccessLogRow({ log }) {
   const normalizedRole = (log.role || '').toString().toLowerCase();
   const roleLabel = normalizedRole ? ROLE_LABELS[normalizedRole] || log.role : '—';
   const roleClass = normalizedRole ? ROLE_CLASSES[normalizedRole] || '' : '';
+  const normalizedAction = formatActionLabel ? formatActionLabel(log) : 'Viewed';
+  const fileLabel = log.fileName ? String(log.fileName) : 'Evidence file';
+  const actionTitle = log.action ? String(log.action) : normalizedAction;
 
   return (
     <tr>
@@ -561,8 +572,13 @@ function AccessLogRow({ log }) {
       <td>
         <span className={`badge ${roleClass}`}>{roleLabel}</span>
       </td>
-      <td className="bold">{log.caseId || '—'}</td>
-      <td className="action-cell" title={log.action}>{formatAction(log.action)}</td>
+      <td className="bold" title={log.caseId || '—'}>{log.caseId || '—'}</td>
+      <td className="action-cell" title={actionTitle}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <span>{normalizedAction}</span>
+          <span style={{ fontSize: 10, color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 160 }}>{fileLabel}</span>
+        </div>
+      </td>
       <td>{formatAccessTimestamp(log.timestamp)}</td>
     </tr>
   );
