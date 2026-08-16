@@ -1212,7 +1212,7 @@ app.post("/submit-report", async (req, res) => {
         {
           caseId: createdCaseId,
           incidentType,
-          priorityLevel: reportData.priorityLevel
+          priorityLevel: caseData.metadata.priority_level
         }
       );
     }
