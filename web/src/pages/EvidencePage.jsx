@@ -1,19 +1,46 @@
 // EvidencePage.jsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import API_BASE_URL from "../config/api";
 
 export default function EvidencePage() {
-  const FILES = [
-    { icon: '', name: 'photo_001.jpg', meta: 'Case #VIO-001 · Feb 12 · 2.1 MB' },
-    { icon: '', name: 'blotter_report.pdf', meta: 'Case #VIO-001 · Feb 12 · 340 KB' },
-    { icon: '', name: 'cctv_clip.mp4', meta: 'Case #VIO-002 · Feb 13 · 18 MB' },
-    { icon: '', name: 'medical_cert.pdf', meta: 'Case #VIO-002 · Feb 13 · 890 KB' },
-    { icon: '', name: 'screenshot_msg.png', meta: 'Case #VIO-003 · Feb 14 · 1.2 MB' },
-    { icon: '', name: 'incident_form.docx', meta: 'Case #VIO-004 · Feb 15 · 120 KB' },
-    { icon: '', name: 'witness_video.mp4', meta: 'Case #VIO-002 · Feb 13 · 45 MB' },
-    { icon: '', name: 'bruise_photo.jpg', meta: 'Case #VIO-002 · Feb 13 · 3.4 MB' },
-  ];
-
+  const [evidenceFiles, setEvidenceFiles] = useState([]);
+  const [accessLog, setAccessLog] = useState([]);
   const [filter, setFilter] = useState('all');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchEvidence = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch(`${API_BASE_URL}/all-cases`);
+        const data = await res.json();
+
+        if (data.success && data.cases) {
+          // Collect all evidence files from all cases
+          const allEvidence = [];
+          data.cases.forEach(caseData => {
+            if (caseData.evidence && Array.isArray(caseData.evidence)) {
+              caseData.evidence.forEach(file => {
+                allEvidence.push({
+                  ...file,
+                  caseId: caseData.caseId,
+                  caseType: caseData.type,
+                });
+              });
+            }
+          });
+          setEvidenceFiles(allEvidence);
+        }
+        setLoading(false);
+      } catch (error) {
+        console.error("Error fetching evidence:", error);
+        setEvidenceFiles([]);
+        setLoading(false);
+      }
+    };
+
+    fetchEvidence();
+  }, []);
 
   return (
     <div>
@@ -40,13 +67,31 @@ export default function EvidencePage() {
           ))}
         </div>
         <div className="evid-grid">
-          {FILES.map(f => (
-            <div key={f.name} className="evid-item">
-              <div className="evid-icon">{f.icon}</div>
-              <div className="evid-name">{f.name}</div>
-              <div className="evid-meta">{f.meta}</div>
+          {evidenceFiles.length === 0 ? (
+            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
+              <p style={{ fontSize: 14 }}>No evidence files uploaded yet</p>
             </div>
-          ))}
+          ) : (
+            evidenceFiles.map(f => {
+              const getFileType = (name) => {
+                if (name.match(/\.(jpg|jpeg|png|gif|webp)/i)) return 'photos';
+                if (name.match(/\.(pdf|doc|docx|txt)/i)) return 'documents';
+                if (name.match(/\.(mp4|mov|avi|mkv)/i)) return 'videos';
+                return 'other';
+              };
+              
+              const fileType = getFileType(f.name || '');
+              if (filter !== 'all' && fileType !== filter) return null;
+
+              return (
+                <div key={`${f.caseId}-${f.name}`} className="evid-item">
+                  <div className="evid-icon">{f.icon}</div>
+                  <div className="evid-name">{f.name}</div>
+                  <div className="evid-meta">{f.caseId} · {f.caseType}</div>
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
 
@@ -58,18 +103,22 @@ export default function EvidencePage() {
             <tr><th>File</th><th>Accessed By</th><th>Time</th><th>Action</th></tr>
           </thead>
           <tbody>
-            {[
-              ['photo_001.jpg', 'Officer Reyes', 'Feb 12, 10:00 AM', 'Viewed'],
-              ['blotter_report.pdf', 'Officer Raven', 'Feb 13, 9:00 AM', 'Viewed'],
-              ['medical_cert.pdf', 'Officer Reyes', 'Feb 13, 2:00 PM', 'Viewed']
-            ].map(([file, user, time, action]) => (
-              <tr key={file}>
-                <td>{file}</td>
-                <td>{user}</td>
-                <td>{time}</td>
-                <td><span className="badge badge-reviewing">{action}</span></td>
+            {accessLog.length === 0 ? (
+              <tr>
+                <td colSpan="4" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px' }}>
+                  No access logs available
+                </td>
               </tr>
-            ))}
+            ) : (
+              accessLog.map(([file, user, time, action]) => (
+                <tr key={file}>
+                  <td>{file}</td>
+                  <td>{user}</td>
+                  <td>{time}</td>
+                  <td><span className="badge badge-reviewing">{action}</span></td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
