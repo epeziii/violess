@@ -131,42 +131,52 @@ export default function EvidenceStoragePage() {
   useEffect(() => {
     if (!isAdmin) return;
 
-    const logsQuery = query(
-      collection(db, 'access_logs'),
-      orderBy('timestamp', 'desc')
-    );
+    try {
+      const logsQuery = query(
+        collection(db, 'access_logs'),
+        orderBy('timestamp', 'desc')
+      );
 
-    const unsubscribe = onSnapshot(logsQuery, async (snapshot) => {
-      const logs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const unsubscribe = onSnapshot(logsQuery, async (snapshot) => {
+        const logs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-      // Enrich logs with staff info for searchable fields (adminName, adminEmail, role)
-      const adminIds = Array.from(new Set(logs.map(l => l.adminId).filter(Boolean)));
-      const staffMap = {};
-      await Promise.all(adminIds.map(async (id) => {
-        try {
-          const snap = await getDoc(doc(db, 'staff', id));
-          if (snap.exists()) staffMap[id] = snap.data();
-        } catch (e) {
-          // ignore fetch errors for individual staff
-        }
-      }));
+        // Enrich logs with staff info for searchable fields (adminName, adminEmail, role)
+        const adminIds = Array.from(new Set(logs.map(l => l.adminId).filter(Boolean)));
+        const staffMap = {};
+        await Promise.all(adminIds.map(async (id) => {
+          try {
+            const snap = await getDoc(doc(db, 'staff', id));
+            if (snap.exists()) staffMap[id] = snap.data();
+          } catch (e) {
+            // ignore fetch errors for individual staff
+          }
+        }));
 
-      const enriched = logs.map(l => {
-        const staff = l.adminId ? staffMap[l.adminId] : null;
-        return {
-          ...l,
-          adminName: staff ? `${staff.firstName || ''} ${staff.lastName || ''}`.trim() : (l.adminName || ''),
-          adminEmail: staff?.email || l.adminEmail || '',
-          role: staff?.role || l.role || '',
-          adminFirstName: staff?.firstName || '',
-          adminLastName: staff?.lastName || '',
-        };
+        const enriched = logs.map(l => {
+          const staff = l.adminId ? staffMap[l.adminId] : null;
+          return {
+            ...l,
+            adminName: staff ? `${staff.firstName || ''} ${staff.lastName || ''}`.trim() : (l.adminName || ''),
+            adminEmail: staff?.email || l.adminEmail || '',
+            role: staff?.role || l.role || '',
+            adminFirstName: staff?.firstName || '',
+            adminLastName: staff?.lastName || '',
+          };
+        });
+
+        setAccessLogs(enriched);
+      }, (error) => {
+        // Collection doesn't exist - that's ok, just set empty logs
+        console.log('Access logs not available:', error.message);
+        setAccessLogs([]);
       });
 
-      setAccessLogs(enriched);
-    });
-
-    return unsubscribe;
+      return unsubscribe;
+    } catch (error) {
+      console.log('Access logs collection not available:', error.message);
+      setAccessLogs([]);
+      return () => {};
+    }
   }, [isAdmin]);
 
   const filteredAccessLogs = accessLogs.filter((log) => {
