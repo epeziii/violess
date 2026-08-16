@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../AuthContext';
-import { db, collection, query, where, onSnapshot, addDoc, serverTimestamp, orderBy, getDoc, doc } from '../firebase';
+import API_BASE_URL from '../config/api';
 import '../styles/EvidenceStorage.css';
 import Icon from '../components/Icon';
 
@@ -33,61 +33,61 @@ export default function EvidenceStoragePage() {
 
   const isAdmin = user?.role === 'admin';
 
-  // Fetch cases based on role
+  // Fetch all cases from the backend so the list includes cases even when they have no evidence.
   useEffect(() => {
     if (!user?.uid) return;
 
-    let unsubscribe;
-    let officerUnsubscribed = false;
+    let active = true;
 
-    const run = async () => {
-      let q;
+    const fetchCases = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`${API_BASE_URL}/all-cases`);
+        const data = await response.json();
 
-      if (isAdmin) {
-        q = query(collection(db, 'reports'));
-      } else {
-        // EvidenceStorage expects `assignedOfficer` to be stored as the officer full name ("First Last"),
-        // but this UI previously compared it to the officer UID.
-        // Fix: resolve the staff full name then query by that.
-        const staffSnap = await getDoc(doc(db, 'staff', user.uid));
-        if (!staffSnap.exists) {
+        if (!active) return;
+
+        if (data?.success && Array.isArray(data.cases)) {
+          const casesList = data.cases.map((item) => ({
+            id: item.id || item.caseId || item.caseNumber || item.case_number,
+            ...item,
+            caseId: item.caseId || item.caseNumber || item.case_number || 'N/A',
+            incidentType: item.incidentType || item.type || 'General',
+            reporterName: item.reporterName || item.reporter || 'Anonymous',
+            evidence: Array.isArray(item.evidence) ? item.evidence : [],
+            assignedOfficer: item.assignedOfficer || item.assignedOfficerName || 'Unassigned',
+          }));
+
+          setCases(casesList);
+          if (casesList.length > 0 && !selectedCaseId) {
+            setSelectedCaseId(casesList[0].id);
+          }
+          if (casesList.length === 0) {
+            setSelectedCaseId(null);
+          }
+        } else {
           setCases([]);
-          setLoading(false);
-          return;
+          setSelectedCaseId(null);
         }
-
-        const staff = staffSnap.data();
-        const officerFullName = `${staff.firstName || ''} ${staff.lastName || ''}`.trim();
-
-        q = query(collection(db, 'reports'), where('assignedOfficer', '==', officerFullName));
+      } catch (error) {
+        console.error('Failed to fetch evidence storage cases:', error);
+        if (active) {
+          setCases([]);
+          setSelectedCaseId(null);
+        }
+      } finally {
+        if (active) setLoading(false);
       }
-
-      unsubscribe = onSnapshot(q, (snapshot) => {
-        if (officerUnsubscribed) return;
-        const casesList = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setCases(casesList);
-        if (casesList.length > 0 && !selectedCaseId) {
-          setSelectedCaseId(casesList[0].id);
-        }
-        setLoading(false);
-      });
     };
 
-    run().catch((e) => {
-      console.error('Failed to fetch evidence storage cases:', e);
-      setLoading(false);
-    });
+    fetchCases();
 
     return () => {
-      officerUnsubscribed = true;
-      if (unsubscribe) unsubscribe();
+      active = false;
     };
-  }, [user?.uid, isAdmin, selectedCaseId]);
+  }, [user?.uid]);
 
-  // Fetch evidence for selected case (including chat files)
+  // Use the backend case payload directly; a case should remain in the list even when evidence is empty.
   useEffect(() => {
     if (!selectedCaseId) {
       setEvidence([]);
@@ -95,89 +95,14 @@ export default function EvidenceStoragePage() {
     }
 
     setSelectedFilter('all');
-    const caseDoc = cases.find(c => c.id === selectedCaseId);
-    let allEvidence = caseDoc?.evidence || [];
+    const caseDoc = cases.find((c) => c.id === selectedCaseId);
+    const allEvidence = Array.isArray(caseDoc?.evidence) ? caseDoc.evidence.map((file) => ({
+      ...file,
+      resourceType: file.resourceType || (file.name || file.url || '').match(/\.(jpg|jpeg|png|gif|webp)$/i) ? 'image' : (file.name || file.url || '').match(/\.(mp4|mov|avi|mkv)$/i) ? 'video' : 'document',
+    })) : [];
 
-    // Also fetch files from chat messages using caseId field (not document ID)
-    const messagesUnsubscribe = onSnapshot(
-      collection(db, 'messages', caseDoc?.caseId, 'messages'),
-      (snapshot) => {
-        const chatFiles = [];
-        snapshot.forEach((doc) => {
-          const msg = doc.data();
-          if (msg.fileUrl && msg.fileName) {
-            chatFiles.push({
-              url: msg.fileUrl,
-              name: msg.fileName,
-              resourceType: msg.fileUrl.includes('.pdf') ? 'document' : 'image',
-              uploadedAt: msg.timestamp,
-              uploadedBy: msg.reporterName,
-              source: 'chat'
-            });
-          }
-        });
-        setEvidence([...allEvidence, ...chatFiles]);
-      },
-      (error) => {
-        console.error('Error fetching chat messages:', error);
-        setEvidence(allEvidence);
-      }
-    );
-
-    return () => messagesUnsubscribe();
-  }, [selectedCaseId, cases, isAdmin]);
-
-  // Fetch access logs for admin
-  useEffect(() => {
-    if (!isAdmin) return;
-
-    try {
-      const logsQuery = query(
-        collection(db, 'access_logs'),
-        orderBy('timestamp', 'desc')
-      );
-
-      const unsubscribe = onSnapshot(logsQuery, async (snapshot) => {
-        const logs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-
-        // Enrich logs with staff info for searchable fields (adminName, adminEmail, role)
-        const adminIds = Array.from(new Set(logs.map(l => l.adminId).filter(Boolean)));
-        const staffMap = {};
-        await Promise.all(adminIds.map(async (id) => {
-          try {
-            const snap = await getDoc(doc(db, 'staff', id));
-            if (snap.exists()) staffMap[id] = snap.data();
-          } catch (e) {
-            // ignore fetch errors for individual staff
-          }
-        }));
-
-        const enriched = logs.map(l => {
-          const staff = l.adminId ? staffMap[l.adminId] : null;
-          return {
-            ...l,
-            adminName: staff ? `${staff.firstName || ''} ${staff.lastName || ''}`.trim() : (l.adminName || ''),
-            adminEmail: staff?.email || l.adminEmail || '',
-            role: staff?.role || l.role || '',
-            adminFirstName: staff?.firstName || '',
-            adminLastName: staff?.lastName || '',
-          };
-        });
-
-        setAccessLogs(enriched);
-      }, (error) => {
-        // Collection doesn't exist - that's ok, just set empty logs
-        console.log('Access logs not available:', error.message);
-        setAccessLogs([]);
-      });
-
-      return unsubscribe;
-    } catch (error) {
-      console.log('Access logs collection not available:', error.message);
-      setAccessLogs([]);
-      return () => {};
-    }
-  }, [isAdmin]);
+    setEvidence(allEvidence);
+  }, [selectedCaseId, cases]);
 
   const filteredAccessLogs = accessLogs.filter((log) => {
     const searchValue = accessLogSearch.trim().toLowerCase();
@@ -228,16 +153,11 @@ export default function EvidenceStoragePage() {
 
 
   const logAccess = async ({ caseDocId, caseId, action }) => {
-    try {
-      await addDoc(collection(db, 'access_logs'), {
-        adminId: user.uid,
-        caseId,
-        caseDocId,
-        timestamp: serverTimestamp(),
-        action,
-      });
-    } catch (err) {
-      console.error('Error logging access:', err);
+    // Access logging is intentionally disabled here because the app does not expose a backend
+    // endpoint for activity logs yet. Cases still render correctly regardless of whether they
+    // have evidence attached.
+    if (process.env.NODE_ENV !== 'production') {
+      console.info('Access log skipped for evidence preview:', { caseDocId, caseId, action });
     }
   };
 
