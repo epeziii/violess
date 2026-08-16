@@ -12,13 +12,17 @@ export default function EvidencePage() {
     const fetchEvidence = async () => {
       try {
         setLoading(true);
+        console.log("[EvidencePage] Fetching from:", `${API_BASE_URL}/all-cases`);
         const res = await fetch(`${API_BASE_URL}/all-cases`);
         const data = await res.json();
+        console.log("[EvidencePage] Response:", data);
 
         if (data.success && data.cases) {
+          console.log("[EvidencePage] Found", data.cases.length, "cases");
           // Collect all evidence files from all cases
           const allEvidence = [];
           data.cases.forEach(caseData => {
+            console.log("[EvidencePage] Case:", caseData.caseId, "Evidence:", caseData.evidence);
             if (caseData.evidence && Array.isArray(caseData.evidence)) {
               caseData.evidence.forEach(file => {
                 allEvidence.push({
@@ -29,7 +33,10 @@ export default function EvidencePage() {
               });
             }
           });
+          console.log("[EvidencePage] Total evidence files:", allEvidence.length);
           setEvidenceFiles(allEvidence);
+        } else {
+          console.log("[EvidencePage] No cases returned");
         }
         setLoading(false);
       } catch (error) {
@@ -67,9 +74,13 @@ export default function EvidencePage() {
           ))}
         </div>
         <div className="evid-grid">
-          {evidenceFiles.length === 0 ? (
+          {loading ? (
             <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
-              <p style={{ fontSize: 14 }}>No evidence files uploaded yet</p>
+              <p style={{ fontSize: 14 }}>Loading evidence files...</p>
+            </div>
+          ) : evidenceFiles.length === 0 ? (
+            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
+              <p style={{ fontSize: 14 }}>No evidence files uploaded yet. Files will appear here when cases include evidence attachments.</p>
             </div>
           ) : (
             evidenceFiles.map(f => {
