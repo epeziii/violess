@@ -66,16 +66,26 @@ export default function RegisterScreen({ navigation }) {
   useEffect(() => {
     const syncCurrentUser = async () => {
       const { data: { session } = {} } = await supabase.auth.getSession();
-      setCurrentUser(session?.user ?? null);
+      const user = session?.user ?? null;
+      setCurrentUser(user);
+
+      if (step === 1 && user?.email_confirmed_at) {
+        setStep(2);
+      }
     };
     syncCurrentUser();
 
     const { data: { subscription } = {} } = supabase.auth.onAuthStateChange((event, session) => {
-      setCurrentUser(session?.user ?? null);
+      const user = session?.user ?? null;
+      setCurrentUser(user);
+
+      if (step === 1 && user?.email_confirmed_at) {
+        setStep(2);
+      }
     });
 
     return () => subscription?.unsubscribe?.();
-  }, []);
+  }, [step]);
 
   const pwStrength = () => {
     if (password.length < 6) return { level: 0, label: 'Too short', color: '#EEE' };
@@ -103,7 +113,7 @@ export default function RegisterScreen({ navigation }) {
       }
       setLoading(true);
       try {
-        const redirectUrl = 'https://violess-landing.vercel.app/email-confirmed';
+        const redirectUrl = 'mobile://auth/confirmed';
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
@@ -113,6 +123,19 @@ export default function RegisterScreen({ navigation }) {
         });
 
         if (error) throw error;
+
+        try {
+          const { error: resendError } = await supabase.auth.resend({
+            type: 'signup',
+            email: email.trim(),
+          });
+
+          if (resendError) {
+            console.warn('Verification email resend failed after signup:', resendError);
+          }
+        } catch (resendErr) {
+          console.warn('Verification email resend error after signup:', resendErr);
+        }
 
         setLoading(false);
         setStep(1);
