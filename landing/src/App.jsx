@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import violessIcon from './assets/violessicon.png';
+import EmailVerification from './EmailVerification';
 
 // Custom Simple Inline SVG Icons
 const ApkIcon = () => (
@@ -114,7 +115,27 @@ function EmailConfirmedPage() {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('sos');
+  
+  // Check if this is a Supabase email verification callback
+  const isVerificationCallback = () => {
+    if (typeof window === 'undefined') return false;
+    const url = new URL(window.location.href);
+    const hash = url.hash.substring(1);
+    const params = new URLSearchParams(hash || url.search);
+    
+    return (
+      params.has('access_token') ||
+      params.has('token_hash') ||
+      params.has('error') ||
+      (params.get('type') === 'signup' && params.has('token_hash'))
+    );
+  };
+
   const isConfirmationPage = typeof window !== 'undefined' && window.location.pathname === '/email-confirmed';
+
+  if (isVerificationCallback()) {
+    return <EmailVerification />;
+  }
 
   if (isConfirmationPage) {
     return <EmailConfirmedPage />;
