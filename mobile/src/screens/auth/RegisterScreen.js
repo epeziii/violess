@@ -113,9 +113,9 @@ export default function RegisterScreen({ navigation }) {
       }
       setLoading(true);
       try {
-        // Use landing app for email verification which handles Supabase auth callback
-        // The landing app will verify the email and redirect back to mobile://auth/confirmed
-        const redirectUrl = 'https://violess-landing.vercel.app';
+        // Use landing app email confirmation page for email verification
+        // The page will handle Supabase auth callback and verify the email
+        const redirectUrl = 'https://violess-landing.vercel.app/email-confirmed';
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
