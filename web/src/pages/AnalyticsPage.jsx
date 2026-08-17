@@ -295,6 +295,11 @@ export default function AnalyticsPage() {
     }));
   }, [ageGroupData]);
 
+  const ageGroupUserTotal = useMemo(() => {
+    if (!donut || donut.length === 0) return 0;
+    return donut.reduce((sum, group) => sum + (Number(group.count) || 0), 0);
+  }, [donut]);
+
   // Dynamic status items for stats grid
   const statsItems = [
     {
@@ -492,10 +497,10 @@ export default function AnalyticsPage() {
                       pointerEvents: 'none'
                     }}>
                       <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', display: 'block', lineHeight: 1 }}>
-                        {firestoreStats.totalCount}
+                        {ageGroupUserTotal}
                       </span>
                       <span style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>
-                        Reports
+                        Users
                       </span>
                     </div>
                     <ResponsiveContainer width="100%" height="100%">
