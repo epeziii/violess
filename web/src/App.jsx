@@ -53,13 +53,8 @@ function Shell() {
 
   const visibleNav = NAV.filter(n => can(n.permission));
 
-  const handleCaseNotificationHandled = () => {
-    setPendingCasePageCaseId(null);
-    setPendingCaseSelectionKey((key) => key + 1);
-  };
-
   const pages = {
-    cases:     <ProtectedRoute key={`cases-${pendingCaseSelectionKey}`} permission="cases"><CasesPage initialSelectedCaseId={pendingCasePageCaseId} initialSelectedCaseKey={pendingCaseSelectionKey} onNotificationHandled={handleCaseNotificationHandled} /></ProtectedRoute>,
+    cases:     <ProtectedRoute key={`cases-${pendingCaseSelectionKey}`} permission="cases"><CasesPage initialSelectedCaseId={pendingCasePageCaseId} initialSelectedCaseKey={pendingCaseSelectionKey} /></ProtectedRoute>,
     comms:     <CommunicationsPage initialSelectedCaseId={pendingCommunicationsCaseId} initialCaseModalKey={pendingCommunicationsCaseModalKey} onNotificationHandled={() => { setPendingCommunicationsCaseModalKey(null); setPendingCommunicationsCaseId(null); }} />,
     analytics: <AnalyticsPage />,
     evidence:  <EvidenceStoragePage />,
@@ -107,7 +102,19 @@ function Shell() {
             <button
               key={n.id}
               className={`nav-item ${page===n.id?"active":""}`}
-              onClick={() => { setPage(n.id); setNotifKey(k => k + 1); }}
+              onClick={() => {
+                setPage(n.id);
+                setNotifKey(k => k + 1);
+
+                if (n.id !== "cases") {
+                  setPendingCasePageCaseId(null);
+                }
+
+                if (n.id !== "comms") {
+                  setPendingCommunicationsCaseId(null);
+                  setPendingCommunicationsCaseModalKey(null);
+                }
+              }}
               title={!sidebarOpen ? n.label : undefined}
             >
               <span className="nav-icon">{n.icon}</span>
