@@ -562,6 +562,15 @@ app.post("/update-case", async (req, res) => {
     const newAssignedOfficerUid = assignedOfficerUid !== undefined ? (assignedOfficerUid || null) : oldAssignedOfficerUid;
     const newAssignedOfficerName = assignedOfficer !== undefined ? (assignedOfficer || null) : oldAssignedOfficerName;
 
+    console.log('[update-case] Assignment change detection:', {
+      oldAssignedOfficerUid,
+      oldAssignedOfficerName,
+      newAssignedOfficerUid,
+      newAssignedOfficerName,
+      receivedAssignedOfficerUid: assignedOfficerUid,
+      receivedAssignedOfficer: assignedOfficer,
+    });
+
     // Update the case
     const updateData = {};
     if (status !== undefined) {
@@ -585,7 +594,15 @@ app.post("/update-case", async (req, res) => {
     const hasUidChange = assignedOfficerUid !== undefined && oldAssignedOfficerUid !== newAssignedOfficerUid;
     const hasNameChange = assignedOfficer !== undefined && oldAssignedOfficerName !== newAssignedOfficerName;
 
+    console.log('[update-case] Change detection:', {
+      hasUidChange,
+      hasNameChange,
+      'assignedOfficerUid !== undefined': assignedOfficerUid !== undefined,
+      'oldAssignedOfficerUid !== newAssignedOfficerUid': oldAssignedOfficerUid !== newAssignedOfficerUid,
+    });
+
     if (hasUidChange || hasNameChange) {
+      console.log('[update-case] ASSIGNMENT CHANGED - Creating notification');
       // When assigned officer changes, record assignment timestamp
       const hasNewOfficer = assignedOfficerUid !== undefined
         ? newAssignedOfficerUid !== null
@@ -596,62 +613,28 @@ app.post("/update-case", async (req, res) => {
         updateData.assignedAt = null;
       }
 
-      // Decrement old officer's case count and send reassignment notification
-      if (oldAssignedOfficerUid || oldAssignedOfficerName) {
-        let oldOfficerUid = oldAssignedOfficerUid;
-
-        // Backward compat: resolve uid from name if needed
-        if (!oldOfficerUid && oldAssignedOfficerName) {
-          const staffSnapshot = await db.collection("staff").where("firstName", "!=", "").get();
-          for (const doc of staffSnapshot.docs) {
-            const staffData = doc.data();
-            const fullName = `${staffData.firstName} ${staffData.lastName}`.trim();
-            if (fullName === oldAssignedOfficerName) {
-              oldOfficerUid = doc.id;
-              break;
-            }
-          }
-        }
-
-        if (oldOfficerUid) {
-          const oldStaffSnap = await db.collection("staff").doc(oldOfficerUid).get();
-          const oldStaffData = oldStaffSnap.data() || {};
-          const newCount = Math.max(0, (oldStaffData.cases || 0) - 1);
-          await db.collection("staff").doc(oldOfficerUid).update({ cases: newCount });
-
-          await createNotification(
-            oldOfficerUid,
-            "case_reassigned",
-            "Case Reassigned",
-            `Case #${caseData.caseId} has been reassigned to another officer`,
-            caseId,
-            {
-              caseId: caseData.caseId,
-              incidentType: caseData.incidentType,
-              priorityLevel: caseData.priorityLevel
-            }
-          );
-        }
-      }
-
       // Increment new officer's case count and send notification
       if (newAssignedOfficerUid || newAssignedOfficerName) {
+        console.log('[update-case] Notifying new officer:', { newAssignedOfficerUid, newAssignedOfficerName });
         let newOfficerUid = newAssignedOfficerUid;
 
         // Backward compat: resolve uid from name if needed
         if (!newOfficerUid && newAssignedOfficerName) {
+          console.log('[update-case] Resolving officer name to UID:', newAssignedOfficerName);
           const staffSnapshot = await db.collection("staff").where("firstName", "!=", "").get();
           for (const doc of staffSnapshot.docs) {
             const staffData = doc.data();
             const fullName = `${staffData.firstName} ${staffData.lastName}`.trim();
             if (fullName === newAssignedOfficerName) {
               newOfficerUid = doc.id;
+              console.log('[update-case] Resolved to UID:', newOfficerUid);
               break;
             }
           }
         }
 
         if (newOfficerUid) {
+          console.log('[update-case] Creating notification for new officer:', newOfficerUid);
           const newStaffSnap = await db.collection("staff").doc(newOfficerUid).get();
           const newStaffData = newStaffSnap.data() || {};
           const newCount = (newStaffData.cases || 0) + 1;
@@ -669,8 +652,15 @@ app.post("/update-case", async (req, res) => {
               priorityLevel: status || caseData.priority_level || "normal"
             }
           );
+          console.log('[update-case] Notification created successfully');
+        } else {
+          console.log('[update-case] Could not resolve new officer UID');
         }
+      } else {
+        console.log('[update-case] No new officer to notify');
       }
+    } else {
+      console.log('[update-case] No assignment change detected - skipping notifications');
     }
 
     await caseRef.update(updateData);
