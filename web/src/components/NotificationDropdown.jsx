@@ -190,10 +190,23 @@ export default function NotificationDropdown({
     if (caseId) {
       setIsOpen(false);
       const wantsComms = notif.type === "case_assigned" || notif.type === "case_reassigned";
+      const wantsCaseModal = [
+        "new_case",
+        "new_case_filed",
+        "case_filed",
+        "resolution_submitted",
+      ].includes(notif.type);
+
       if (wantsComms && typeof onNavigateToCommunications === "function") {
         onNavigateToCommunications(caseId, { openCaseDetailsModal: true });
         return;
       }
+
+      if (wantsCaseModal && typeof onNavigateToCase === "function") {
+        onNavigateToCase(caseId);
+        return;
+      }
+
       if (typeof onNavigateToCase === "function") {
         onNavigateToCase(caseId);
         return;
