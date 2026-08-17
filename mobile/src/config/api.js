@@ -10,7 +10,7 @@ import { Platform } from 'react-native';
 
 const getApiBaseUrl = () => {
   // Use the deployed backend.
-  return 'https://violess-backend-gdwbhoku6-202310785-1931s-projects.vercel.app';
+  return 'https://violess-backend.vercel.app';
 };
 
 export const API_BASE_URL = getApiBaseUrl();
