@@ -37,14 +37,26 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5173',
   'http://localhost:5000',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:5173',
   'https://violess-web.vercel.app',
   'https://violess-web-git-main-202310785-1931s-projects.vercel.app',
   'https://violess-backend-ntta34ni4-202310785-1931s-projects.vercel.app',
+  'https://violess-qp22t2j4f-202310785-1931s-projects.vercel.app',
 ];
+
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true;
+  if (allowedOrigins.includes(origin)) return true;
+
+  return /^https?:\/\/(localhost|127\.0\.0\.1)(?::\d+)?$/i.test(origin)
+    || /^https:\/\/.*\.vercel\.app$/i.test(origin)
+    || /^https:\/\/.*-projects\.vercel\.app$/i.test(origin);
+};
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (isAllowedOrigin(origin)) {
       callback(null, true);
       return;
     }
