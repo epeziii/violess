@@ -574,11 +574,11 @@ app.post("/update-case", async (req, res) => {
       }
     }
     if (priorityLevel !== undefined) updateData.priorityLevel = priorityLevel;
-    // Canonical assignment
-    if (assignedOfficerUid !== undefined) updateData.assignedOfficerUid = assignedOfficerUid || "";
+    // Canonical assignment - use NULL instead of empty string for foreign key constraint
+    if (assignedOfficerUid !== undefined) updateData.assignedOfficerUid = assignedOfficerUid || null;
 
     // Keep name field for backward compat + UI display (optional). Prefer uid as source of truth.
-    if (assignedOfficer !== undefined) updateData.assignedOfficer = assignedOfficer || "";
+    if (assignedOfficer !== undefined) updateData.assignedOfficer = assignedOfficer || null;
     updateData.updatedAt = new Date();
 
     // Handle officer assignment changes only when assignment info is explicitly included.
