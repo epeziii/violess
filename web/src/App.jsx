@@ -37,7 +37,9 @@ function Shell() {
   const [pendingCaseSelectionKey, setPendingCaseSelectionKey] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
-  const { notifications, unreadCount } = useNotifications(user?.uid);
+  // Use uid if available, fallback to authUid if uid is empty
+  const notificationUserId = user?.uid || user?.authUid;
+  const { notifications, unreadCount } = useNotifications(notificationUserId);
   const [notifKey, setNotifKey] = useState(0);
 
   // ⚡ Wait for Firebase auth to finish initializing

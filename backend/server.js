@@ -410,23 +410,29 @@ app.post('/resolve-staff', async (req, res) => {
     if (!lookupValue) return res.status(400).json({ error: 'Username or email is required' });
 
     const normalizedLookup = lookupValue.trim();
+    console.log('[resolve-staff] Looking up:', { username, email, identifier, normalizedLookup });
 
     const usernameQuery = await db.collection('staff').where('username', '==', normalizedLookup).limit(1).get();
+    console.log('[resolve-staff] Username query results:', usernameQuery.size);
     if (!usernameQuery.empty) {
       const staffDoc = usernameQuery.docs[0];
       const staffData = staffDoc.data();
+      console.log('[resolve-staff] Found by username:', { id: staffDoc.id, email: staffData.email });
       return res.json({ uid: staffDoc.id, email: staffData.email || null, profile: staffData });
     }
 
     if (normalizedLookup.includes('@')) {
       const emailQuery = await db.collection('staff').where('email', '==', normalizedLookup.toLowerCase()).limit(1).get();
+      console.log('[resolve-staff] Email query results:', emailQuery.size);
       if (!emailQuery.empty) {
         const staffDoc = emailQuery.docs[0];
         const staffData = staffDoc.data();
+        console.log('[resolve-staff] Found by email:', { id: staffDoc.id, email: staffData.email });
         return res.json({ uid: staffDoc.id, email: staffData.email || null, profile: staffData });
       }
     }
 
+    console.log('[resolve-staff] No staff found for', normalizedLookup);
     return res.status(404).json({ error: 'No account found for that username or email.' });
   } catch (err) {
     console.error('Error resolving staff by username/email:', err);
@@ -698,6 +704,7 @@ async function createActivityLog(caseId, action, actionBy, actionByName, fromSta
 // ─── HELPER: Create notification ─────────────────────────────────
 async function createNotification(recipientUid, type, title, message, caseId = null, caseData = null) {
   try {
+    console.log('[createNotification] Creating for:', { recipientUid, type, title, caseId });
     const notifId = db.collection("notifications").doc().id;
     await db.collection("notifications").doc(notifId).set({
       id: notifId,
@@ -709,6 +716,7 @@ async function createNotification(recipientUid, type, title, message, caseId = n
       read: false,
       created_at: new Date()
     });
+    console.log('[createNotification] Created:', notifId);
   } catch (error) {
     console.error("Error creating notification:", error);
     throw error;
@@ -1202,7 +1210,10 @@ app.post("/submit-report", async (req, res) => {
       .where("status", "==", "active")
       .get();
 
+    console.log('[file-report] Found', adminsSnapshot.docs.length, 'active admins for notifications');
+
     for (const adminDoc of adminsSnapshot.docs) {
+      console.log('[file-report] Notifying admin:', adminDoc.id);
       await createNotification(
         adminDoc.id,
         "new_case",
@@ -1976,6 +1987,62 @@ app.get('/analytics/most-common-abuse-type', async (req, res) => {
   } catch (err) {
     console.error('[analytics/most-common-abuse-type] failed:', err);
     res.status(500).json({ success: false, data: [], error: err.message || 'Failed to load analytics' });
+  }
+});
+
+// ─── DIAGNOSTIC ENDPOINT ──────────────────────────────────────────
+app.get('/debug/notifications', async (req, res) => {
+  try {
+    const { uid } = req.query;
+    
+    const allNotifs = await db.collection('notifications').limit(10).get();
+    console.log('[debug] All notifications count:', allNotifs.size);
+    
+    const allNotifDocs = [];
+    allNotifs.forEach(doc => {
+      allNotifDocs.push({ id: doc.id, ...doc.data() });
+    });
+
+    if (uid) {
+      const userNotifs = await db.collection('notifications')
+        .where('recipient_uid', '==', uid)
+        .limit(10)
+        .get();
+      
+      const userNotifDocs = [];
+      userNotifs.forEach(doc => {
+        userNotifDocs.push({ id: doc.id, ...doc.data() });
+      });
+
+      return res.json({
+        success: true,
+        allNotifications: allNotifDocs,
+        userNotifications: userNotifDocs,
+        userNotificationsCount: userNotifs.size
+      });
+    }
+
+    res.json({ success: true, allNotifications: allNotifDocs });
+  } catch (err) {
+    console.error('[debug/notifications] error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── DIAGNOSTIC: List all staff ──────────────────────────────────────
+app.get('/debug/staff', async (req, res) => {
+  try {
+    const staffSnapshot = await db.collection('staff').limit(20).get();
+    
+    const staffDocs = [];
+    staffSnapshot.forEach(doc => {
+      staffDocs.push({ id: doc.id, ...doc.data() });
+    });
+
+    res.json({ success: true, staff: staffDocs, count: staffDocs.length });
+  } catch (err) {
+    console.error('[debug/staff] error:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 

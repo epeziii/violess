@@ -38,7 +38,55 @@ function serializeData(obj) {
   return obj;
 }
 
+// Map camelCase field names (from Firestore) to snake_case (Supabase)
+const fieldNameMap = {
+  // Case/Report fields
+  assignedOfficer: 'assigned_officer',
+  assignedOfficerUid: 'assigned_officer_uid',
+  caseNumber: 'case_number',
+  caseId: 'case_id',
+  incidentType: 'type',
+  priorityLevel: 'priority_level',
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
+  referredAt: 'referred_at',
+  resolvedAt: 'resolved_at',
+  assignedAt: 'assigned_at',
+  // Message fields
+  senderUid: 'sender_uid',
+  caseId: 'case_id',
+  // Staff fields
+  firstName: 'first_name',
+  lastName: 'last_name',
+  fullName: 'full_name',
+  lastLogin: 'last_login',
+  // Activity log fields
+  actionBy: 'action_by',
+  actionByName: 'action_by_name',
+  fromStatus: 'from_status',
+  toStatus: 'to_status',
+};
+
+// Convert object keys from camelCase to snake_case using fieldNameMap
+function mapFieldNames(obj) {
+  if (obj === null || obj === undefined) return obj;
+  if (Array.isArray(obj)) return obj.map(mapFieldNames);
+  if (typeof obj === 'object' && !(obj instanceof Date)) {
+    const mapped = {};
+    for (const key in obj) {
+      const mappedKey = fieldNameMap[key] || key;
+      mapped[mappedKey] = obj[key] instanceof Date ? obj[key].toISOString() : mapFieldNames(obj[key]);
+    }
+    return mapped;
+  }
+  return obj;
+}
+
 // Map Firestore "collection" and subcollections to Supabase tables
+const collectionMap = {
+  reports: 'cases',  // Map Firestore "reports" collection to Supabase "cases" table
+};
+
 const subcollectionMap = {
   activityLog: 'activity_logs',
   resolutions: 'resolutions',
@@ -66,7 +114,8 @@ class QuerySnapshot {
 
 class DocRef {
   constructor(table, id) {
-    this.table = table;
+    // Map Firestore collection names to Supabase table names
+    this.table = collectionMap[table] || table;
     this.id = id || generateId();
   }
   async get() {
@@ -75,7 +124,7 @@ class DocRef {
     return new DocSnapshot(this.id, data || null);
   }
   async set(payload) {
-    const row = { ...serializeData(payload), id: this.id };
+    const row = { ...mapFieldNames(serializeData(payload)), id: this.id };
     console.log(`[Shim] Upserting to ${this.table}:`, JSON.stringify(row, null, 2));
     const { data, error } = await supabase.from(this.table).upsert([row], { onConflict: ['id'] });
     console.log(`[Shim] Upsert result - error: ${error ? error.message : 'none'}, data:`, data);
@@ -83,7 +132,7 @@ class DocRef {
     return { id: this.id };
   }
   async update(payload) {
-    const { error } = await supabase.from(this.table).update(serializeData(payload)).eq('id', this.id);
+    const { error } = await supabase.from(this.table).update(mapFieldNames(serializeData(payload))).eq('id', this.id);
     if (error) throw error;
   }
   async delete() {
@@ -102,7 +151,8 @@ class DocRef {
 
 class CollectionRef {
   constructor(table, opts = {}) {
-    this.table = table;
+    // Map Firestore collection names to Supabase table names
+    this.table = collectionMap[table] || table;
     this._opts = opts; // for subcollections (e.g., { caseId })
     this._wheres = [];
     this._order = null;
@@ -114,7 +164,7 @@ class CollectionRef {
   }
   async add(payload) {
     const id = generateId();
-    const row = { ...serializeData(payload), id };
+    const row = { ...mapFieldNames(serializeData(payload)), id };
     // attach caseId for subcollection writes
     if (this._opts.caseId) row.case_id = this._opts.caseId;
     const { data, error } = await supabase.from(this.table).insert([row]).select().single();
@@ -122,11 +172,15 @@ class CollectionRef {
     return { id: String(data.id) };
   }
   where(field, op, val) {
-    this._wheres.push({ field, op, val });
+    // Map field names from camelCase to snake_case
+    const mappedField = fieldNameMap[field] || field;
+    this._wheres.push({ field: mappedField, op, val });
     return this;
   }
   orderBy(field, dir = 'asc') {
-    this._order = { field, dir };
+    // Map field names from camelCase to snake_case
+    const mappedField = fieldNameMap[field] || field;
+    this._order = { field: mappedField, dir };
     return this;
   }
   limit(n) {
@@ -161,8 +215,8 @@ class CollectionRef {
 function batch() {
   const ops = [];
   return {
-    update(ref, payload) { ops.push({ type: 'update', ref, payload: serializeData(payload) }); },
-    set(ref, payload) { ops.push({ type: 'set', ref, payload: serializeData(payload) }); },
+    update(ref, payload) { ops.push({ type: 'update', ref, payload: mapFieldNames(serializeData(payload)) }); },
+    set(ref, payload) { ops.push({ type: 'set', ref, payload: mapFieldNames(serializeData(payload)) }); },
     async commit() {
       for (const op of ops) {
         if (op.type === 'update') {

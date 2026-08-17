@@ -23,8 +23,11 @@ export function useNotifications(userId) {
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    if (!userId) {
-      console.log("[useNotifications] No userId provided");
+    // Normalize userId - use empty string as falsy check
+    const normalizedUserId = String(userId || "").trim();
+    
+    if (!normalizedUserId) {
+      console.log("[useNotifications] No userId provided:", userId);
       return;
     }
 
@@ -33,22 +36,29 @@ export function useNotifications(userId) {
     // Initial load
     const loadNotifications = async () => {
       try {
+        console.log("[useNotifications] Loading for userId:", normalizedUserId);
         const { data, error } = await supabase
           .from("notifications")
           .select("*")
-          .eq("recipient_uid", userId)
+          .eq("recipient_uid", normalizedUserId)
           .order("created_at", { ascending: false });
 
-        if (error) throw error;
+        if (error) {
+          console.error("[useNotifications] Query error:", error);
+          throw error;
+        }
 
         const normalized = (data || []).map(normalizeNotification);
 
         if (!isActive) return;
         setNotifications(normalized);
         setUnreadCount(normalized.filter((n) => !n.read).length);
-        console.log("[useNotifications] Initial load:", normalized);
+        console.log("[useNotifications] Initial load:", normalized.length, "notifications");
       } catch (error) {
         console.error("[useNotifications] Initial load error:", error);
+        if (!isActive) return;
+        setNotifications([]);
+        setUnreadCount(0);
       }
     };
 
@@ -56,19 +66,19 @@ export function useNotifications(userId) {
 
     // Subscribe to real-time updates
     const subscription = supabase
-      .channel(`notifications:${userId}`)
+      .channel(`notifications:${normalizedUserId}`)
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "notifications",
-          filter: `recipient_uid=eq.${userId}`,
+          filter: `recipient_uid=eq.${normalizedUserId}`,
         },
         (payload) => {
           if (!isActive) return;
 
-          console.log("[useNotifications] Real-time update:", payload);
+          console.log("[useNotifications] Real-time update:", payload.eventType);
 
           if (payload.eventType === "INSERT") {
             setNotifications((prev) => {
@@ -97,11 +107,15 @@ export function useNotifications(userId) {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("[useNotifications] Subscription status:", status);
+      });
 
     return () => {
       isActive = false;
-      subscription.unsubscribe();
+      subscription.unsubscribe().catch(err => {
+        console.warn("[useNotifications] Unsubscribe error:", err);
+      });
     };
   }, [userId]);
 
