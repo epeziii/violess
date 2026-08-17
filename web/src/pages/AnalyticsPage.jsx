@@ -6,6 +6,28 @@ import { db } from '../firebase';
 import { collection, query, onSnapshot } from 'firebase/firestore';
 import Icon from '../components/Icon';
 
+async function parseJsonResponse(response, label) {
+  const contentType = response.headers.get('content-type') || '';
+  const rawText = await response.text();
+
+  if (!rawText) {
+    throw new Error(`${label}: empty response body`);
+  }
+
+  const trimmed = rawText.trim();
+  const looksLikeJson = contentType.includes('application/json') || trimmed.startsWith('{') || trimmed.startsWith('[');
+
+  if (!looksLikeJson) {
+    throw new Error(`${label}: unexpected response type (${contentType || 'unknown'})`);
+  }
+
+  try {
+    return JSON.parse(trimmed);
+  } catch (error) {
+    throw new Error(`${label}: invalid JSON response - ${error.message}`);
+  }
+}
+
 export default function AnalyticsPage() {
   const [ageGroupData, setAgeGroupData] = useState([]);
   const [loadingAgeGroup, setLoadingAgeGroup] = useState(true);
@@ -164,7 +186,7 @@ export default function AnalyticsPage() {
           credentials: 'omit',
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
+        const json = await parseJsonResponse(res, 'Age Group Affected analytics');
         if (!cancelled) {
           if (Array.isArray(json?.data)) {
             setAgeGroupData(json.data);
@@ -199,7 +221,7 @@ export default function AnalyticsPage() {
           credentials: 'omit',
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
+        const json = await parseJsonResponse(res, 'Monthly Cases analytics');
         const apiData = Array.isArray(json?.data) ? json.data : [];
 
         // Always render 12 months in order.
@@ -236,7 +258,7 @@ export default function AnalyticsPage() {
           credentials: 'omit',
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
+        const json = await parseJsonResponse(res, 'Most Common Abuse Type analytics');
 
         const rows = Array.isArray(json?.data) ? json.data : [];
         if (!cancelled) {

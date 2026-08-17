@@ -47,16 +47,31 @@ const allowedOrigins = [
 
 const isAllowedOrigin = (origin) => {
   if (!origin) return true;
-  if (allowedOrigins.includes(origin)) return true;
+  const normalized = origin.toLowerCase();
+  if (allowedOrigins.includes(normalized)) return true;
 
-  return /^https?:\/\/(localhost|127\.0\.0\.1)(?::\d+)?$/i.test(origin)
-    || /^https:\/\/.*\.vercel\.app$/i.test(origin)
-    || /^https:\/\/.*-projects\.vercel\.app$/i.test(origin);
+  return /^https?:\/\/(localhost|127\.0\.0\.1)(?::\d+)?$/i.test(normalized)
+    || /^https?:\/\/.*\.vercel\.app$/i.test(normalized)
+    || /^https?:\/\/.*-projects\.vercel\.app$/i.test(normalized);
 };
+
+app.use((req, res, next) => {
+  if (req.originalUrl && req.originalUrl.includes('//')) {
+    req.url = req.originalUrl.replace(/\/\/+/, '/');
+  }
+  next();
+});
 
 app.use(cors({
   origin: (origin, callback) => {
     if (isAllowedOrigin(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    // Allow the app to run in Vercel preview deployments and local development
+    // without being blocked by stale origin strings from older deployments.
+    if (process.env.NODE_ENV !== 'production' || /^https?:\/\/.*\.(vercel\.app|projects\.vercel\.app)$/i.test(origin || '')) {
       callback(null, true);
       return;
     }
@@ -66,9 +81,18 @@ app.use(cors({
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  optionsSuccessStatus: 204,
 }));
 app.options(/.*/, cors());
 app.use(express.json());
+
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Violess backend is running',
+    timestamp: new Date().toISOString(),
+  });
+});
 
 // 📧 Email transporter setup
 // Using Gmail - for production, use environment variables
