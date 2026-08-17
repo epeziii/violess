@@ -53,8 +53,13 @@ function Shell() {
 
   const visibleNav = NAV.filter(n => can(n.permission));
 
+  const handleCaseNotificationHandled = () => {
+    setPendingCasePageCaseId(null);
+    setPendingCaseSelectionKey((key) => key + 1);
+  };
+
   const pages = {
-    cases:     <ProtectedRoute key={`cases-${pendingCaseSelectionKey}`} permission="cases"><CasesPage initialSelectedCaseId={pendingCasePageCaseId} initialSelectedCaseKey={pendingCaseSelectionKey} /></ProtectedRoute>,
+    cases:     <ProtectedRoute key={`cases-${pendingCaseSelectionKey}`} permission="cases"><CasesPage initialSelectedCaseId={pendingCasePageCaseId} initialSelectedCaseKey={pendingCaseSelectionKey} onNotificationHandled={handleCaseNotificationHandled} /></ProtectedRoute>,
     comms:     <CommunicationsPage initialSelectedCaseId={pendingCommunicationsCaseId} initialCaseModalKey={pendingCommunicationsCaseModalKey} onNotificationHandled={() => { setPendingCommunicationsCaseModalKey(null); setPendingCommunicationsCaseId(null); }} />,
     analytics: <AnalyticsPage />,
     evidence:  <EvidenceStoragePage />,

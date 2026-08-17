@@ -58,8 +58,9 @@ const formatIncidentDateTime = (value) => {
   });
 };
 
-export default function CasesPage({ initialSelectedCaseId, initialSelectedCaseKey }) {
+export default function CasesPage({ initialSelectedCaseId, initialSelectedCaseKey, onNotificationHandled }) {
   const { user } = useAuth();
+  const lastHandledNotificationRef = useRef(null);
   const [stats, setStats] = useState({
     total: 0,
     urgent: 0,
@@ -283,9 +284,16 @@ export default function CasesPage({ initialSelectedCaseId, initialSelectedCaseKe
   useEffect(() => {
     if (!initialSelectedCaseId) return;
 
+    const notificationToken = `${initialSelectedCaseId}-${initialSelectedCaseKey ?? "default"}`;
+    if (lastHandledNotificationRef.current === notificationToken) return;
+
     const targetCase = reports.find((c) => c.id === initialSelectedCaseId);
     if (targetCase) {
+      lastHandledNotificationRef.current = notificationToken;
       handleViewCase(targetCase);
+      if (typeof onNotificationHandled === "function") {
+        onNotificationHandled();
+      }
       setFilterType("all");
       setSearchInput("");
       setCurrentPage(1);
@@ -323,7 +331,11 @@ export default function CasesPage({ initialSelectedCaseId, initialSelectedCaseKe
           docId: doc.id,
         };
 
+        lastHandledNotificationRef.current = notificationToken;
         handleViewCase(caseData);
+        if (typeof onNotificationHandled === "function") {
+          onNotificationHandled();
+        }
         setFilterType("all");
         setSearchInput("");
         setCurrentPage(1);
@@ -333,7 +345,7 @@ export default function CasesPage({ initialSelectedCaseId, initialSelectedCaseKe
     };
 
     loadSelectedCase();
-  }, [initialSelectedCaseId, initialSelectedCaseKey, reports]);
+  }, [initialSelectedCaseId, initialSelectedCaseKey, reports, onNotificationHandled]);
 
   const handleViewCase = async (caseData) => {
     setSelectedCase(caseData);
