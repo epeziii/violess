@@ -29,12 +29,17 @@ export default function DashboardPage({ onNavigate }) {
 
           totalCount++;
 
-          if (status === "resolved") {
+          // Count resolved and closed cases
+          if (status === "resolved" || status === "closed") {
             resolvedCount++;
-          } else if (priorityLevel === "urgent") {
-            urgentCount++;
-          } else if (status === "pending" || status === "reviewing") {
+          } else if (status !== "referred") {
+            // Cases that are not resolved, closed, or referred are active
             activeCount++;
+          }
+
+          // Count urgent cases separately (if priority is urgent and not closed/resolved/referred)
+          if (priorityLevel === "urgent" && status !== "resolved" && status !== "closed" && status !== "referred") {
+            urgentCount++;
           }
         });
 
