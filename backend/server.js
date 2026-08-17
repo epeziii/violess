@@ -740,17 +740,22 @@ app.post("/submit-resolution", async (req, res) => {
       .where("role", "==", "admin")
       .where("status", "==", "active");
     const adminsSnapshot = await adminsQuery.get();
+    const resolvedCaseId = caseData?.caseId || caseId;
     const adminNotifications = adminsSnapshot.docs.map(async (adminDoc) => {
       const adminUid = adminDoc.id;
-      const caseLabel = caseData?.caseId || caseId;
       const caseType = caseData?.incidentType ? ` (${caseData.incidentType})` : "";
       return createNotification(
         adminUid,
         "resolution_submitted",
         "New Resolution Request",
-        `${officerFullName} submitted a resolution for case ${caseLabel}${caseType}. Please review and approve or reject it.`,
-        caseId,
-        caseData || null
+        `${officerFullName} submitted a resolution for case ${resolvedCaseId}${caseType}. Please review and approve or reject it.`,
+        resolvedCaseId,
+        {
+          ...(caseData || {}),
+          caseId: resolvedCaseId,
+          incidentType: caseData?.incidentType || "",
+          priorityLevel: caseData?.priorityLevel || "normal"
+        }
       );
     });
     await Promise.all(adminNotifications);
