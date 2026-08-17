@@ -59,7 +59,7 @@ function Shell() {
   };
 
   const pages = {
-    cases:     <ProtectedRoute key={`cases-${pendingCaseSelectionKey}`} permission="cases"><CasesPage initialSelectedCaseId={pendingCasePageCaseId} initialSelectedCaseKey={pendingCaseSelectionKey} onNotificationHandled={handleCaseNotificationHandled} /></ProtectedRoute>,
+    cases:     <ProtectedRoute permission="cases"><CasesPage initialSelectedCaseId={pendingCasePageCaseId} initialSelectedCaseKey={pendingCaseSelectionKey} onNotificationHandled={handleCaseNotificationHandled} /></ProtectedRoute>,
     comms:     <CommunicationsPage initialSelectedCaseId={pendingCommunicationsCaseId} initialCaseModalKey={pendingCommunicationsCaseModalKey} onNotificationHandled={() => { setPendingCommunicationsCaseModalKey(null); setPendingCommunicationsCaseId(null); }} />,
     analytics: <AnalyticsPage />,
     evidence:  <EvidenceStoragePage />,
