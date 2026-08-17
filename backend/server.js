@@ -368,7 +368,7 @@ app.post("/request-password-reset", async (req, res) => {
 
     const staffDoc = usernameQuery.docs[0];
     const staffData = staffDoc.data();
-    const staffFullName = `${staffData.firstName || ""} ${staffData.lastName || ""}`.trim() || staffData.fullName || normalizedUsername;
+    const staffFullName = `${staffData.first_name || ""} ${staffData.last_name || ""}`.trim() || staffData.full_name || normalizedUsername;
 
     const adminsSnapshot = await db.collection("staff")
       .where("role", "==", "admin")
@@ -554,10 +554,9 @@ app.post("/update-case", async (req, res) => {
 
     const caseData = caseSnap.data();
 
-    // Canonical fields (recommended): assignedOfficerUid + assignedOfficer
-    // Backward compat: if assignedOfficerUid isn't provided, we fall back to name-based assignment.
-    const oldAssignedOfficerUid = caseData.assignedOfficerUid || null;
-    const oldAssignedOfficerName = caseData.assignedOfficer || null;
+    // Read from Supabase snake_case fields
+    const oldAssignedOfficerUid = caseData.assigned_officer_uid || null;
+    const oldAssignedOfficerName = caseData.assigned_officer || null;
 
     const newAssignedOfficerUid = assignedOfficerUid !== undefined ? (assignedOfficerUid || null) : oldAssignedOfficerUid;
     const newAssignedOfficerName = assignedOfficer !== undefined ? (assignedOfficer || null) : oldAssignedOfficerName;
@@ -621,10 +620,11 @@ app.post("/update-case", async (req, res) => {
         // Backward compat: resolve uid from name if needed
         if (!newOfficerUid && newAssignedOfficerName) {
           console.log('[update-case] Resolving officer name to UID:', newAssignedOfficerName);
-          const staffSnapshot = await db.collection("staff").where("firstName", "!=", "").get();
+          const staffSnapshot = await db.collection("staff").where("first_name", "!=", "").get();
           for (const doc of staffSnapshot.docs) {
             const staffData = doc.data();
-            const fullName = `${staffData.firstName} ${staffData.lastName}`.trim();
+            // Use Supabase field names: first_name, last_name
+            const fullName = `${staffData.first_name || ''} ${staffData.last_name || ''}`.trim();
             if (fullName === newAssignedOfficerName) {
               newOfficerUid = doc.id;
               console.log('[update-case] Resolved to UID:', newOfficerUid);
@@ -732,7 +732,7 @@ app.post("/submit-resolution", async (req, res) => {
       return res.status(403).json({ error: "Unauthorized: only officers can submit resolutions" });
     }
 
-    const officerFullName = `${staffData.firstName} ${staffData.lastName}`.trim();
+    const officerFullName = `${staffData.first_name} ${staffData.last_name}`.trim();
 
     // Get the case
     const caseRef = db.collection("reports").doc(caseId);
@@ -744,8 +744,8 @@ app.post("/submit-resolution", async (req, res) => {
 
     const caseData = caseSnap.data();
 
-    // Verify officer is assigned to case (canonical: assignedOfficerUid)
-    const caseOfficerUid = caseData.assignedOfficerUid || null;
+    // Verify officer is assigned to case (using Supabase field names)
+    const caseOfficerUid = caseData.assigned_officer_uid || null;
 
     if (caseOfficerUid) {
       if (caseOfficerUid !== uid) {
@@ -791,8 +791,8 @@ app.post("/submit-resolution", async (req, res) => {
     const adminsSnapshot = await adminsQuery.get();
     const adminNotifications = adminsSnapshot.docs.map(async (adminDoc) => {
       const adminUid = adminDoc.id;
-      const caseLabel = caseData?.caseId || caseId;
-      const caseType = caseData?.incidentType ? ` (${caseData.incidentType})` : "";
+      const caseLabel = caseData?.case_number || caseId;
+      const caseType = caseData?.type ? ` (${caseData.type})` : "";
       return createNotification(
         adminUid,
         "resolution_submitted",
@@ -833,7 +833,7 @@ app.post("/approve-resolution", async (req, res) => {
       return res.status(403).json({ error: "Unauthorized: only admins can approve resolutions" });
     }
 
-    const adminFullName = `${staffData.firstName} ${staffData.lastName}`.trim();
+    const adminFullName = `${staffData.first_name} ${staffData.last_name}`.trim();
 
     // Get the resolution
     const resolutionRef = db.collection("reports").doc(caseId).collection("resolutions").doc(resolutionId);
@@ -902,7 +902,7 @@ app.post("/reject-resolution", async (req, res) => {
       return res.status(403).json({ error: "Unauthorized: only admins can reject resolutions" });
     }
 
-    const adminFullName = `${staffData.firstName} ${staffData.lastName}`.trim();
+    const adminFullName = `${staffData.first_name} ${staffData.last_name}`.trim();
 
     // Get the resolution
     const resolutionRef = db.collection("reports").doc(caseId).collection("resolutions").doc(resolutionId);
@@ -1499,7 +1499,7 @@ app.post("/case/:caseId/send-message", async (req, res) => {
     }
 
     const userData = userSnap.data();
-    const reporterName = `${userData.firstName} ${userData.lastName}`.trim();
+    const reporterName = `${userData.first_name} ${userData.last_name}`.trim();
 
     // Create message in subcollection
     const messagesRef = db.collection("messages").doc(caseId).collection("messages");
@@ -1686,7 +1686,7 @@ app.post("/check-and-notify-new-cases", async (req, res) => {
     casesSnapshot.forEach(doc => {
       const caseData = doc.data();
       if (caseData?.caseId) {
-        allCaseIds.add(caseData.caseId);
+        allCaseIds.add(caseData.id);
       } else {
         allCaseIds.add(doc.id);
       }
@@ -1712,25 +1712,24 @@ app.post("/check-and-notify-new-cases", async (req, res) => {
     // Create notifications for unnotified cases
     for (const caseId of unnotifiedCases) {
       const caseSnap = await db.collection("cases").doc(caseId).get();
-      if (!caseSnap.empty) {
-        const caseDoc = caseSnap.docs[0];
-        const caseData = caseDoc.data();
-        console.log('[check-and-notify-new-cases] Creating notification for case:', caseId, 'type:', caseData.incidentType);
+      if (caseSnap.exists) {
+        const caseData = caseSnap.data();
+        console.log('[check-and-notify-new-cases] Creating notification for case:', caseId, 'type:', caseData.type);
 
         await createNotification(
           uid,
           "new_case",
           "New Case Filed",
-          `A new ${caseData.incidentType} case has been filed: ${caseData.caseId}`,
+          `A new ${caseData.type} case has been filed: ${caseData.case_number}`,
           caseId,
           {
-            caseId: caseData.caseId,
-            incidentType: caseData.incidentType,
-            priorityLevel: caseData.priorityLevel
+            caseId,
+            incidentType: caseData.type,
+            priorityLevel: caseData.priority_level || "normal"
           }
         );
       } else {
-        console.warn('[check-and-notify-new-cases] Could not find report document for caseId:', caseId);
+        console.warn('[check-and-notify-new-cases] Could not find case document for caseId:', caseId);
       }
     }
 
