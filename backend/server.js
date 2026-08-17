@@ -661,12 +661,12 @@ app.post("/update-case", async (req, res) => {
             newOfficerUid,
             "case_assigned",
             "New Case Assigned",
-            `You have been assigned to case #${caseData.caseId}`,
+            `You have been assigned to case #${caseData.case_number}`,
             caseId,
             {
-              caseId: caseData.caseId,
-              incidentType: caseData.incidentType,
-              priorityLevel: status || caseData.priorityLevel
+              caseId,
+              incidentType: caseData.type || caseData.incident_type,
+              priorityLevel: status || caseData.priority_level || "normal"
             }
           );
         }
@@ -1288,8 +1288,25 @@ app.get("/all-cases", async (req, res) => {
       return res.json({ success: true, cases: [] });
     }
 
-    const cases = snapshot.docs.map((doc) => {
+    const cases = await Promise.all(snapshot.docs.map(async (doc) => {
       const data = doc.data();
+      
+      // Resolve officer name from UID if available
+      let officerName = data.assigned_officer || data.metadata?.assigned_officer || "";
+      const officerUid = data.assigned_officer_uid;
+      
+      if (officerUid && !officerName) {
+        try {
+          const staffDoc = await db.collection("staff").doc(officerUid).get();
+          if (staffDoc.exists()) {
+            const staffData = staffDoc.data();
+            officerName = staffData.full_name || staffData.fullName || `${staffData.first_name || ''} ${staffData.last_name || ''}`.trim();
+          }
+        } catch (err) {
+          console.warn('[all-cases] Failed to resolve officer name:', err);
+        }
+      }
+      
       return {
         id: doc.id,
         caseId: data.case_number,
@@ -1299,8 +1316,8 @@ app.get("/all-cases", async (req, res) => {
         description: data.description,
         location: data.location,
         status: data.status,
-        priority: data.metadata?.priority_level || "normal",
-        priorityLevel: data.metadata?.priority_level || "normal",
+        priority: data.metadata?.priority_level || data.priority_level || "normal",
+        priorityLevel: data.metadata?.priority_level || data.priority_level || "normal",
         datetime: data.metadata?.incident_date,
         incidentDateTime: data.metadata?.incident_date,
         reporterName: data.metadata?.reporter_name || "Anonymous",
@@ -1310,11 +1327,13 @@ app.get("/all-cases", async (req, res) => {
         evidence: data.metadata?.evidence || [],
         contactNumber: data.metadata?.contact_number || "",
         emergencyContact: data.metadata?.emergency_contact || "",
-        assignedOfficer: data.metadata?.assigned_officer || "",
+        // Return resolved officer name
+        assignedOfficer: officerName,
+        assignedOfficerUid: officerUid || "",
         createdAt: data.created_at,
         updatedAt: data.updated_at,
       };
-    });
+    }));
 
     res.json({ success: true, cases });
   } catch (err) {
