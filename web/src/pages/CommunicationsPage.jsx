@@ -19,7 +19,39 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebase";
 import { useAuth } from "../AuthContext";
+import Icon from "../components/Icon";
 import API_BASE_URL from "../config/api";
+
+const formatDate = (date) => {
+  if (!date) return "";
+  const d = date instanceof Date ? date : date.toDate?.();
+  if (!d) return "";
+
+  return d.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+};
+
+const formatIncidentDateTime = (value) => {
+  if (!value) return "";
+
+  const d = new Date(value);
+  if (isNaN(d)) return value;
+
+  return d.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+};
 
 export default function CommunicationsPage({ initialSelectedCaseId, initialCaseModalKey, onNotificationHandled }) {
   const { user } = useAuth();
@@ -68,7 +100,12 @@ export default function CommunicationsPage({ initialSelectedCaseId, initialCaseM
             suspectDescription: data.suspectDescription || "",
             assignedOfficer: data.assignedOfficer || "",
             createdAt: data.createdAt || "",
+            date: formatDate(data.createdAt),
+            incidentDateTime: formatIncidentDateTime(data.datetime),
             assignedAt: data.assignedAt || null,
+            contactNumber: data.contactNumber || "",
+            emergencyContact: data.emergencyContact || data.emergency || "",
+            isAnonymous: data.isAnonymous ?? true,
           };
         })
         .filter((caseItem) => caseItem.status !== "referred");
@@ -505,151 +542,50 @@ export default function CommunicationsPage({ initialSelectedCaseId, initialCaseM
                 ✕
               </button>
             </div>
-            <div className="modal-body">
-              {/* People Section */}
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 12 }}>
-                  <i className="fas fa-users" style={{ marginRight: 6 }}></i> People
-                </div>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 12,
-                  }}
-                >
-                  <div
-                    style={{
-                      background: "var(--bg)",
-                      border: "0.5px solid var(--border)",
-                      borderRadius: "var(--radius-md)",
-                      padding: "12px",
-                    }}
-                  >
-                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8 }}>Reporter</div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{selectedCaseDetails.reporter}</div>
+            <div className="modal-body" style={{ padding: "20px 24px", overflowY: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: "var(--text-muted)" }}>Case Details</div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", gap: 12, padding: 14, backgroundColor: "var(--bg)", borderRadius: "var(--radius-lg)", border: "0.5px solid var(--border)" }}>
+                {[
+                  { icon: "user", bg: "var(--primary-light)", color: "var(--primary)", label: "Reporter", val: selectedCaseDetails.reporter },
+                  { icon: "user-tie", bg: "var(--safe-light)", color: "var(--safe)", label: "Assigned To", val: selectedCaseDetails.assignedOfficer || "Unassigned" },
+                  { icon: "calendar", bg: "var(--accent-light)", color: "var(--accent)", label: "Date Filed", val: selectedCaseDetails.date || "Not recorded" },
+                  { icon: "clock", bg: "var(--warn-light)", color: "var(--warn)", label: "Date & Time of Incident", val: selectedCaseDetails.incidentDateTime || "Not recorded" }
+                ].map(item => (
+                  <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: item.bg, display: "flex", alignItems: "center", justifyContent: "center", color: item.color, flexShrink: 0 }}><Icon icon={item.icon} size="13px" /></div>
+                    <div><div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: 0.5, color: "var(--text-muted)", fontWeight: 700 }}>{item.label}</div><div style={{ fontSize: 13, fontWeight: 650, color: "var(--text)" }}>{item.val}</div></div>
                   </div>
-                  <div
-                    style={{
-                      background: "var(--bg)",
-                      border: "0.5px solid var(--border)",
-                      borderRadius: "var(--radius-md)",
-                      padding: "12px",
-                    }}
-                  >
-                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8 }}>Assigned to</div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
-                      {selectedCaseDetails.assignedOfficer || "Unassigned"}
+                ))}
+
+                {!selectedCaseDetails.isAnonymous && (
+                  <>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: "var(--safe-light)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--safe)", flexShrink: 0 }}><Icon icon="phone" size="13px" /></div>
+                      <div><div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: 0.5, color: "var(--text-muted)", fontWeight: 700 }}>Contact Number</div><div style={{ fontSize: 13, fontWeight: 650, color: "var(--text)" }}>{selectedCaseDetails.contactNumber || "Not provided"}</div></div>
                     </div>
-                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 8 }}>
-                      Assigned at: {selectedCaseDetails.assignedAt
-                        ? (selectedCaseDetails.assignedAt.toDate
-                          ? selectedCaseDetails.assignedAt.toDate().toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true })
-                          : new Date(selectedCaseDetails.assignedAt).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true }))
-                        : "Not recorded"}
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: "var(--accent-light)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--accent)", flexShrink: 0 }}><Icon icon="user-shield" size="13px" /></div>
+                      <div><div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: 0.5, color: "var(--text-muted)", fontWeight: 700 }}>Emergency Contact</div><div style={{ fontSize: 13, fontWeight: 650, color: "var(--text)" }}>{selectedCaseDetails.emergencyContact || "Not provided"}</div></div>
                     </div>
-                  </div>
+                  </>
+                )}
+
+                <div style={{ display: "flex", alignItems: "center", gap: 10, gridColumn: "span 2" }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: "var(--sos-light)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--sos)", flexShrink: 0 }}><Icon icon="location-dot" size="13px" /></div>
+                  <div><div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: 0.5, color: "var(--text-muted)", fontWeight: 700 }}>Incident Location</div><div style={{ fontSize: 13, fontWeight: 650, color: "var(--text)" }}>{selectedCaseDetails.location || "Not provided"}</div></div>
                 </div>
               </div>
 
-              {/* Location & Time Section */}
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 12 }}>
-                  <i className="fas fa-map-marker-alt" style={{ marginRight: 6 }}></i> Location & Time
+              {[
+                { icon: "file-lines", accent: selectedCaseDetails.priority === "urgent" ? "var(--sos)" : "var(--primary)", label: "Incident Description", val: selectedCaseDetails.description },
+                { icon: "user-secret", accent: "var(--accent)", label: "Suspect Description", val: selectedCaseDetails.suspectDescription }
+              ].map(b => (
+                <div key={b.label} style={{ borderLeft: `4px solid ${b.accent}`, backgroundColor: "var(--bg)", borderRadius: "var(--radius-md)", padding: "12px 14px", border: "0.5px solid var(--border)", borderLeftWidth: 4 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}><Icon icon={b.icon} size="12px" color="var(--text-muted)" /><div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: "var(--text-muted)" }}>{b.label}</div></div>
+                  <div style={{ fontSize: 12.5, color: "var(--text)", lineHeight: 1.6 }}>{b.val || <span style={{ fontStyle: "italic", color: "var(--text-muted)" }}>None provided</span>}</div>
                 </div>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 12,
-                  }}
-                >
-                  <div
-                    style={{
-                      background: "var(--bg)",
-                      border: "0.5px solid var(--border)",
-                      borderRadius: "var(--radius-md)",
-                      padding: "12px",
-                    }}
-                  >
-Incident Location
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{selectedCaseDetails.location}</div>
-                  </div>
-                  <div
-                    style={{
-                      background: "var(--bg)",
-                      border: "0.5px solid var(--border)",
-                      borderRadius: "var(--radius-md)",
-                      padding: "12px",
-                    }}
-                  >
-                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8 }}>Date & time of incident</div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
-                      {selectedCaseDetails.datetime
-                        ? new Date(selectedCaseDetails.datetime).toLocaleString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                          hour: "numeric",
-                          minute: "2-digit",
-                          hour12: true,
-                        })
-                        : "Not recorded"}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Incident Description Section */}
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 12 }}>
-                  <i className="fas fa-file-alt" style={{ marginRight: 6 }}></i> Incident Description
-                </div>
-                <div
-                  style={{
-                    background: "var(--bg)",
-                    borderRadius: "var(--radius-md)",
-                    padding: "12px",
-                    fontSize: 12,
-                    color: "var(--text)",
-                    lineHeight: 1.6,
-                    border: "0.5px solid var(--border)",
-                  }}
-                >
-                  {selectedCaseDetails.description || "Not recorded"}
-                </div>
-              </div>
-
-              {/* Suspect Description Section */}
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 12 }}>
-                  <i className="fas fa-search" style={{ marginRight: 6 }}></i> Suspect Description
-                </div>
-                <div
-                  style={{
-                    background: "var(--bg)",
-                    borderRadius: "var(--radius-md)",
-                    padding: "12px",
-                    fontSize: 12,
-                    color: "var(--text)",
-                    lineHeight: 1.6,
-                    border: "0.5px solid var(--border)",
-                  }}
-                >
-                  {selectedCaseDetails.suspectDescription || "Not recorded"}
-                </div>
-              </div>
-
-              <div style={{ marginBottom: 16, display: "flex", justifyContent: "flex-end", gap: 10 }}>
-                <button
-                  type="button"
-                  onClick={openResolveModal}
-                  className="btn btn-primary"
-                  style={{ minWidth: 140, padding: "10px 14px", fontSize: 12 }}
-                >
-                  Mark as Resolved
-                </button>
-              </div>
+              ))}
             </div>
           </div>
         </div>
