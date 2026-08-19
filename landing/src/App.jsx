@@ -57,6 +57,8 @@ const EyeOffIcon = () => (
   </svg>
 );
 
+const apkDownloadUrl = 'https://expo.dev/artifacts/eas/Z83duh3C9o0GDpoOBFVsG0GR1N4VZiZOXkazUVDMkWg.apk';
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('sos');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -94,7 +96,7 @@ export default function App() {
             <li><a href="#features" onClick={() => setMobileMenuOpen(false)}>Features</a></li>
             <li><a href="#about" onClick={() => setMobileMenuOpen(false)}>Privacy & Safety</a></li>
             <li><a href="#faq" onClick={() => setMobileMenuOpen(false)}>FAQ</a></li>
-            <li><a href="#download" className="nav-btn" onClick={() => setMobileMenuOpen(false)}>Download APK</a></li>
+            <li><a href={apkDownloadUrl} className="nav-btn" download="violess.apk" onClick={() => setMobileMenuOpen(false)}>Download APK</a></li>
           </ul>
         </div>
       </nav>
@@ -111,7 +113,7 @@ export default function App() {
               Violess connects citizens directly with Mabayuan Barangay responders. Trigger instant SOS distress signals, securely track report investigations, and find resources.
             </p>
             <div className="hero-buttons">
-              <a href="#download" className="app-btn">
+              <a href={apkDownloadUrl} className="app-btn" download="violess.apk">
                 <div className="app-btn-icon"><ApkIcon /></div>
                 <div className="app-btn-text">
                   <span>Direct Download</span>
@@ -378,11 +380,11 @@ export default function App() {
             Download the Violess app now for Android and iOS devices. Always have an emergency trigger at your fingertips.
           </p>
           <div className="cta-buttons">
-            <a href="#" className="app-btn" onClick={(e) => { e.preventDefault(); alert("APK download starting (Violess Beta v1.0.apk)..."); }}>
+            <a href={apkDownloadUrl} className="app-btn" download="violess.apk">
               <div className="app-btn-icon"><ApkIcon /></div>
               <div className="app-btn-text">
                 <span>Direct Download</span>
-                <strong>Get APK Installer</strong>
+                <strong>Get Android APK</strong>
               </div>
             </a>
           </div>
