@@ -61,6 +61,8 @@ export default function LoginScreen({ navigation }) {
       if (e.message) msg = e.message;
       if (e.code === 'auth/user-not-found') msg = 'Mobile user account not found.';
       if (e.code === 'auth/wrong-password') msg = 'Wrong password.';
+      if (e.code === 'auth/invalid-credential') msg = 'Invalid email or password.';
+      if (e.code === 'auth/invalid-login-credentials') msg = 'Invalid email or password.';
       if (e.code === 'auth/invalid-email') msg = 'Invalid email format.';
 
       setError(msg);
