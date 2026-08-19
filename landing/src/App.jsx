@@ -108,7 +108,7 @@ export default function App() {
               Your Shield Against Violence. <span>Speak Up, Stay Safe.</span>
             </h1>
             <p className="hero-desc">
-              Violess connects citizens directly with their local Barangay responders. Trigger instant SOS distress signals, securely track report investigations, and find resources - in total privacy.
+              Violess connects citizens directly with Mabayuan Barangay responders. Trigger instant SOS distress signals, securely track report investigations, and find resources.
             </p>
             <div className="hero-buttons">
               <a href="#download" className="app-btn">
@@ -124,35 +124,13 @@ export default function App() {
         </div>
       </header>
 
-      {/* ── Stats Ribbon ── */}
-      <section className="stats-ribbon">
-        <div className="container stats-grid">
-          <div className="stat-card-ribbon">
-            <h3>3s</h3>
-            <p>Average Send Time</p>
-          </div>
-          <div className="stat-card-ribbon">
-            <h3>100%</h3>
-            <p>End-to-End Encryption</p>
-          </div>
-          <div className="stat-card-ribbon">
-            <h3>24/7</h3>
-            <p>Barangay Monitoring</p>
-          </div>
-          <div className="stat-card-ribbon">
-            <h3>10k+</h3>
-            <p>Safe Users Guided</p>
-          </div>
-        </div>
-      </section>
-
       {/* ── Features Showcase ── */}
       <section id="features" className="features-section">
         <div className="container">
           <div className="section-head">
             <h2 className="section-title">Built to protect. Designed to support.</h2>
             <p className="section-desc">
-              Violess combines emergency defense metrics with private case response tools to give you full control.
+              Violess combines privacy and support to keep you protected and in control.
             </p>
           </div>
 
@@ -165,7 +143,7 @@ export default function App() {
                 <div className="tab-icon"><AlertTriangleIcon /></div>
                 <div className="tab-details">
                   <h4>SOS Emergency Alarm</h4>
-                  <p>Hold the red button for 3 seconds to immediately ping your barangay and notify 3 trusted contacts with your GPS location.</p>
+                  <p>Hold the red button for 3 seconds to immediately ping barangay mabayuan and notify trusted contacts.</p>
                 </div>
               </button>
 
@@ -176,7 +154,7 @@ export default function App() {
                 <div className="tab-icon"><SearchIcon /></div>
                 <div className="tab-details">
                   <h4>Secure Incident Tracking</h4>
-                  <p>Submit reports with evidence attachments (photos/records) and monitor the live progress of municipal case responders.</p>
+                  <p>Submit reports with evidence attachments (photos/records) and monitor the live progress of case responders.</p>
                 </div>
               </button>
 
@@ -187,7 +165,7 @@ export default function App() {
                 <div className="tab-icon"><MessageSquareIcon /></div>
                 <div className="tab-details">
                   <h4>SafeTalk AI chatbot</h4>
-                  <p>Chat entirely offline and anonymously to get immediate psychological, legal, and procedural tips without tracking data.</p>
+                  <p>SafeTalk AI provides online support to help you navigate difficult situations with guidance when you need it.</p>
                 </div>
               </button>
 
@@ -198,7 +176,7 @@ export default function App() {
                 <div className="tab-icon"><BookOpenIcon /></div>
                 <div className="tab-details">
                   <h4>Resource Directories</h4>
-                  <p>Examine Philippine laws, find nearby shelters, and get physical support information curated by safe agencies.</p>
+                  <p>Examine Philippine laws, find nearby shelters, and get physical support information.</p>
                 </div>
               </button>
             </div>
@@ -227,7 +205,6 @@ export default function App() {
                         </div>
                       </div>
                       <div className="mock-sos-flow">
-                        <div style={{ color: '#FF8A8A', fontWeight: 'bold' }}>🔒 Encrypted GPS Sharing</div>
                         <div>📡 Barangay Duty alerted</div>
                         <div>👥 3 Contacts notified</div>
                       </div>
@@ -260,7 +237,6 @@ export default function App() {
                   {activeTab === 'chat' && (
                     <div className="phone-content mock-chat-root">
                       <div className="mock-greet">SafeTalk Private AI</div>
-                      <div className="mock-name">Anonymous Chat</div>
 
                       <div className="mock-chat-msgs">
                         <div className="mock-msg ai">
@@ -275,7 +251,7 @@ export default function App() {
                       </div>
 
                       <div className="mock-chat-input">
-                        Type message anonymously...
+                        Type message
                       </div>
                     </div>
                   )}
@@ -309,32 +285,32 @@ export default function App() {
         </div>
       </section>
 
-      {/* ── Privacy & Decoy Screen Features ── */}
+      {/* ── Privacy & Safety Features ── */}
       <section id="about" className="privacy-section">
         <div className="container privacy-grid">
           <div className="privacy-left">
-            <span className="privacy-badge">Maximum Privacy</span>
-            <h2 className="privacy-title">Safety goes beyond encryption.</h2>
+            <span className="privacy-badge">Privacy & Safety</span>
+            <h2 className="privacy-title">Report on your terms.</h2>
             <p className="privacy-desc">
-              We understand you may need to shield this application from physical prying eyes. Violess contains offline safety measures tailored for emergency reporting.
+              Violess gives you control over how you share your identity when reporting. Choose to submit anonymously or include your details so responders can follow up with you.
             </p>
             <ul className="features-list">
               <li>
                 <span className="check-icon">✓</span>
                 <div>
-                  <strong>Decoy Code Screen:</strong> Log in with a specific decoy PIN to open a clean dashboard loaded with normal news, hiding all history.
+                  <strong>Anonymous Reporting:</strong> Submit a report without revealing your identity when you need an added layer of privacy.
                 </div>
               </li>
               <li>
                 <span className="check-icon">✓</span>
                 <div>
-                  <strong>Zero Cloud Logs option:</strong> Keep everything stored offline in your device keychain or delete the report instantly at the tap of a button.
+                  <strong>Identified Reporting:</strong> Share your details when you want responders to contact you and provide updates about your report.
                 </div>
               </li>
               <li>
                 <span className="check-icon">✓</span>
                 <div>
-                  <strong>Disguised App Icon:</strong> Optionally change the launcher icon to appear as a normal utility app (like a calculator or calendar).
+                  <strong>Connected Support:</strong> An internet connection is required to send reports, SOS alerts, and receive case updates.
                 </div>
               </li>
             </ul>
@@ -343,13 +319,13 @@ export default function App() {
           <div className="privacy-right">
             <div className="privacy-card">
               <div className="privacy-card-icon"><LockIcon /></div>
-              <h4>Local Security</h4>
-              <p>Reports are locked with high-level biometric protection. Evidence is encrypted on-device before sync.</p>
+              <h4>Choose What You Share</h4>
+              <p>Decide whether to report anonymously or provide your information for follow-up from responders.</p>
             </div>
             <div className="privacy-card">
               <div className="privacy-card-icon"><EyeOffIcon /></div>
-              <h4>No Tracker Cookies</h4>
-              <p>This landing page and our mobile client do not deploy tracking scripts or external third-party analytics.</p>
+              <h4>Safety Through Connection</h4>
+              <p>Violess uses the internet to deliver reports and alerts to the barangay and keep you informed about case progress.</p>
             </div>
           </div>
         </div>
