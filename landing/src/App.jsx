@@ -57,7 +57,7 @@ const EyeOffIcon = () => (
   </svg>
 );
 
-const apkDownloadUrl = 'https://expo.dev/artifacts/eas/Z83duh3C9o0GDpoOBFVsG0GR1N4VZiZOXkazUVDMkWg.apk';
+const apkDownloadUrl = 'https://github.com/epeziii/violess/releases/latest/download/Violess.apk';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('sos');
