@@ -586,6 +586,19 @@ export default function CommunicationsPage({ initialSelectedCaseId, initialCaseM
                   <div style={{ fontSize: 12.5, color: "var(--text)", lineHeight: 1.6 }}>{b.val || <span style={{ fontStyle: "italic", color: "var(--text-muted)" }}>None provided</span>}</div>
                 </div>
               ))}
+
+              {!["resolved", "closed"].includes(selectedCaseDetails.status) && (
+                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                  <button
+                    type="button"
+                    onClick={openResolveModal}
+                    className="btn btn-primary"
+                    style={{ minWidth: 140, padding: "10px 14px", fontSize: 12 }}
+                  >
+                    Mark as Resolved
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1219,4 +1232,3 @@ export default function CommunicationsPage({ initialSelectedCaseId, initialCaseM
     </div>
   );
 }
-
