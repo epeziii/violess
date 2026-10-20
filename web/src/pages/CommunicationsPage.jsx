@@ -649,7 +649,7 @@ export default function CommunicationsPage({ initialSelectedCaseId, initialCaseM
               value={caseSearchInput}
               onChange={(e) => setCaseSearchInput(e.target.value)}
             />
-            {['all', 'urgent', 'reviewing', 'closed'].map((filter) => (
+            {['all', 'urgent', 'reviewing', 'resolved', 'closed'].map((filter) => (
               <button
                 key={filter}
                 onClick={() => setCaseFilter(filter)}
