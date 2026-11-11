@@ -37,6 +37,7 @@ function Shell() {
   const [pendingCaseSelectionKey, setPendingCaseSelectionKey] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
+  const [analyticsAlert, setAnalyticsAlert] = useState(null);
   const { notifications, unreadCount } = useNotifications(user?.uid);
   const [notifKey, setNotifKey] = useState(0);
 
@@ -56,7 +57,7 @@ function Shell() {
   const pages = {
     cases:     <ProtectedRoute key={`cases-${pendingCaseSelectionKey}`} permission="cases"><CasesPage initialSelectedCaseId={pendingCasePageCaseId} initialSelectedCaseKey={pendingCaseSelectionKey} /></ProtectedRoute>,
     comms:     <CommunicationsPage initialSelectedCaseId={pendingCommunicationsCaseId} initialCaseModalKey={pendingCommunicationsCaseModalKey} onNotificationHandled={() => { setPendingCommunicationsCaseModalKey(null); setPendingCommunicationsCaseId(null); }} />,
-    analytics: <AnalyticsPage />,
+    analytics: <AnalyticsPage alert={analyticsAlert} onDismissAlert={() => setAnalyticsAlert(null)} unreadCount={unreadCount} />,
     evidence:  <EvidenceStoragePage />,
     accounts:  <ProtectedRoute permission="accountManagement"><AccountManagementPage /></ProtectedRoute>,
     settings:  <SettingsPage />,
@@ -104,6 +105,9 @@ function Shell() {
               className={`nav-item ${page===n.id?"active":""}`}
               onClick={() => {
                 setPage(n.id);
+                if (n.id !== "analytics") {
+                  setAnalyticsAlert(null);
+                }
                 setNotifKey(k => k + 1);
 
                 if (n.id !== "cases") {
@@ -217,11 +221,21 @@ function Shell() {
           </div>
         </header>
 
-        <div className="alert-banner">
+        <button
+          type="button"
+          className="alert-banner alert-banner-button"
+          onClick={() => {
+            if (notifications.length === 0) return;
+            setAnalyticsAlert(notifications[0]);
+            setPage("analytics");
+          }}
+          disabled={notifications.length === 0}
+          aria-label={notifications.length > 0 ? `Open latest alert: ${notifications[0].message || notifications[0].title}` : "No new alerts"}
+        >
           <span className="alert-dot" />
           <span className="alert-text">{notifications.length > 0 && notifications[0].message ? notifications[0].message : "No new alerts"}</span>
           <span className="alert-count-pill">{unreadCount} {unreadCount === 1 ? "alert" : "alerts"}</span>
-        </div>
+        </button>
 
         <main className="page-content">
           {pages[page] || <DashboardPage onNavigate={setPage} />}

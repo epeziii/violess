@@ -28,7 +28,7 @@ async function parseJsonResponse(response, label) {
   }
 }
 
-export default function AnalyticsPage() {
+export default function AnalyticsPage({ alert, onDismissAlert, unreadCount = 0 }) {
   const [ageGroupData, setAgeGroupData] = useState([]);
   const [loadingAgeGroup, setLoadingAgeGroup] = useState(true);
 
@@ -337,8 +337,52 @@ export default function AnalyticsPage() {
     return null;
   };
 
+  const alertDate = alert?.createdAt
+    ? new Date(alert.createdAt?.toDate?.() || alert.createdAt)
+    : null;
+  const formattedAlertDate = alertDate && !Number.isNaN(alertDate.getTime())
+    ? alertDate.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
+    : null;
+
   return (
     <div>
+      {alert && (
+        <div
+          className="modal-backdrop analytics-alert-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="analytics-alert-title"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) onDismissAlert?.();
+          }}
+        >
+          <section className="analytics-alert-modal">
+            <div className="analytics-alert-accent" />
+            <button type="button" className="modal-close analytics-alert-close" onClick={onDismissAlert} aria-label="Close alert">
+              <i className="fas fa-times" aria-hidden="true" />
+            </button>
+            <div className="analytics-alert-icon">
+              <i className={`fas ${alert.type === 'sos_alert' ? 'fa-triangle-exclamation' : 'fa-bell'}`} aria-hidden="true" />
+            </div>
+            <div className="analytics-alert-eyebrow">Dashboard alert</div>
+            <h2 className="analytics-alert-title" id="analytics-alert-title">{alert.title || 'Notification'}</h2>
+            <p className="analytics-alert-message">{alert.message || 'You have a new notification.'}</p>
+            <div className="analytics-alert-details">
+              {formattedAlertDate && (
+                <span><i className="fas fa-clock" aria-hidden="true" />{formattedAlertDate}</span>
+              )}
+              {alert.caseData?.caseId && (
+                <span><i className="fas fa-folder" aria-hidden="true" />{alert.caseData.caseId}</span>
+              )}
+              <span><i className="fas fa-bell" aria-hidden="true" />{unreadCount} unread {unreadCount === 1 ? 'alert' : 'alerts'}</span>
+            </div>
+            <div className="analytics-alert-footer">
+              <span>Review this alert in your notifications.</span>
+              <button type="button" className="btn btn-primary" onClick={onDismissAlert}>Got it</button>
+            </div>
+          </section>
+        </div>
+      )}
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', letterSpacing: -0.5 }}>Analytics Dashboard</h1>
         <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>Real-time summaries and demographic breakdowns for barangay safety management.</p>
