@@ -49,13 +49,6 @@ export default function AnalyticsPage() {
     totalCount: 0
   });
 
-  const [timelineOverview, setTimelineOverview] = useState({
-    avgFirstResponse: '—',
-    avgReferralTime: '—',
-    avgCaseResolution: '—',
-    reopenRequests: '0',
-  });
-
   const monthOrder = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const currentYear = new Date().getFullYear();
   const selectedYear = currentYear;
@@ -80,14 +73,6 @@ export default function AnalyticsPage() {
         let firstResponseTotalMs = 0;
         let firstResponseCount = 0;
 
-        let referralTotalMs = 0;
-        let referralCount = 0;
-
-        let caseResolutionTotalMs = 0;
-        let caseResolutionCount = 0;
-
-        let reopenCount = 0;
-
         const now = new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
@@ -103,9 +88,6 @@ export default function AnalyticsPage() {
           const status = data.status;
           const createdAt = getDate(data.createdAt);
           const assignedAt = getDate(data.assignedAt);
-          const resolvedAt = getDate(data.resolvedAt);
-          const updatedAt = getDate(data.updatedAt);
-          const referredAt = getDate(data.referredAt);
 
           totalCount++;
 
@@ -122,23 +104,6 @@ export default function AnalyticsPage() {
           if (createdAt && assignedAt && assignedAt >= createdAt) {
             firstResponseTotalMs += assignedAt - createdAt;
             firstResponseCount += 1;
-          }
-
-          if (referredAt && assignedAt && referredAt >= assignedAt) {
-            referralTotalMs += referredAt - assignedAt;
-            referralCount += 1;
-          }
-
-          if (createdAt && resolvedAt && resolvedAt >= createdAt) {
-            caseResolutionTotalMs += resolvedAt - createdAt;
-            caseResolutionCount += 1;
-          }
-
-          if (Array.isArray(data.statusHistory)) {
-            reopenCount += data.statusHistory.filter((entry) => entry === "reopened" || entry === "reopen").length;
-          }
-          if (data.reopenRequests && Number.isFinite(data.reopenRequests)) {
-            reopenCount += Number(data.reopenRequests);
           }
         });
 
@@ -158,13 +123,6 @@ export default function AnalyticsPage() {
           resolutionRate: `${rate}%`,
           pendingReferrals: pendingReferralsCount,
           totalCount: totalCount
-        });
-
-        setTimelineOverview({
-          avgFirstResponse: formatDuration(firstResponseCount > 0 ? firstResponseTotalMs / firstResponseCount : NaN),
-          avgReferralTime: formatDuration(referralCount > 0 ? referralTotalMs / referralCount : NaN),
-          avgCaseResolution: formatDuration(caseResolutionCount > 0 ? caseResolutionTotalMs / caseResolutionCount : NaN),
-          reopenRequests: String(reopenCount),
         });
       });
 
@@ -574,49 +532,6 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      {/* Resolution Timeline Overview */}
-      <div className="card" style={{ marginTop: 16 }}>
-        <div className="card-header">
-          <span className="card-title">Resolution Timeline Overview</span>
-        </div>
-        <div className="card-body">
-          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-            {[
-              [timelineOverview.avgFirstResponse, 'Avg. first response', 'var(--primary)'],
-              [timelineOverview.avgReferralTime, 'Avg. referral time', 'var(--info)'],
-              [timelineOverview.avgCaseResolution, 'Avg. case resolution', 'var(--safe)'],
-              [timelineOverview.reopenRequests, 'Reopen requests', 'var(--warn)'],
-            ].map(([value, label, color]) => (
-              <div
-                key={label}
-                style={{
-                  textAlign: 'center',
-                  flex: 1,
-                  minWidth: 100,
-                  padding: '16px 12px',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'rgba(194, 24, 91, 0.02)',
-                  border: '0.5px solid var(--border)',
-                  transition: 'all 0.22s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--surface)';
-                  e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(194, 24, 91, 0.02)';
-                  e.currentTarget.style.boxShadow = 'none';
-                  e.currentTarget.style.transform = 'none';
-                }}
-              >
-                <div style={{ fontSize: 26, fontWeight: 800, color }}>{value}</div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', marginTop: 4 }}>{label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
