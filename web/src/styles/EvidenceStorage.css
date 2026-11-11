@@ -400,6 +400,10 @@
   transition: all 0.2s;
 }
 
+.download-btn {
+  padding: 4px 14px;
+}
+
 .action-btn:hover {
   background: var(--primary);
   color: white;

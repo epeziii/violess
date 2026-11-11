@@ -755,7 +755,7 @@ function FileCard({ file, onAccess, caseDocId, caseId }) {
       </div>
       <div className="file-type-badge">{getFileTypeBadge(file.resourceType)}</div>
       <div className="file-actions">
-        <button className="action-btn" title="Download" onClick={handleDownload}><i className="fas fa-download"></i></button>
+        <button className="action-btn download-btn" title="Download" onClick={handleDownload}><i className="fas fa-download"></i></button>
       </div>
     </div>
   );
