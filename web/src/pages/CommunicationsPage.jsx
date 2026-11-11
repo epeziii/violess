@@ -587,19 +587,19 @@ export default function CommunicationsPage({ initialSelectedCaseId, initialCaseM
                 </div>
               ))}
 
-              {!["resolved", "closed"].includes(selectedCaseDetails.status) && (
-                <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                  <button
-                    type="button"
-                    onClick={openResolveModal}
-                    className="btn btn-primary"
-                    style={{ minWidth: 140, padding: "10px 14px", fontSize: 12 }}
-                  >
-                    Mark as Resolved
-                  </button>
-                </div>
-              )}
             </div>
+            {!["resolved", "closed"].includes(selectedCaseDetails.status) && (
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  onClick={openResolveModal}
+                  className="btn btn-primary"
+                  style={{ minWidth: 140, padding: "10px 14px", fontSize: 12 }}
+                >
+                  Mark as Resolved
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
