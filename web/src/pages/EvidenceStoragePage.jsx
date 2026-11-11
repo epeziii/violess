@@ -726,9 +726,23 @@ function FileCard({ file, onAccess, caseDocId, caseId }) {
 
   return (
     <div className="file-card">
-      <div className="file-icon">
-        <i className={getFileIcon(file.resourceType)}></i>
-      </div>
+      {file.resourceType === 'image' && file.url ? (
+        <button
+          type="button"
+          className="file-image-preview"
+          onClick={handlePreview}
+          aria-label={`Preview ${file.name}`}
+        >
+          <img className="file-image-thumbnail" src={file.url} alt={file.name} />
+          <span className="file-image-preview-overlay" aria-hidden="true">
+            <i className="fas fa-eye"></i>
+          </span>
+        </button>
+      ) : (
+        <div className="file-icon">
+          <i className={getFileIcon(file.resourceType)}></i>
+        </div>
+      )}
       <div className="file-name">{file.name}</div>
       <div className="file-meta">
         <span className="file-size">
@@ -742,7 +756,6 @@ function FileCard({ file, onAccess, caseDocId, caseId }) {
       <div className="file-type-badge">{getFileTypeBadge(file.resourceType)}</div>
       <div className="file-actions">
         <button className="action-btn" title="Download" onClick={handleDownload}><i className="fas fa-download"></i></button>
-        <button className="action-btn" title="Preview" onClick={handlePreview}><i className="fas fa-eye"></i></button>
       </div>
     </div>
   );
