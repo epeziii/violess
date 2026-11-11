@@ -733,7 +733,7 @@ function FileCard({ file, onAccess, caseDocId, caseId }) {
           onClick={handlePreview}
           aria-label={`Preview ${file.name}`}
         >
-          <img className="file-image-thumbnail" src={file.url} alt={file.name} />
+          <i className={getFileIcon(file.resourceType)} aria-hidden="true"></i>
           <span className="file-image-preview-overlay" aria-hidden="true">
             <i className="fas fa-eye"></i>
           </span>
