@@ -380,6 +380,7 @@
 
 .file-actions {
   display: flex;
+  width: 100%;
   gap: 4px;
   opacity: 0;
   transition: opacity 0.2s;
@@ -401,6 +402,8 @@
 }
 
 .download-btn {
+  width: 100%;
+  box-sizing: border-box;
   padding: 4px 14px;
 }
 
